@@ -11,6 +11,7 @@ if str(LAUNCHER_PATH) not in sys.path:
 
 from launcher_core import build_menu_rows, discover_apps
 from launcher_core import execute_entry
+from launcher_core import load_global_settings, rotation_from_settings, save_global_settings
 
 
 class LauncherCoreTests(unittest.TestCase):
@@ -57,6 +58,39 @@ class LauncherCoreTests(unittest.TestCase):
 
         execute_entry(str(app_dir / "code.py"))
         self.assertEqual(marker_file.read_text(encoding="utf-8"), "42")
+
+    def test_execute_entry_passes_shared_globals(self):
+        app_dir = self.temp_dir / "SharedGlobalApp"
+        app_dir.mkdir(parents=True, exist_ok=True)
+        marker_file = app_dir / "marker.txt"
+        (app_dir / "code.py").write_text(
+            "flag = 'missing'\n"
+            "if 'SHARED_MACROPAD' in globals():\n"
+            "    flag = 'ok'\n"
+            "with open(r'" + str(marker_file) + "', 'w', encoding='utf-8') as handle:\n"
+            "    handle.write(flag)\n",
+            encoding="utf-8",
+        )
+
+        execute_entry(str(app_dir / "code.py"), shared_globals={"SHARED_MACROPAD": object()})
+        self.assertEqual(marker_file.read_text(encoding="utf-8"), "ok")
+
+    def test_global_settings_roundtrip_and_rotation_mapping(self):
+        settings_path = self.temp_dir / "global_settings.json"
+
+        defaults = load_global_settings(str(settings_path))
+        self.assertEqual(defaults.get("device_rotation"), "default")
+        self.assertEqual(rotation_from_settings(defaults), 0)
+
+        save_global_settings({"device_rotation": "flip"}, str(settings_path))
+        loaded = load_global_settings(str(settings_path))
+        self.assertEqual(loaded.get("device_rotation"), "flip")
+        self.assertEqual(rotation_from_settings(loaded), 180)
+
+    def test_save_global_settings_creates_parent_dirs(self):
+        settings_path = self.temp_dir / "userdata" / "global_settings.json"
+        save_global_settings({"device_rotation": "default"}, str(settings_path))
+        self.assertTrue(settings_path.exists())
 
 
 if __name__ == "__main__":

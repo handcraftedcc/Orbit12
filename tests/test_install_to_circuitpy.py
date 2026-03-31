@@ -80,7 +80,72 @@ class InstallScriptTests(unittest.TestCase):
         self.assertIn("--delete", cmd)
         self.assertIn("--exclude", cmd)
         self.assertIn("userdata/", cmd)
+        self.assertIn("._*", cmd)
+        self.assertIn("boot_out.txt", cmd)
         self.assertIn("--dry-run", cmd)
+
+    def test_build_rsync_command_includes_dynamic_excludes(self):
+        cmd = self.mod.build_rsync_command(
+            "/tmp/build",
+            "/Volumes/CIRCUITPY",
+            dry_run=False,
+            extra_excludes=["lib/adafruit_macropad.mpy", "lib/adafruit_midi/"],
+        )
+        self.assertIn("lib/adafruit_macropad.mpy", cmd)
+        self.assertIn("lib/adafruit_midi/", cmd)
+
+    def test_detect_existing_adafruit_paths(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = pathlib.Path(td)
+            build = td_path / "build"
+            device = td_path / "device"
+            (build / "lib").mkdir(parents=True)
+            (device / "lib").mkdir(parents=True)
+
+            # build artifacts
+            (build / "lib" / "adafruit_macropad.mpy").write_bytes(b"X")
+            (build / "lib" / "adafruit_midi").mkdir()
+            (build / "lib" / "adafruit_midi" / "__init__.mpy").write_bytes(b"X")
+            (build / "lib" / "orbit12ui").mkdir()
+            (build / "lib" / "orbit12ui" / "__init__.mpy").write_bytes(b"X")
+
+            # device currently has Adafruit libs already
+            (device / "lib" / "adafruit_macropad.mpy").write_bytes(b"OLD")
+            (device / "lib" / "adafruit_midi").mkdir()
+            (device / "lib" / "adafruit_midi" / "__init__.mpy").write_bytes(b"OLD")
+
+            excludes = self.mod.detect_existing_adafruit_paths(build, device)
+            self.assertIn("lib/adafruit_macropad.mpy", excludes)
+            self.assertIn("lib/adafruit_midi/", excludes)
+            self.assertNotIn("lib/orbit12ui/", excludes)
+
+    def test_parse_args_reinstall_flag(self):
+        args_default = self.mod.parse_args([])
+        self.assertFalse(args_default.reinstall_adafruit_libraries)
+
+        args_long = self.mod.parse_args(["--reinstall-adafruit-libraries"])
+        self.assertTrue(args_long.reinstall_adafruit_libraries)
+
+        args_compact = self.mod.parse_args(["--reinstalladafruitlibraries"])
+        self.assertTrue(args_compact.reinstall_adafruit_libraries)
+
+    def test_parse_args_no_compile_flag(self):
+        args_default = self.mod.parse_args([])
+        self.assertFalse(args_default.no_compile)
+
+        args = self.mod.parse_args(["--no-compile"])
+        self.assertTrue(args.no_compile)
+
+    def test_is_circuitpython_mpy_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = pathlib.Path(td)
+            cp = td_path / "cp.mpy"
+            mp = td_path / "mp.mpy"
+            cp.write_bytes(b"C\\x06\\x00\\x1f")
+            mp.write_bytes(b"M\\x06\\x00\\x1f")
+
+            self.assertTrue(self.mod.is_circuitpython_mpy_file(cp))
+            self.assertFalse(self.mod.is_circuitpython_mpy_file(mp))
 
 
 if __name__ == "__main__":

@@ -3,6 +3,18 @@
 from orbit12ui.parameters import ButtonParameter, FolderParameter
 
 
+class _BackItem:
+    name = ".."
+    label = ".."
+    is_editing = False
+
+    def display_value(self):
+        return ""
+
+
+BACK_ITEM = _BackItem()
+
+
 class MenuController:
     def __init__(self, items):
         self._stack = [list(items)]
@@ -25,7 +37,8 @@ class MenuController:
 
     def visible_items(self):
         context = self._context_values()
-        return [param for param in self._current_list() if param.visible(context)]
+        visible = [param for param in self._current_list() if param.visible(context)]
+        return [BACK_ITEM] + visible
 
     def _ensure_selected(self):
         visible = self.visible_items()
@@ -64,6 +77,11 @@ class MenuController:
         if item is None:
             return None
 
+        if item is BACK_ITEM:
+            if self.back():
+                return {"type": "back"}
+            return {"type": "root_back"}
+
         if item.is_editing:
             done = item.press()
             if done:
@@ -90,5 +108,6 @@ class MenuController:
         if len(self._stack) > 1:
             self._stack.pop()
             self._selected.pop()
+            self._selected[-1] = 0
             return True
         return False

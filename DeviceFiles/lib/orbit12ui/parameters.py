@@ -24,8 +24,13 @@ class BaseParameter:
         self.label = spec.get("label") or self.name
         self.viscondition = spec.get("viscondition")
         self.is_editing = False
-        # Avoid triggering subclass property setters during base init.
-        self.__dict__["value"] = spec.get("default")
+        # Some subclasses (EnumParameter) implement `value` as a property that
+        # depends on fields not yet initialized at this stage. Gracefully skip
+        # assignment here if the subclass setter is not ready yet.
+        try:
+            self.value = spec.get("default")
+        except Exception:
+            pass
 
     def visible(self, context):
         return evaluate_condition(self.viscondition, context)
@@ -278,7 +283,7 @@ class FolderParameter(BaseParameter):
         self.children = [create_parameter(child) for child in raw_children]
 
     def display_value(self):
-        return "[Folder]"
+        return ""
 
 
 def create_parameter(spec):

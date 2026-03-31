@@ -15,11 +15,26 @@ The UI is defined by JSON (`ui.json`) and rendered as a vertical list:
 
 1. Encoder rotate (normal mode): move selection between parameters.
 2. Encoder press:
+   - if selected row is `..`, go to previous menu level (or return to caller at root)
    - enters edit mode for editable parameters
    - executes action for button parameters
    - enters folder for folder parameters
 3. Encoder rotate (edit mode): changes value of the selected parameter.
 4. Encoder press (edit mode): confirm/exit edit mode.
+5. Every menu level always includes `..` as the first row.
+
+## Display Constraints (MacroPad 128x64)
+
+- Use 4 content rows + 1 status row when a title is shown.
+- Row width target is 21 monospace characters.
+- Parameter rows render as:
+  - 1 char selector prefix (`>` or space)
+  - 20 chars content area
+- List windowing keeps the selected row on the second-to-last visible row when possible, so one
+  row below remains visible as a "what's next" preview.
+- Label/value rendering:
+  - both sides truncate with `..` when not selected and overflowing
+  - selected overflowing rows scroll horizontally (marquee) to reveal hidden text
 
 ## Common Parameter Fields
 
@@ -145,7 +160,8 @@ Behavior:
 
 - contains child parameters
 - selecting enters the folder
-- display should show `[Folder]`
+- display row should show `[FolderName]` in the label area
+- folder rows should not show a value text
 
 Options:
 

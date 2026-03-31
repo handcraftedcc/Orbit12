@@ -5,9 +5,17 @@ import time
 
 from adafruit_macropad import MacroPad
 from orbit12ui import MenuController, load_ui_json
+from orbit12ui.layout import compute_window_start
+from orbit12ui.parameters import FolderParameter
+from orbit12ui.textfit import fit_single_line, fit_split_line, split_line_overflows
 
 
-VISIBLE_ROWS = 5
+VISIBLE_ROWS = 4
+ROW_WIDTH = 21
+ROW_CONTENT_WIDTH = ROW_WIDTH - 1
+SCROLL_STEP_SECONDS = 0.3
+SCROLL_IDLE_SECONDS = 0.5
+LOOP_SLEEP_SECONDS = 0.002
 
 
 def _resolve_ui_path():
@@ -25,27 +33,24 @@ def _resolve_ui_path():
     raise RuntimeError("ParamLab ui.json not found")
 
 
-def _truncate(text, limit=20):
-    if len(text) <= limit:
-        return text
-    return text[: limit - 1] + "~"
-
-
-def _render(text_lines, menu):
+def _render(text_lines, menu, scroll_tick=0, marquee_active=False):
     visible = menu.visible_items()
     if not visible:
         for line_idx in range(VISIBLE_ROWS):
             text_lines[line_idx].text = ""
-        text_lines[VISIBLE_ROWS].text = "No visible items"
+        text_lines[VISIBLE_ROWS].text = fit_single_line("No visible items", ROW_WIDTH, False, 0)
         text_lines.show()
         return
 
     selected_item = menu.current_item()
     selected_index = visible.index(selected_item)
 
-    start = 0
-    if selected_index >= VISIBLE_ROWS:
-        start = selected_index - (VISIBLE_ROWS - 1)
+    start = compute_window_start(
+        selected_index,
+        item_count=len(visible),
+        visible_rows=VISIBLE_ROWS,
+        preview_rows=1,
+    )
 
     for line_idx in range(VISIBLE_ROWS):
         item_index = start + line_idx
@@ -53,13 +58,51 @@ def _render(text_lines, menu):
         if item_index < len(visible):
             item = visible[item_index]
             prefix = ">" if item is selected_item else " "
-            left = _truncate(item.label, 9)
-            right = _truncate(item.display_value(), 11)
-            line = "%s %-9s %11s" % (prefix, left, right)
+            left = item.label
+            right = item.display_value()
+            if isinstance(item, FolderParameter):
+                left = "[" + item.label + "]"
+                right = ""
+            line = prefix + fit_split_line(
+                left,
+                right,
+                width=ROW_CONTENT_WIDTH,
+                selected=((item is selected_item) and marquee_active),
+                tick=scroll_tick,
+            )
         text_lines[line_idx].text = line
 
-    text_lines[VISIBLE_ROWS].text = "K0=Back K11=Exit"
     text_lines.show()
+
+
+def _selected_row_needs_scroll(menu):
+    item = menu.current_item()
+    if item is None:
+        return False
+    if item.is_editing:
+        return False
+    if isinstance(item, FolderParameter):
+        return split_line_overflows("[" + item.label + "]", "", ROW_CONTENT_WIDTH)
+    return split_line_overflows(item.label, item.display_value(), ROW_CONTENT_WIDTH)
+
+
+def _resolve_rotation():
+    rotation = globals().get("DEVICE_ROTATION")
+    if rotation in (0, 180):
+        return rotation
+    return 0
+
+
+def _resolve_macropad():
+    shared = globals().get("SHARED_MACROPAD")
+    if shared is not None:
+        return shared
+    return MacroPad(rotation=_resolve_rotation())
+
+
+def _drain_key_events(macropad):
+    while macropad.keys.events:
+        macropad.keys.events.get()
 
 
 def run():
@@ -69,11 +112,15 @@ def run():
 
     menu = MenuController(tabs[0]["items"])
 
-    macropad = MacroPad(rotation=180)
+    macropad = _resolve_macropad()
     macropad.display.auto_refresh = False
     text_lines = macropad.display_text(title="ParamLab")
+    _drain_key_events(macropad)
 
     dirty = True
+    scroll_tick = 0
+    last_scroll_time = time.monotonic()
+    last_input_time = last_scroll_time
     last_encoder = macropad.encoder
 
     while True:
@@ -83,6 +130,8 @@ def run():
                 if event.key_number == 0:
                     menu.back()
                     dirty = True
+                    last_input_time = time.monotonic()
+                    scroll_tick = 0
                 elif event.key_number == 11:
                     return
 
@@ -91,18 +140,37 @@ def run():
             last_encoder = macropad.encoder
             menu.rotate(delta)
             dirty = True
+            last_input_time = time.monotonic()
+            scroll_tick = 0
 
         macropad.encoder_switch_debounced.update()
         if macropad.encoder_switch_debounced.pressed:
-            menu.press()
+            result = menu.press()
+            if result and result.get("type") == "root_back":
+                return
+            dirty = True
+            last_input_time = time.monotonic()
+            scroll_tick = 0
+
+        now = time.monotonic()
+        if (
+            _selected_row_needs_scroll(menu)
+            and (now - last_input_time) >= SCROLL_IDLE_SECONDS
+            and (now - last_scroll_time) >= SCROLL_STEP_SECONDS
+        ):
+            scroll_tick += 1
+            last_scroll_time = now
             dirty = True
 
         if dirty:
-            _render(text_lines, menu)
+            marquee_active = (
+                _selected_row_needs_scroll(menu) and (now - last_input_time) >= SCROLL_IDLE_SECONDS
+            )
+            _render(text_lines, menu, scroll_tick=scroll_tick, marquee_active=marquee_active)
             macropad.display.refresh()
             dirty = False
 
-        time.sleep(0.01)
+        time.sleep(LOOP_SLEEP_SECONDS)
 
 
 if __name__ == "__main__":

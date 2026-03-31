@@ -6,3 +6,6 @@ AdaFruitResources/
 
 # Build/install artifacts
 build/
+
+# Local virtualenv used for tooling
+.venv/

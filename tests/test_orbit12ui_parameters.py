@@ -118,7 +118,7 @@ class Orbit12UIParameterTests(unittest.TestCase):
         button = create_parameter({"type": "button", "name": "launch"})
         folder = create_parameter({"type": "folder", "name": "advanced", "children": []})
         self.assertEqual(button.display_value(), "Button >")
-        self.assertEqual(folder.display_value(), "[Folder]")
+        self.assertEqual(folder.display_value(), "")
 
     def test_viscondition_operators(self):
         context = {"a": 3, "b": 5, "s": "ARP", "x": "OTHER"}

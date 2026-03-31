@@ -9,7 +9,15 @@ from rainbowio import colorwheel
 
 CC_NUM = 74  # select your CC number
 
-macropad = MacroPad(rotation=180)  # create the macropad object, rotate orientation
+shared_macropad = globals().get("SHARED_MACROPAD")
+if shared_macropad is None:
+    rotation = globals().get("DEVICE_ROTATION", 0)
+    if rotation not in (0, 180):
+        rotation = 0
+    macropad = MacroPad(rotation=rotation)
+else:
+    macropad = shared_macropad
+
 macropad.display.auto_refresh = False  # avoid lag
 
 # --- Pixel setup --- #
