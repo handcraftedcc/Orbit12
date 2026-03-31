@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Local heavy resources (not source of truth)
+AdaFruitResources/
+
+# Build/install artifacts
+build/
