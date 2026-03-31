@@ -19,6 +19,14 @@ class MenuController:
     def __init__(self, items):
         self._stack = [list(items)]
         self._selected = [0]
+        self._visible_cache = None
+        self._visible_cache_depth = -1
+        self._visible_cache_context = None
+
+    def _invalidate_visible_cache(self):
+        self._visible_cache = None
+        self._visible_cache_depth = -1
+        self._visible_cache_context = None
 
     def _context_values(self):
         context = {}
@@ -36,9 +44,22 @@ class MenuController:
         return self._stack[-1]
 
     def visible_items(self):
+        depth = len(self._stack)
         context = self._context_values()
+        if (
+            self._visible_cache is not None
+            and self._visible_cache_depth == depth
+            and self._visible_cache_context == context
+        ):
+            return self._visible_cache
         visible = [param for param in self._current_list() if param.visible(context)]
-        return [BACK_ITEM] + visible
+        if depth > 1:
+            self._visible_cache = [BACK_ITEM] + visible
+        else:
+            self._visible_cache = visible
+        self._visible_cache_depth = depth
+        self._visible_cache_context = context
+        return self._visible_cache
 
     def _ensure_selected(self):
         visible = self.visible_items()
@@ -64,6 +85,7 @@ class MenuController:
 
         if item.is_editing:
             item.rotate(delta)
+            self._invalidate_visible_cache()
             return
 
         visible = self.visible_items()
@@ -84,6 +106,7 @@ class MenuController:
 
         if item.is_editing:
             done = item.press()
+            self._invalidate_visible_cache()
             if done:
                 return {"type": "edit_done", "name": item.name}
             return {"type": "edit_update", "name": item.name}
@@ -91,6 +114,7 @@ class MenuController:
         if isinstance(item, FolderParameter):
             self._stack.append(item.children)
             self._selected.append(0)
+            self._invalidate_visible_cache()
             return {"type": "enter_folder", "name": item.name}
 
         if isinstance(item, ButtonParameter):
@@ -103,11 +127,13 @@ class MenuController:
         item = self.current_item()
         if item is not None and item.is_editing:
             item.stop_edit()
+            self._invalidate_visible_cache()
             return True
 
         if len(self._stack) > 1:
             self._stack.pop()
             self._selected.pop()
             self._selected[-1] = 0
+            self._invalidate_visible_cache()
             return True
         return False

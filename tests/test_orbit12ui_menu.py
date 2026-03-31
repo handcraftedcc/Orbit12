@@ -19,9 +19,6 @@ class Orbit12UIMenuTests(unittest.TestCase):
         ]
         menu = MenuController(items)
 
-        self.assertEqual(menu.current_item().name, "..")
-
-        menu.rotate(1)
         self.assertEqual(menu.current_item().name, "steps")
 
         menu.rotate(1)
@@ -46,7 +43,6 @@ class Orbit12UIMenuTests(unittest.TestCase):
         })
         menu = MenuController([folder])
 
-        menu.rotate(1)
         menu.press()  # enter folder
         self.assertEqual(menu.current_item().name, "..")
 
@@ -56,19 +52,19 @@ class Orbit12UIMenuTests(unittest.TestCase):
         menu.rotate(-1)
         back_event = menu.press()
         self.assertEqual(back_event["type"], "back")
-        self.assertEqual(menu.current_item().name, "..")
+        self.assertEqual(menu.current_item().name, "advanced")
 
     def test_button_action_event(self):
         menu = MenuController([create_parameter({"type": "button", "name": "launch_app"})])
-        menu.rotate(1)
         event = menu.press()
         self.assertEqual(event["type"], "button")
         self.assertEqual(event["name"], "launch_app")
 
-    def test_press_back_on_root_returns_root_back_event(self):
+    def test_press_on_root_item_starts_edit(self):
         menu = MenuController([create_parameter({"type": "int", "name": "steps", "default": 1, "min": 0, "max": 8})])
         event = menu.press()
-        self.assertEqual(event["type"], "root_back")
+        self.assertEqual(event["type"], "edit_start")
+        self.assertEqual(event["name"], "steps")
 
     def test_visibility_condition_hides_item(self):
         items = [
@@ -78,7 +74,7 @@ class Orbit12UIMenuTests(unittest.TestCase):
         menu = MenuController(items)
 
         names = [p.name for p in menu.visible_items()]
-        self.assertEqual(names, ["..", "mode"])
+        self.assertEqual(names, ["mode"])
 
         mode = items[0]
         mode.start_edit()
@@ -86,7 +82,7 @@ class Orbit12UIMenuTests(unittest.TestCase):
         mode.stop_edit()
 
         names = [p.name for p in menu.visible_items()]
-        self.assertEqual(names, ["..", "mode", "detail"])
+        self.assertEqual(names, ["mode", "detail"])
 
 
 if __name__ == "__main__":

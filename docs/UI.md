@@ -15,13 +15,13 @@ The UI is defined by JSON (`ui.json`) and rendered as a vertical list:
 
 1. Encoder rotate (normal mode): move selection between parameters.
 2. Encoder press:
-   - if selected row is `..`, go to previous menu level (or return to caller at root)
+   - if selected row is `..`, go to previous menu level
    - enters edit mode for editable parameters
    - executes action for button parameters
    - enters folder for folder parameters
 3. Encoder rotate (edit mode): changes value of the selected parameter.
 4. Encoder press (edit mode): confirm/exit edit mode.
-5. Every menu level always includes `..` as the first row.
+5. `..` appears only in folder/subfolder contexts (not at app root).
 
 ## Display Constraints (MacroPad 128x64)
 
@@ -98,11 +98,16 @@ Options:
 
 String edit character cycle must include, in wrap order:
 
-- `✓` (accept/save text)
-- `←` (delete previous character)
-- `✗` (cancel edit)
+- `OK` (accept/save text)
+- `<-` (delete previous character)
+- `ESC` (cancel edit)
 - `A` ... `Z`
 - `0` ... `9`
+
+Notes:
+
+- Default symbol mode is ASCII for maximum compatibility with `terminalio.FONT`.
+- Optional `symbolMode: "unicode"` can use `✓`, `←`, `✗` when a font with those glyphs is available.
 
 Example editing flow:
 

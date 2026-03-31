@@ -1,11 +1,14 @@
 """Orbit12 UI parameter models."""
 
+import time
+
 from orbit12ui.conditions import evaluate_condition
 
 NOTE_NAMES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-STRING_SYMBOLS = ("✓", "←", "✗") + tuple(chr(v) for v in range(ord("A"), ord("Z") + 1)) + tuple(
-    str(n) for n in range(10)
-)
+STRING_CONTROL_SYMBOLS_ASCII = ("OK", "<-", "ESC")
+STRING_CONTROL_SYMBOLS_UNICODE = ("✓", "←", "✗")
+STRING_ALNUM_SYMBOLS = tuple(chr(v) for v in range(ord("A"), ord("Z") + 1)) + tuple(str(n) for n in range(10))
+STRING_ENTRY_GUARD_SECONDS = 0.2
 
 
 def _clamp(value, min_value, max_value):
@@ -166,14 +169,22 @@ class StringParameter(BaseParameter):
         self.value = str(spec.get("default", ""))
         self._original = self.value
         self._buffer = self.value
-        self._symbols = STRING_SYMBOLS
+        symbol_mode = spec.get("symbolMode", "ascii")
+        controls = STRING_CONTROL_SYMBOLS_ASCII
+        if symbol_mode == "unicode":
+            controls = STRING_CONTROL_SYMBOLS_UNICODE
+        self._symbols = controls + STRING_ALNUM_SYMBOLS
         self._symbol_index = self._symbols.index("A")
+        self._entered_at = 0.0
+        self._rotated_since_enter = False
 
     def start_edit(self):
         self.is_editing = True
         self._original = self.value
         self._buffer = self.value
         self._symbol_index = self._symbols.index("A")
+        self._entered_at = time.monotonic()
+        self._rotated_since_enter = False
 
     def current_symbol(self):
         return self._symbols[self._symbol_index]
@@ -181,6 +192,7 @@ class StringParameter(BaseParameter):
     def rotate(self, delta):
         if not self.is_editing or delta == 0:
             return False
+        self._rotated_since_enter = True
         self._symbol_index = (self._symbol_index + delta) % len(self._symbols)
         return True
 
@@ -190,17 +202,25 @@ class StringParameter(BaseParameter):
             return False
 
         symbol = self.current_symbol()
-        if symbol == "✓":
+        # Guard against switch bounce causing an immediate alnum commit on edit entry.
+        if (
+            not self._rotated_since_enter
+            and symbol in STRING_ALNUM_SYMBOLS
+            and (time.monotonic() - self._entered_at) < STRING_ENTRY_GUARD_SECONDS
+        ):
+            return False
+
+        if symbol in ("✓", "OK"):
             self.value = self._buffer
             self.stop_edit()
             return True
 
-        if symbol == "←":
+        if symbol in ("←", "<-"):
             self._buffer = self._buffer[:-1]
             self.value = self._buffer
             return False
 
-        if symbol == "✗":
+        if symbol in ("✗", "X", "ESC"):
             self._buffer = self._original
             self.value = self._original
             self.stop_edit()

@@ -32,17 +32,15 @@ def _rotation_label(settings):
 
 
 def _build_rows(apps):
-    rows = [".."] + build_menu_rows(apps)
-    if not rows:
-        return ["..", "[Settings]"]
-    return rows
+    return build_menu_rows(apps)
 
 
 def _settings_rows(settings):
-    return ["..", "Device Rotation: " + _rotation_label(settings)]
+    return ["Device Rotation: " + _rotation_label(settings), "[Back]"]
 
 
-def _render(text_lines, rows, selected_index, offset, status_text="", scroll_tick=0, marquee_active=False):
+def _build_lines(rows, selected_index, offset, status_text="", scroll_tick=0, marquee_active=False):
+    lines = [""] * (VISIBLE_ROWS + 1)
     for idx in range(VISIBLE_ROWS):
         row_index = offset + idx
         line = ""
@@ -54,9 +52,19 @@ def _render(text_lines, rows, selected_index, offset, status_text="", scroll_tic
                 selected=((row_index == selected_index) and marquee_active),
                 tick=scroll_tick,
             )
-        text_lines[idx].text = line
-    text_lines[VISIBLE_ROWS].text = fit_single_line(status_text, width=ROW_WIDTH, selected=False, tick=0)
-    text_lines.show()
+        lines[idx] = line
+    lines[VISIBLE_ROWS] = fit_single_line(status_text, width=ROW_WIDTH, selected=False, tick=0)
+    return lines
+
+
+def _apply_lines(text_lines, line_cache, next_lines):
+    changed = False
+    for idx, text in enumerate(next_lines):
+        if line_cache[idx] != text:
+            text_lines[idx].text = text
+            line_cache[idx] = text
+            changed = True
+    return changed
 
 
 def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
@@ -67,6 +75,7 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
     macropad.display.auto_refresh = False
 
     text_lines = macropad.display_text(title="Orbit12 Launcher")
+    text_lines.show()
 
     apps = discover_apps(apps_root)
     rows = _build_rows(apps)
@@ -79,6 +88,8 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
     scroll_tick = 0
     status_text = ""
     dirty = True
+    line_cache = [None] * (VISIBLE_ROWS + 1)
+    needs_show = False
 
     while True:
         macropad.encoder_switch_debounced.update()
@@ -96,7 +107,7 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
 
         if macropad.encoder_switch_debounced.pressed:
             if in_settings:
-                if settings_selected == 1:
+                if settings_selected == 0:
                     if settings.get("device_rotation") == "flip":
                         settings["device_rotation"] = "default"
                     else:
@@ -127,11 +138,7 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
                     last_input_time = time.monotonic()
                     scroll_tick = 0
             else:
-                if selected == 0:
-                    status_text = ""
-                    last_input_time = time.monotonic()
-                    scroll_tick = 0
-                elif selected == len(rows) - 1:
+                if selected == len(rows) - 1:
                     in_settings = True
                     rows = _settings_rows(settings)
                     settings_selected = 0
@@ -141,7 +148,7 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
                 else:
                     try:
                         execute_entry(
-                            apps[selected - 1]["entry"],
+                            apps[selected]["entry"],
                             shared_globals={
                                 "SHARED_MACROPAD": macropad,
                                 "DEVICE_ROTATION": current_rotation,
@@ -150,8 +157,10 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
                         status_text = ""
                     except Exception as err:  # broad: launcher must stay alive
                         status_text = "Launch error"
-                        print("Launcher error launching", apps[selected - 1]["name"])
+                        print("Launcher error launching", apps[selected]["name"])
                         traceback.print_exception(type(err), err, err.__traceback__)
+                    # Another app likely replaced display.root_group; reclaim launcher UI group.
+                    needs_show = True
                     apps = discover_apps(apps_root)
                     rows = _build_rows(apps)
                     if selected >= len(rows):
@@ -185,8 +194,12 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
                 and single_line_overflows(rows[active_selected], ROW_CONTENT_WIDTH)
                 and (now - last_input_time) >= SCROLL_IDLE_SECONDS
             )
-            _render(
-                text_lines,
+            force_refresh = False
+            if needs_show:
+                text_lines.show()
+                needs_show = False
+                force_refresh = True
+            next_lines = _build_lines(
                 rows,
                 active_selected,
                 start,
@@ -194,7 +207,8 @@ def run(apps_root="/apps", settings_path="/userdata/global_settings.json"):
                 scroll_tick=scroll_tick,
                 marquee_active=marquee_active,
             )
-            macropad.display.refresh()
+            if _apply_lines(text_lines, line_cache, next_lines) or force_refresh:
+                macropad.display.refresh()
             dirty = False
 
         time.sleep(LOOP_SLEEP_SECONDS)

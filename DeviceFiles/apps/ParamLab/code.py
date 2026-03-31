@@ -4,7 +4,7 @@ import os
 import time
 
 from adafruit_macropad import MacroPad
-from orbit12ui import MenuController, load_ui_json
+from orbit12ui import MenuController, create_parameter, load_ui_json
 from orbit12ui.layout import compute_window_start
 from orbit12ui.parameters import FolderParameter
 from orbit12ui.textfit import fit_single_line, fit_split_line, split_line_overflows
@@ -33,14 +33,12 @@ def _resolve_ui_path():
     raise RuntimeError("ParamLab ui.json not found")
 
 
-def _render(text_lines, menu, scroll_tick=0, marquee_active=False):
+def _build_lines(menu, scroll_tick=0, marquee_active=False):
+    lines = [""] * (VISIBLE_ROWS + 1)
     visible = menu.visible_items()
     if not visible:
-        for line_idx in range(VISIBLE_ROWS):
-            text_lines[line_idx].text = ""
-        text_lines[VISIBLE_ROWS].text = fit_single_line("No visible items", ROW_WIDTH, False, 0)
-        text_lines.show()
-        return
+        lines[VISIBLE_ROWS] = fit_single_line("No visible items", ROW_WIDTH, False, 0)
+        return lines
 
     selected_item = menu.current_item()
     selected_index = visible.index(selected_item)
@@ -63,6 +61,9 @@ def _render(text_lines, menu, scroll_tick=0, marquee_active=False):
             if isinstance(item, FolderParameter):
                 left = "[" + item.label + "]"
                 right = ""
+            elif item.name == "exit_app":
+                left = "[Exit]"
+                right = ""
             line = prefix + fit_split_line(
                 left,
                 right,
@@ -70,9 +71,18 @@ def _render(text_lines, menu, scroll_tick=0, marquee_active=False):
                 selected=((item is selected_item) and marquee_active),
                 tick=scroll_tick,
             )
-        text_lines[line_idx].text = line
+        lines[line_idx] = line
+    return lines
 
-    text_lines.show()
+
+def _apply_lines(text_lines, line_cache, next_lines):
+    changed = False
+    for idx, text in enumerate(next_lines):
+        if line_cache[idx] != text:
+            text_lines[idx].text = text
+            line_cache[idx] = text
+            changed = True
+    return changed
 
 
 def _selected_row_needs_scroll(menu):
@@ -110,11 +120,21 @@ def run():
     if not tabs:
         raise RuntimeError("ParamLab ui.json has no tabs")
 
+    root_items = tabs[0]["items"]
+    has_exit = False
+    for item in root_items:
+        if item.name == "exit_app":
+            has_exit = True
+            break
+    if not has_exit:
+        root_items.append(create_parameter({"type": "button", "name": "exit_app", "label": "Exit"}))
+
     menu = MenuController(tabs[0]["items"])
 
     macropad = _resolve_macropad()
     macropad.display.auto_refresh = False
     text_lines = macropad.display_text(title="ParamLab")
+    text_lines.show()
     _drain_key_events(macropad)
 
     dirty = True
@@ -122,6 +142,7 @@ def run():
     last_scroll_time = time.monotonic()
     last_input_time = last_scroll_time
     last_encoder = macropad.encoder
+    line_cache = [None] * (VISIBLE_ROWS + 1)
 
     while True:
         while macropad.keys.events:
@@ -146,7 +167,7 @@ def run():
         macropad.encoder_switch_debounced.update()
         if macropad.encoder_switch_debounced.pressed:
             result = menu.press()
-            if result and result.get("type") == "root_back":
+            if result and result.get("type") == "button" and result.get("name") == "exit_app":
                 return
             dirty = True
             last_input_time = time.monotonic()
@@ -166,8 +187,9 @@ def run():
             marquee_active = (
                 _selected_row_needs_scroll(menu) and (now - last_input_time) >= SCROLL_IDLE_SECONDS
             )
-            _render(text_lines, menu, scroll_tick=scroll_tick, marquee_active=marquee_active)
-            macropad.display.refresh()
+            next_lines = _build_lines(menu, scroll_tick=scroll_tick, marquee_active=marquee_active)
+            if _apply_lines(text_lines, line_cache, next_lines):
+                macropad.display.refresh()
             dirty = False
 
         time.sleep(LOOP_SLEEP_SECONDS)

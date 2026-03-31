@@ -74,6 +74,11 @@ class Orbit12UIParameterTests(unittest.TestCase):
 
         self.assertEqual(p.display_value(), "[A]")
 
+        # First press after entering edit should only arm editing, not append default "A".
+        p.press()
+        self.assertEqual(p.value, "")
+        self.assertEqual(p.display_value(), "[A]")
+
         p.rotate(1)  # B
         p.press()    # append B
         self.assertEqual(p.value, "B")
@@ -89,7 +94,7 @@ class Orbit12UIParameterTests(unittest.TestCase):
         p.press()    # append C
         self.assertEqual(p.value, "C")
 
-        while p.current_symbol() != "✓":
+        while p.current_symbol() != "OK":
             p.rotate(-1)
         done = p.press()
         self.assertTrue(done)

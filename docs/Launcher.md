@@ -9,9 +9,8 @@ It must:
 1. List runnable apps from `/apps`
 2. Exclude the `Launcher` folder itself
 3. Render each app as `AppName >`
-4. Include `..` as the first row on each launcher page
-5. Add `[Settings]` as the last item for global settings
-6. Launch selected app entrypoint
+4. Add `[Settings]` as the last item for global settings
+5. Launch selected app entrypoint
 
 ## App Discovery
 
@@ -28,7 +27,6 @@ Folder name is the temporary display name until optional metadata file support i
 
 1. Encoder rotate: move selection
 2. Encoder press:
-   - `..` -> back/close current launcher page
    - app row -> launch app
    - `[Settings]` -> open global settings page
 3. Long selected rows should marquee-scroll; non-selected rows should truncate with `..`.
