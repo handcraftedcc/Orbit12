@@ -39,6 +39,12 @@ Each app lives in its own folder under `/apps/<AppName>/`.
 
 Apps should expose a predictable runtime loop pattern (input -> update -> render) even if the exact API is lightweight at first.
 
+UI definition model:
+
+- simple apps: static `ui.json`
+- complex apps: generated `ui.py` (returns schema at runtime)
+- both use the shared `lib/orbit12ui` menu/parameter runtime
+
 ## Shared Areas
 
 - `/lib` contains shared libraries (Adafruit + Orbit12 shared libs such as `orbit12ui`)

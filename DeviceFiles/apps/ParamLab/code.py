@@ -3,8 +3,9 @@
 import os
 import time
 
+import displayio
 from adafruit_macropad import MacroPad
-from orbit12ui import MenuController, create_parameter, load_ui_json
+from orbit12ui import MenuController, create_parameter, load_ui
 from orbit12ui.layout import compute_window_start
 from orbit12ui.parameters import FolderParameter
 from orbit12ui.textfit import fit_single_line, fit_split_line, split_line_overflows
@@ -16,10 +17,14 @@ ROW_CONTENT_WIDTH = ROW_WIDTH - 1
 SCROLL_STEP_SECONDS = 0.3
 SCROLL_IDLE_SECONDS = 0.5
 LOOP_SLEEP_SECONDS = 0.002
+ENABLE_MARQUEE = True
 
 
 def _resolve_ui_path():
     candidates = (
+        "/apps/ParamLab/ui.py",
+        "apps/ParamLab/ui.py",
+        "DeviceFiles/apps/ParamLab/ui.py",
         "/apps/ParamLab/ui.json",
         "apps/ParamLab/ui.json",
         "DeviceFiles/apps/ParamLab/ui.json",
@@ -30,7 +35,7 @@ def _resolve_ui_path():
             return path
         except OSError:
             continue
-    raise RuntimeError("ParamLab ui.json not found")
+    raise RuntimeError("ParamLab UI source not found")
 
 
 def _build_lines(menu, scroll_tick=0, marquee_active=False):
@@ -96,6 +101,15 @@ def _selected_row_needs_scroll(menu):
     return split_line_overflows(item.label, item.display_value(), ROW_CONTENT_WIDTH)
 
 
+def _selected_marquee_key(menu):
+    item = menu.current_item()
+    if item is None:
+        return None
+    if isinstance(item, FolderParameter):
+        return (item.name, "[" + item.label + "]", "", item.is_editing)
+    return (item.name, item.label, item.display_value(), item.is_editing)
+
+
 def _resolve_rotation():
     rotation = globals().get("DEVICE_ROTATION")
     if rotation in (0, 180):
@@ -110,15 +124,26 @@ def _resolve_macropad():
     return MacroPad(rotation=_resolve_rotation())
 
 
+def _build_text_ui(macropad, text_lines):
+    bg_bitmap = displayio.Bitmap(macropad.display.width, macropad.display.height, 1)
+    bg_palette = displayio.Palette(1)
+    bg_palette[0] = 0x000000
+    background = displayio.TileGrid(bg_bitmap, pixel_shader=bg_palette)
+    ui_group = displayio.Group()
+    ui_group.append(background)
+    ui_group.append(text_lines.text_group)
+    return ui_group
+
+
 def _drain_key_events(macropad):
     while macropad.keys.events:
         macropad.keys.events.get()
 
 
 def run():
-    tabs = load_ui_json(_resolve_ui_path())
+    tabs = load_ui(_resolve_ui_path())
     if not tabs:
-        raise RuntimeError("ParamLab ui.json has no tabs")
+        raise RuntimeError("ParamLab UI source has no tabs")
 
     root_items = tabs[0]["items"]
     has_exit = False
@@ -134,15 +159,18 @@ def run():
     macropad = _resolve_macropad()
     macropad.display.auto_refresh = False
     text_lines = macropad.display_text(title="ParamLab")
-    text_lines.show()
+    ui_group = _build_text_ui(macropad, text_lines)
+    macropad.display.root_group = ui_group
     _drain_key_events(macropad)
 
     dirty = True
     scroll_tick = 0
-    last_scroll_time = time.monotonic()
-    last_input_time = last_scroll_time
+    now = time.monotonic()
     last_encoder = macropad.encoder
     line_cache = [None] * (VISIBLE_ROWS + 1)
+    marquee_active = False
+    next_marquee_at = None
+    marquee_key = None
 
     while True:
         while macropad.keys.events:
@@ -151,8 +179,9 @@ def run():
                 if event.key_number == 0:
                     menu.back()
                     dirty = True
-                    last_input_time = time.monotonic()
                     scroll_tick = 0
+                    marquee_active = False
+                    next_marquee_at = None
                 elif event.key_number == 11:
                     return
 
@@ -161,8 +190,9 @@ def run():
             last_encoder = macropad.encoder
             menu.rotate(delta)
             dirty = True
-            last_input_time = time.monotonic()
             scroll_tick = 0
+            marquee_active = False
+            next_marquee_at = None
 
         macropad.encoder_switch_debounced.update()
         if macropad.encoder_switch_debounced.pressed:
@@ -170,23 +200,40 @@ def run():
             if result and result.get("type") == "button" and result.get("name") == "exit_app":
                 return
             dirty = True
-            last_input_time = time.monotonic()
             scroll_tick = 0
+            marquee_active = False
+            next_marquee_at = None
 
         now = time.monotonic()
-        if (
-            _selected_row_needs_scroll(menu)
-            and (now - last_input_time) >= SCROLL_IDLE_SECONDS
-            and (now - last_scroll_time) >= SCROLL_STEP_SECONDS
-        ):
-            scroll_tick += 1
-            last_scroll_time = now
+        if ENABLE_MARQUEE and next_marquee_at is not None and now >= next_marquee_at:
+            if marquee_active:
+                scroll_tick += 1
+                next_marquee_at = now + SCROLL_STEP_SECONDS
+            else:
+                marquee_active = True
+                next_marquee_at = now + SCROLL_STEP_SECONDS
             dirty = True
 
         if dirty:
-            marquee_active = (
-                _selected_row_needs_scroll(menu) and (now - last_input_time) >= SCROLL_IDLE_SECONDS
-            )
+            current_key = _selected_marquee_key(menu)
+            if not ENABLE_MARQUEE:
+                marquee_active = False
+                next_marquee_at = None
+            elif not _selected_row_needs_scroll(menu):
+                marquee_active = False
+                next_marquee_at = None
+                scroll_tick = 0
+                marquee_key = current_key
+            else:
+                if marquee_key != current_key:
+                    marquee_key = current_key
+                    marquee_active = False
+                    scroll_tick = 0
+                    next_marquee_at = now + SCROLL_IDLE_SECONDS
+                elif next_marquee_at is None:
+                    delay = SCROLL_STEP_SECONDS if marquee_active else SCROLL_IDLE_SECONDS
+                    next_marquee_at = now + delay
+
             next_lines = _build_lines(menu, scroll_tick=scroll_tick, marquee_active=marquee_active)
             if _apply_lines(text_lines, line_cache, next_lines):
                 macropad.display.refresh()

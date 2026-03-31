@@ -1,7 +1,9 @@
 import importlib.util
 import pathlib
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "scripts" / "install_to_circuitpy.py"
@@ -77,6 +79,7 @@ class InstallScriptTests(unittest.TestCase):
 
     def test_build_rsync_command_excludes_userdata(self):
         cmd = self.mod.build_rsync_command("/tmp/build", "/Volumes/CIRCUITPY", dry_run=True)
+        self.assertIn("--inplace", cmd)
         self.assertIn("--delete", cmd)
         self.assertIn("--exclude", cmd)
         self.assertIn("userdata/", cmd)
@@ -147,6 +150,37 @@ class InstallScriptTests(unittest.TestCase):
             self.assertTrue(self.mod.is_circuitpython_mpy_file(cp))
             self.assertFalse(self.mod.is_circuitpython_mpy_file(mp))
 
+    def test_deploy_build_excludes_codepy_and_copies_last(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = pathlib.Path(td)
+            build = td_path / "build"
+            device = td_path / "device"
+            build.mkdir()
+            device.mkdir()
+            (build / "code.py").write_text("print('ok')\n", encoding="utf-8")
+
+            with mock.patch.object(self.mod.subprocess, "run") as run_mock:
+                self.mod.deploy_build(build, device, dry_run=False, extra_excludes=["userdata/"])
+
+            cmd = run_mock.call_args[0][0]
+            self.assertIn("--exclude", cmd)
+            self.assertIn("code.py", cmd)
+            self.assertEqual((device / "code.py").read_text(encoding="utf-8"), "print('ok')\n")
+
+    def test_deploy_build_retries_rsync_failures(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = pathlib.Path(td)
+            build = td_path / "build"
+            device = td_path / "device"
+            build.mkdir()
+            device.mkdir()
+            (build / "code.py").write_text("print('ok')\n", encoding="utf-8")
+
+            err = subprocess.CalledProcessError(1, ["rsync"])
+            with mock.patch.object(self.mod.subprocess, "run", side_effect=[err, err, None]) as run_mock:
+                self.mod.deploy_build(build, device, dry_run=False, extra_excludes=[])
+
+            self.assertEqual(run_mock.call_count, 3)
 
 if __name__ == "__main__":
     unittest.main()

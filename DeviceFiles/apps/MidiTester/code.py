@@ -4,6 +4,8 @@
 # Play MIDI notes with keys
 # Click encoder to switch modes
 # Turn encoder to adjust CC, ProgramChange, or PitchBend
+import displayio
+
 from adafruit_macropad import MacroPad
 from rainbowio import colorwheel
 
@@ -41,7 +43,14 @@ midi_notes = [
 text_lines = macropad.display_text("Macropad MIDI Tester")
 text_lines[0].text = "Mode: Patch {}".format(midi_values[0]+1)  # Patch display offset by 1
 text_lines[1].text = "Press knob for modes"
-text_lines.show()
+bg_bitmap = displayio.Bitmap(macropad.display.width, macropad.display.height, 1)
+bg_palette = displayio.Palette(1)
+bg_palette[0] = 0x000000
+background = displayio.TileGrid(bg_bitmap, pixel_shader=bg_palette)
+ui_group = displayio.Group()
+ui_group.append(background)
+ui_group.append(text_lines.text_group)
+macropad.display.root_group = ui_group
 
 last_knob_pos = macropad.encoder  # store knob position state
 

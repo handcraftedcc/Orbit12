@@ -6,7 +6,8 @@ Create a reusable parameter-driven UI library in:
 
 - `lib/orbit12ui/`
 
-The UI is defined by JSON (`ui.json`) and rendered as a vertical list:
+The UI can be defined by JSON (`ui.json`) for simple apps or generated with Python (`ui.py`) for
+complex apps. Both feed the same parameter/menu engine and render as a vertical list:
 
 - label on the left
 - value on the right
@@ -191,6 +192,37 @@ Example:
     }
   ]
 }
+```
+
+## Generated UI (`ui.py`) for complex apps
+
+For apps that need runtime-generated menus (hardware scan, dynamic module list, profile-dependent
+options), use a Python UI source and load it with `orbit12ui.load_ui(path)`.
+
+Supported Python entrypoints:
+
+- `build_ui()` function that returns a schema
+- `UI_SCHEMA` constant
+- `TABS` list
+
+All forms map into the same tab schema as JSON and use the same parameter classes.
+
+Example:
+
+```python
+def build_ui():
+    modules = ["ARP", "CHORDS", "CC"]
+    return {
+        "tabs": [
+            {
+                "name": "main",
+                "items": [
+                    {"type": "enum", "name": "module", "items": modules},
+                    {"type": "int", "name": "swing", "min": 0, "max": 100, "default": 0},
+                ],
+            }
+        ]
+    }
 ```
 
 ## Conditional Visibility (`viscondition`)

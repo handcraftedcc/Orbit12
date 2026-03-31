@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Iterable, List, Sequence
 
 
@@ -143,6 +144,7 @@ def build_rsync_command(
     cmd = [
         "rsync",
         "-rv",
+        "--inplace",
         "--delete",
         "--exclude",
         "userdata/",
@@ -185,13 +187,33 @@ def deploy_build(
     dry_run: bool = False,
     extra_excludes: Sequence[str] | None = None,
 ) -> None:
+    deploy_excludes = list(extra_excludes or [])
+    # Copy root code.py last so CircuitPython auto-reload triggers only after all files land.
+    if "code.py" not in deploy_excludes:
+        deploy_excludes.append("code.py")
     cmd = build_rsync_command(
         str(build_root),
         str(device_path),
         dry_run=dry_run,
-        extra_excludes=extra_excludes,
+        extra_excludes=deploy_excludes,
     )
-    subprocess.run(cmd, check=True)
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            subprocess.run(cmd, check=True)
+            break
+        except subprocess.CalledProcessError:
+            if attempt >= max_attempts:
+                raise
+            print("Deploy attempt", attempt, "failed; retrying...")
+            time.sleep(float(attempt))
+    if dry_run:
+        return
+
+    src_code = build_root / "code.py"
+    dst_code = device_path / "code.py"
+    if src_code.exists():
+        shutil.copy2(src_code, dst_code)
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
