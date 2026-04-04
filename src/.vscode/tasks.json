@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CircuitPython Send File To REPL",
+      "type": "shell",
+      "command": "mpremote connect /dev/cu.usbmodem1101 run ${file}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Copy current file to CIRCUITPY",
+      "type": "shell",
+      "command": "cp ${file} /Volumes/CIRCUITPY/${relativeFile}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Preview sync to CIRCUITPY (include lib)",
+      "type": "shell",
+      "command": "rsync -avhn --itemize-changes --exclude='.git' --exclude='.vscode' --exclude='._*' --exclude='.DS_Store' ./ /Volumes/CIRCUITPY/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Preview sync to CIRCUITPY (exclude lib)",
+      "type": "shell",
+      "command": "rsync -avhn --itemize-changes --itemize-changes --exclude='.git' --exclude='._*' --exclude='.DS_Store' --exclude='.vscode' --exclude='lib/' ./ /Volumes/CIRCUITPY/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sync to CIRCUITPY (include lib)",
+      "type": "shell",
+      "command": "rsync -avh --exclude='.git' --exclude='.vscode' --exclude='.DS_Store' --exclude='._*' ./ /Volumes/CIRCUITPY/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sync to CIRCUITPY (exclude lib)",
+      "type": "shell",
+      "command": "rsync -avh --exclude='.git' --exclude='.vscode' --exclude='lib/' --exclude='._*' --exclude='.DS_Store' ./ /Volumes/CIRCUITPY/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Open REPL (mpremote)",
+      "type": "shell",
+      "command": "mpremote connect auto",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Copy current file to CIRCUITPY",
+      "type": "shell",
+      "command": "mkdir -p /Volumes/CIRCUITPY/$(dirname \"${relativeFile}\") && cp \"${file}\" \"/Volumes/CIRCUITPY/${relativeFile}\"",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+    "circuitpythonsync.cpbaseversion": "10",
+    "circuitpythonsync.cpfullversion": "10.1.4",
+    "circuitpythonsync.curlibtag": "20260402",
+    "python.analysis.extraPaths": [
+        "/Users/dominiklange/Library/Application Support/Code/User/globalStorage/padgettholdings.circuitpythonsync/stubs/circuitpython_stubs-10.1.4/board_definitions/adafruit_feather_rp2040",
+        "/Users/dominiklange/Documents/GitHub/Orbit12/src/libArchive/libstubs",
+        "/Users/dominiklange/Library/Application Support/Code/User/globalStorage/padgettholdings.circuitpythonsync/stubs/circuitpython_stubs-10.1.4"
+    ],
+    "circuitpythonsync.drivepath": "/Volumes/CIRCUITPY",
+    "circuitpythonsync.doNotShowWelcome": true,
+    "circuitpythonsync.cpboardname": "adafruit_feather_rp2040"
+}
