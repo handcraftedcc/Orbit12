@@ -8,13 +8,13 @@ class clock:
 		self.running = 0
 		self.mode = 0 #mode0 = internal - mode1 = external
 				
-	def calcmiditick(self):
+	def update(self):
 		# todo: instead of using current time comparison, schedule a nexttime so lateness doesn's stack and drift'
 		if not self.running:
 			return False
 		interval = 60000 / (self.bpm * 24)
 		current = ticks.ticks_ms()
-		sincelast = ticks.ticks_diff(self.miditicklasttime,current)
+		sincelast = ticks.ticks_diff(current,self.miditicklasttime)
 		if sincelast>interval:
 			self.miditick += 1
 			self.miditicklasttime = current
@@ -24,7 +24,7 @@ class clock:
 			
 	def reset(self):
 		self.miditick = 0
-		self.miditicklasttime = 0
+		self.miditicklasttime = ticks.ticks_ms()
 	
 	def clockstart(self):
 		self.reset()
@@ -33,7 +33,7 @@ class clock:
 	def clockstop(self):
 		self.reset()
 		self.running = 0
-		
+	
 	def setbpm(self,bpm):
 		self.bpm=bpm
 		
