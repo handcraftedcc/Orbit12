@@ -1,24 +1,23 @@
-import adafruit_macropad as macropad
 import adafruit_ticks as ticks
 
 class clock:
-	def __init__(self):
+	def __init__(self,):
 		self.bpm = 100
 		self.miditick = 0
 		self.miditicklasttime = 0
 		self.running = 0
 		self.mode = 0 #mode0 = internal - mode1 = external
-		self.macropad = macropad
 				
 	def calcmiditick(self):
-		if self.running:
+		# todo: instead of using current time comparison, schedule a nexttime so lateness doesn's stack and drift'
+		if not self.running:
 			return False
 		interval = 60000 / (self.bpm * 24)
-		current = ticks.ticks_ms
+		current = ticks.ticks_ms()
 		sincelast = ticks.ticks_diff(self.miditicklasttime,current)
 		if sincelast>interval:
 			self.miditick += 1
-			self.miditicklasttime = 1
+			self.miditicklasttime = current
 			return True
 		else:
 			return False
@@ -43,4 +42,4 @@ class clock:
 		
 		
 		
-		
+		 
