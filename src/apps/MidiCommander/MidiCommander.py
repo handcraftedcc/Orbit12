@@ -4,6 +4,8 @@ from .core import ui
 from .core import transport
 from .core import input
 
+SCREENREFRESHRATE = 4
+
 
 
 class MidiCommander:
@@ -14,18 +16,24 @@ class MidiCommander:
         self.screen = ui.Screen(self.macropad)
         self.neopixels = ui.NeoPixels(self.macropad)
 
+        self.clock = transport.clock()
+        self.input = input.InputManager(self.macropad)
+
+        self.runtick = 0
+
     def run(self):
         while True:
             
             # Update transport
-            
+            midi_tick = self.clock.update()
             # Get input
-            
+            inputs = self.input.get_inputs()
             # Update UI & screen (every nth tick)
-             
+            if self.runtick
             # Process slots
              
             # Output
             
-            pass
             #Manages the flow through the loop
+
+            self.runtick+=1
