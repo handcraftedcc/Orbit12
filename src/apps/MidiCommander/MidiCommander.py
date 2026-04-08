@@ -1,6 +1,8 @@
 # Main app manager
 from adafruit_macropad import MacroPad
 from .core import ui
+from .core import transport
+from .core import input
 
 
 
@@ -14,5 +16,16 @@ class MidiCommander:
 
     def run(self):
         while True:
+            
+            # Update transport
+            
+            # Get input
+            
+            # Update UI & screen (every nth tick)
+             
+            # Process slots
+             
+            # Output
+            
             pass
             #Manages the flow through the loop
