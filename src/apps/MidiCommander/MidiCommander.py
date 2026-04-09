@@ -29,7 +29,8 @@ class MidiCommander:
             # Get input
             inputs = self.input.get_inputs()
             # Update UI & screen (every nth tick)
-            if self.runtick
+            if self.runtick % SCREENREFRESHRATE == 0:
+            	self.screen.update()
             # Process slots
              
             # Output
