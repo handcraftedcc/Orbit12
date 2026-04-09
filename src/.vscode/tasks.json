@@ -10,31 +10,31 @@
     {
       "label": "Copy current file to CIRCUITPY",
       "type": "shell",
-      "command": "cp ${file} /Volumes/CIRCUITPY/${relativeFile}",
+      "command": "case \"${relativeFile}\" in libArchive/*|stubArchive/*) echo \"Skipping archive file: ${relativeFile}\" ;; *) mkdir -p \"/Volumes/CIRCUITPY/$(dirname \"${relativeFile}\")\" && if [ -f \"/Volumes/CIRCUITPY/${relativeFile}\" ] && cmp -s \"${file}\" \"/Volumes/CIRCUITPY/${relativeFile}\"; then echo \"No changes: ${relativeFile}\"; else cp \"${file}\" \"/Volumes/CIRCUITPY/${relativeFile}\"; fi ;; esac",
       "problemMatcher": []
     },
     {
       "label": "Preview sync to CIRCUITPY (include lib)",
       "type": "shell",
-      "command": "rsync -avhn --itemize-changes --exclude='.git' --exclude='.vscode' --exclude='._*' --exclude='.DS_Store' ./ /Volumes/CIRCUITPY/",
+      "command": "rsync -avhn --itemize-changes --exclude='.git' --exclude='.vscode' --exclude='._*' --exclude='.DS_Store' --exclude='libArchive/' --exclude='stubArchive/' ./ /Volumes/CIRCUITPY/",
       "problemMatcher": []
     },
     {
       "label": "Preview sync to CIRCUITPY (exclude lib)",
       "type": "shell",
-      "command": "rsync -avhn --itemize-changes --itemize-changes --exclude='.git' --exclude='._*' --exclude='.DS_Store' --exclude='.vscode' --exclude='lib/' ./ /Volumes/CIRCUITPY/",
+      "command": "rsync -avhn --itemize-changes --itemize-changes --exclude='.git' --exclude='._*' --exclude='.DS_Store' --exclude='.vscode' --exclude='lib/' --exclude='libArchive/' --exclude='stubArchive/' ./ /Volumes/CIRCUITPY/",
       "problemMatcher": []
     },
     {
       "label": "Sync to CIRCUITPY (include lib)",
       "type": "shell",
-      "command": "rsync -avh --exclude='.git' --exclude='.vscode' --exclude='.DS_Store' --exclude='._*' ./ /Volumes/CIRCUITPY/",
+      "command": "rsync -avh --exclude='.git' --exclude='.vscode' --exclude='.DS_Store' --exclude='._*' --exclude='libArchive/' --exclude='stubArchive/' ./ /Volumes/CIRCUITPY/",
       "problemMatcher": []
     },
     {
       "label": "Sync to CIRCUITPY (exclude lib)",
       "type": "shell",
-      "command": "rsync -avh --exclude='.git' --exclude='.vscode' --exclude='lib/' --exclude='._*' --exclude='.DS_Store' ./ /Volumes/CIRCUITPY/",
+      "command": "rsync -avh --exclude='.git' --exclude='.vscode' --exclude='lib/' --exclude='._*' --exclude='.DS_Store' --exclude='libArchive/' --exclude='stubArchive/' ./ /Volumes/CIRCUITPY/",
       "problemMatcher": []
     },
     {
@@ -53,7 +53,7 @@
     {
       "label": "Copy current file to CIRCUITPY",
       "type": "shell",
-      "command": "mkdir -p /Volumes/CIRCUITPY/$(dirname \"${relativeFile}\") && cp \"${file}\" \"/Volumes/CIRCUITPY/${relativeFile}\"",
+      "command": "case \"${relativeFile}\" in libArchive/*|stubArchive/*) echo \"Skipping archive file: ${relativeFile}\" ;; *) mkdir -p \"/Volumes/CIRCUITPY/$(dirname \"${relativeFile}\")\" && if [ -f \"/Volumes/CIRCUITPY/${relativeFile}\" ] && cmp -s \"${file}\" \"/Volumes/CIRCUITPY/${relativeFile}\"; then echo \"No changes: ${relativeFile}\"; else cp \"${file}\" \"/Volumes/CIRCUITPY/${relativeFile}\"; fi ;; esac",
       "problemMatcher": [],
       "presentation": {
         "reveal": "silent",

@@ -6,15 +6,12 @@ from .core import input
 
 SCREENREFRESHRATE = 4
 
-
-
 class MidiCommander:
     def __init__(self):
         self.macropad = MacroPad(rotation=0)  # create the macropad object, rotate orientation
         self.macropad.display.auto_refresh = False  # avoid lag
 
-        self.screen = ui.Screen(self.macropad)
-        self.neopixels = ui.NeoPixels(self.macropad)
+        self.ui_manager = ui.UIManager(self.macropad)
 
         self.clock = transport.clock()
         self.input = input.InputManager(self.macropad)
@@ -24,12 +21,28 @@ class MidiCommander:
     def run(self):
         while True:
             
-            # Update transport
+            ### Update transport
             midi_tick = self.clock.update()
-            # Get input
-            inputs = self.input.get_inputs()
+
+            ### Get input
+            pressed,released,knob_delta,downstate = self.input.get_inputs()
+
+            ### Process inputs
+            # Process encoder button
+            # -> depends on state - either navbar selection, parm selection, or parm confirmation
+
+            # Process encoder knob
+            # -> depends on state - either navbar jogging, parm jogging or parm modification
+
+            # Process midi keys
+            # -> if knob down then use it as function - if not emit notes
+            
+
+
+
             # Update UI & screen (every nth tick)
-            if self.runtick
+            if self.runtick:
+                pass
             # Process slots
              
             # Output
