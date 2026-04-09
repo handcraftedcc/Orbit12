@@ -5,6 +5,7 @@ class InputManager:
         self.macropad = macropad
         self.last_knob_pos = macropad.encoder
         self.downstate = 0
+        self.encoderpressconsumed = None
 
 
     def get_inputs(self):

@@ -24,7 +24,7 @@ class UIManager:
         self.parmspacing = 2
         self.navparmsepspacing = 4
 
-        self.navbar = Navbar(self.palette, self.margin, self.main_group)
+        self.chain = Chain(self.palette, self.margin, self.main_group)
         self.parameter_section = ParameterSection(self.palette, self.margin, self.main_group, self.parmspacing, self.navparmsepspacing)
 
         self.screen = Screen(self.macropad,self.main_group)
@@ -48,7 +48,7 @@ class Section:
         self.group = displayio.Group()
         pass
 
-class Navbar(Section):
+class Chain(Section):
     def __init__(self,palette,margin,main_group):
         super().__init__()
         
@@ -56,15 +56,15 @@ class Navbar(Section):
         self.selected = 0
         text = "-".join(self.items)
         self.text = text
-        self.nav_label = Label(
+        self.chain_label = Label(
             terminalio.FONT,
             text=self.text,
             color=0xFFFFFF,
             color_palette=palette,
         )
-        self.nav_label.anchor_point = (0,0)
-        self.nav_label.anchored_position = (margin,margin-3)
-        self.group.append(self.nav_label)
+        self.chain_label.anchor_point = (0,0)
+        self.chain_label.anchored_position = (margin,margin-3)
+        self.group.append(self.chain_label)
 
         # divider line
         line = displayio.Bitmap(DISPLAYRES[0]-margin*2, 1, 2)  # width, height, colors
