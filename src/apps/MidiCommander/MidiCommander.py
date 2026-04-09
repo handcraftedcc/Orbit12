@@ -41,8 +41,8 @@ class MidiCommander:
 
 
             # Update UI & screen (every nth tick)
-            if self.runtick:
-                pass
+            if self.runtick % SCREENREFRESHRATE == 0:
+            	self.screen.update()
             # Process slots
              
             # Output
