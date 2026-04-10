@@ -9,3 +9,5 @@ build/
 
 # Local virtualenv used for tooling
 .venv/
+src/libArchive
+src/stubArchive
