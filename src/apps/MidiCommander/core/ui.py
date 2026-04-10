@@ -22,10 +22,10 @@ class UIManager:
 
         self.margin = 3
         self.parmspacing = 2
-        self.navparmsepspacing = 4
+        self.chainparmsepspacing = 4
 
         self.chain = Chain(self.palette, self.margin, self.main_group)
-        self.parameter_section = ParameterSection(self.palette, self.margin, self.main_group, self.parmspacing, self.navparmsepspacing)
+        self.parameter_section = ParameterSection(self.palette, self.margin, self.main_group, self.parmspacing, self.chainparmsepspacing)
 
         self.screen = Screen(self.macropad,self.main_group)
 
@@ -35,6 +35,9 @@ class Screen:
         self.display = macropad.display
         self.display.root_group = main_group
         macropad.display.refresh()
+
+    def update(self):
+        self.display.refresh()
 
 class NeoPixels:
     def __init__(self,macropad: MacroPad):
@@ -66,6 +69,8 @@ class Chain(Section):
         self.chain_label.anchored_position = (margin,margin-3)
         self.group.append(self.chain_label)
 
+        self.set_selected(0)
+
         # divider line
         line = displayio.Bitmap(DISPLAYRES[0]-margin*2, 1, 2)  # width, height, colors
         line.fill(1)
@@ -78,12 +83,12 @@ class Chain(Section):
         main_group.append(self.group)
 
     def set_selected(self,selected):
-        self.nav_label.remove_all_accents()
-        self.nav_label.add_accent_to_substring(self.items[selected], 2, 3)
+        self.chain_label.clear_accent_ranges()
+        self.chain_label.add_accent_to_substring(self.items[selected], 2, 3)
         self.selected = selected
 
 class ParameterSection(Section):
-    def __init__(self,palette,margin,main_group,sparmspacing,navparmsepspacing):
+    def __init__(self,palette,margin,main_group,sparmspacing,chainparmsepspacing):
         super().__init__()
         self.palette = palette
         self.margin = margin
@@ -110,18 +115,19 @@ class ParameterSection(Section):
 
         main_group.append(self.group)
             
-    def set_parm(self, i, labeltext, valuetext):
+    def set_parm(self, i, labeltext, newvalue):
         label = self.parmlabels[i]
         value = self.parmvalues[i]
         label.text = labeltext
-        value.text = str(valuetext)
+        value.text = str(newvalue)
 
-    def set_parm_value(self, i, valuetext):
+    def set_parm_value(self, i, newvalue):
         value = self.parmvalues[i]
-        value.text = str(valuetext)
+        value.text = str(newvalue)
 
     def highlight_parm(self, highlightid):
-        self.parmlabels[self.highlighted].clear_accent_ranges()
+        if self.highlighted: 
+            self.parmlabels[self.highlighted].clear_accent_ranges()
         thislabel = self.parmlabels[highlightid]
         thislabel.add_accent_to_substring(thislabel.text, 2, 3)
         self.highlighted = highlightid

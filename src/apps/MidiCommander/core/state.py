@@ -1,6 +1,3 @@
-from enum import IntEnum,Enum
-
-
 class State:
     def __init__(self):
         self.chain_modules = []
@@ -14,17 +11,17 @@ class State:
         self.paramcount = 2
 
     def move_active_chain_elem(self,delta):
-        self.active_chain = (self.active_chain+delta)%8
+        self.active_chain = (self.active_chain+delta)%9
 
     def move_active_param_elem(self,delta):
         self.active_param = (self.active_param+delta)%self.paramcount
         
-class UISection(Enum):
+class UISection:
     CHAIN = 0
     PARMSELECTION = 1
     PARMEDIT = 2
 
-class ChainElements(IntEnum):
+class ChainElements:
     IN = 0
     TRANSPORT = 1
     SLOT1 = 2

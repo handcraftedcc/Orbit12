@@ -5,7 +5,7 @@ from .core import transport
 from .core import input
 from .core import state
 
-SCREENREFRESHRATE = 4
+SCREENREFRESHRATE = 1
 
 class MidiCommander:
     def __init__(self):
@@ -42,8 +42,10 @@ class MidiCommander:
             # -> depends on state - either navbar jogging, parm jogging or parm modification
             if self.state.active_ui_section == state.UISection.CHAIN:
                 self.state.move_active_chain_elem(knob_delta)
+                self.ui_manager.chain.set_selected(self.state.active_chain)
             elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                 self.state.move_active_param_elem(knob_delta)
+                self.ui_manager.parameter_section.highlight_parm(self.state.active_param)
             elif self.state.active_ui_section == state.UISection.PARMEDIT:
                 pass
 
@@ -80,7 +82,7 @@ class MidiCommander:
 
             # Update UI & screen (every nth tick)
             if self.runtick % SCREENREFRESHRATE == 0:
-            	self.screen.update()
+            	self.ui_manager.screen.update()
             # Process slots
              
             # Output
