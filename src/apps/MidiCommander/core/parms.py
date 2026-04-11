@@ -1,3 +1,4 @@
+#pylint:disable= 'invalid syntax (parms, line 120)'
 # Creates param templates
 
 class ParamManager:
@@ -114,6 +115,20 @@ class NoteParmType(ParmType):
         labels.append(cls.notes[0]+str(parm.octave_range[1]))
 
         return labels
+        
+    @classmethod
+    def getlabel(cls,parm):
+    	label = None
+    	if parm.multipe_octaves:
+    		notenum = parm.value%12
+    		octavenum = parm.value//12+parm.octave_range[0]
+    		label = cls.notes[notenum]+str(octavenum)
+    	else:
+    		notenum = parm.value
+    		label = cls.notes[notenum]
+    	
+    	return label
+    		
 
     @classmethod
     def edit(cls, parm, delta):
