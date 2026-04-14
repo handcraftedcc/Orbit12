@@ -1,4 +1,3 @@
-#pylint:disable= 'invalid syntax (parms, line 120)'
 # Creates param templates
 
 class ParamManager:
@@ -108,7 +107,7 @@ class RateParmType(ParmType):
         count = 0
         if parm.include_bars:
             count+=cls.len_bars
-        elif parm.include_rates:
+        if parm.include_rates:
             count+=cls.len_rates
         if count == 0:
             return 0
@@ -120,7 +119,7 @@ class NoteParmType(ParmType):
     notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     @classmethod
-    def getrangelabels(cls,parm): #TODO: Instead of getting all the labels in one big list just write one that just gets the current label instead.
+    def get_range_labels(cls,parm): #TODO: Instead of getting all the labels in one big list just write one that just gets the current label instead.
         labels = []
         for octave in range(parm.octave_range[0],parm.octave_range[1]):
             for note in cls.notes:
@@ -130,9 +129,9 @@ class NoteParmType(ParmType):
         return labels
         
     @classmethod
-    def getlabel(cls,parm):
+    def get_label(cls,parm):
         label = None
-        if parm.multipe_octaves:
+        if parm.multiple_octaves:
             notenum = parm.value%12
             octavenum = parm.value//12+parm.octave_range[0]
             label = cls.notes[notenum]+str(octavenum)

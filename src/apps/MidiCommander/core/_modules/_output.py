@@ -1,6 +1,6 @@
 from ..module import Module
 
-class Out(Module):
+class Output(Module):
     def __init__(self,state,slotid):
             parms = []
             super().__init__(state,slotid,parms)

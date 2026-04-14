@@ -4,7 +4,7 @@ from adafruit_macropad import MacroPad
 import displayio
 import terminalio
 from adafruit_display_text.bitmap_label import Label
-import parms as Parms
+from . import parms as Parms
 
 DISPLAYRES = (128,64)
 PARMSPERPAGE = 4

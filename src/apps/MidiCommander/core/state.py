@@ -1,4 +1,7 @@
-import _modules
+from ._modules._input import Input as InputModule
+from ._modules._empty import Empty as EmptyModule
+from ._modules._transport import Transport as TransportModule
+from ._modules._output import Output as OutputModule
 
 TOTALSLOTCOUNT = 9
 MODULESLOTCOUNT = 6
@@ -19,11 +22,11 @@ class State:
 
         #Init modules
         self.chainmodules = [None]*TOTALSLOTCOUNT
-        self.chainmodules[0] = _modules._input.Input(self,0)
-        self.chainmodules[1] = _modules._transport.Transport(self,1)
+        self.chainmodules[0] = InputModule(self,0)
+        self.chainmodules[1] = TransportModule(self,1)
         for slot in range (2,TOTALSLOTCOUNT-1):
-            self.chainmodules[slot] = _modules._empty
-        self.chainmodules[TOTALSLOTCOUNT-1] = _modules._output.Output(self,TOTALSLOTCOUNT-1)
+            self.chainmodules[slot] = EmptyModule(self,slot)
+        self.chainmodules[TOTALSLOTCOUNT-1] = OutputModule(self,TOTALSLOTCOUNT-1)
 
 
 
