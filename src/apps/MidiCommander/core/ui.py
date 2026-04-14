@@ -4,8 +4,10 @@ from adafruit_macropad import MacroPad
 import displayio
 import terminalio
 from adafruit_display_text.bitmap_label import Label
+import parms as Parms
 
 DISPLAYRES = (128,64)
+PARMSPERPAGE = 4
 
 
 class UIManager:
@@ -55,7 +57,7 @@ class Chain(Section):
     def __init__(self,palette,margin,main_group):
         super().__init__()
         
-        self.items = ["IN", "T", "1", "2", "3", "4", "5", "6", "OUT"]
+        self.items = ["I", "T", "1", "2", "3", "4", "5", "6", "O"]
         self.selected = 0
         text = "-".join(self.items)
         self.text = text
@@ -83,8 +85,9 @@ class Chain(Section):
         main_group.append(self.group)
 
     def set_selected(self,selected):
-        self.chain_label.clear_accent_ranges()
-        self.chain_label.add_accent_to_substring(self.items[selected], 2, 3)
+        labels = self.items.copy()
+        labels[selected]=f"[{labels[selected]}]"
+        self.chain_label.text="-".join(labels)
         self.selected = selected
 
 class ParameterSection(Section):
@@ -94,11 +97,13 @@ class ParameterSection(Section):
         self.margin = margin
         self.highlighted = None
         self.active = None
+        self.pages = 1
+        self.active_page = 0
         self.parmcount = 4
         self.parmlabels = []
         self.parmvalues = []
         
-        for i in range(self.parmcount):
+        for i in range(PARMSPERPAGE):
             ypos = 15+11*i
             labeltext = "label" + str(i)
             parmlabel = Label(terminalio.FONT, color_palette=palette, text=labeltext)
@@ -135,5 +140,11 @@ class ParameterSection(Section):
     def clear_parm_highlights(self):
         for i in range(self.parmcount):
             self.parmlabels[i].clear_accent_ranges()
+
+    def rebuild_parm_section(self, parms: list[Parms.Parm]):
+        self.parmcount = len(parms)
+        self.pages = self.parmcount/PARMSPERPAGE
+
+
 
 

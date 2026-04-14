@@ -71,10 +71,19 @@ class MidiCommander:
                     self.input.encoderpressconsumed = None
                 else: # Was not consumed -> knob action
                     if self.state.active_ui_section == state.UISection.CHAIN:
-                        pass
+                        #Switch state to active module
+                        self.state.active_ui_section == state.UISection.PARMSELECTION
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
+                        #Check if on chain selection -> Switch back to chain selection
+                        if self.state.active_param == -1:
+                            self.state.active_ui_section == state.UISection.CHAIN
+                        else:
+                            self.state.active_ui_section == state.UISection.PARMEDIT
+                        #Otherwise go into param edit mode
                         pass
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
+                        #Apply current parm setting and go back to parm selection mode
+
                         pass
 
             

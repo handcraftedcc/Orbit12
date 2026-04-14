@@ -1,9 +1,6 @@
-from ..core.module import Module
+from ..module import Module
 
-class Pick(Module):
-    name = "pick"
-    label = "Pick"
-    version = 1
+class Transport(Module):
     def __init__(self,state,slotid):
             parms = []
             super().__init__(state,slotid,parms)

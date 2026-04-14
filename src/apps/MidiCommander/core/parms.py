@@ -18,7 +18,8 @@ class Parm:
             include_bars = False,
             include_rates = True,
             multiple_octaves = False,
-            octave_range = (1,8)
+            octave_range = (1,8),
+            callback_function = None
         ):
 
         self.name = name
@@ -32,6 +33,7 @@ class Parm:
         self.include_rates = include_rates
         self.multiple_octaves = multiple_octaves
         self.octave_range = octave_range
+        self.callback_function = callback_function
 
     def edit(self,delta):
         self.value = self.type.edit(self,delta)
@@ -54,6 +56,7 @@ class ValueType:
     INT = 0
     FLOAT = 1
     STRING = 2
+    NONE = 3
 
 class IntParmType(ParmType):
     value_type = ValueType.INT
@@ -66,6 +69,16 @@ class PercentParmType(ParmType):
 
 class StringParmType(ParmType):
     value_type = ValueType.STRING
+
+class ButtonParmType(ParmType):
+    value_type = ValueType.NONE
+
+    @classmethod
+    def edit(cls, parm, delta):
+        if parm.callback_function is not None:
+            parm.callback_function()
+        return parm.value
+
 
 class EnumParmType(ParmType):
     value_type = ValueType.INT
@@ -118,16 +131,16 @@ class NoteParmType(ParmType):
         
     @classmethod
     def getlabel(cls,parm):
-    	label = None
-    	if parm.multipe_octaves:
-    		notenum = parm.value%12
-    		octavenum = parm.value//12+parm.octave_range[0]
-    		label = cls.notes[notenum]+str(octavenum)
-    	else:
-    		notenum = parm.value
-    		label = cls.notes[notenum]
+        label = None
+        if parm.multipe_octaves:
+            notenum = parm.value%12
+            octavenum = parm.value//12+parm.octave_range[0]
+            label = cls.notes[notenum]+str(octavenum)
+        else:
+            notenum = parm.value
+            label = cls.notes[notenum]
     	
-    	return label
+        return label
     		
 
     @classmethod
