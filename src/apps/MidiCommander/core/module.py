@@ -1,13 +1,4 @@
 from . import parms as Parms
-from ..modules.arp import Arp
-from ..modules.transpose import Transpose
-from ..modules.pick import Pick
-
-AVAILABLE_MODULES = {
-    "Arp": Arp,
-    "Transpose": Transpose,
-    "Pick": Pick
-}
 
 # Module base
 
@@ -27,13 +18,13 @@ class Module:
             remove_parm = Parms.Parm("remove","Remove",Parms.ButtonParmType,None)
             self.parms.append(remove_parm)        
 
-    def get_params(self):
+    def get_parms(self):
         return self.parms
     
-    def get_param_value(self,parmid):
+    def get_parm_value(self,parmid):
         return self.parms[parmid].value
     
-    def set_param_value(self,parmid,parmvalue):
+    def set_parm_value(self,parmid,parmvalue):
         self.parms[parmid].value = parmvalue
 
 class ModuleSelector():

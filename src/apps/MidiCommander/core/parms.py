@@ -1,6 +1,6 @@
-# Creates param templates
+# Creates parm templates
 
-class ParamManager:
+class parmManager:
     def __init__(self):
         pass
 
@@ -25,6 +25,7 @@ class Parm:
         self.label = label
         self.type = parmtype
         self.value = default
+        self.display_value = self.value
         self.minmax = minmax
         self.jogincrement = increment
         self.options = options

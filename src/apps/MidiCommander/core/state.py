@@ -5,6 +5,7 @@ from ._modules._output import Output as OutputModule
 
 TOTALSLOTCOUNT = 9
 MODULESLOTCOUNT = 6
+PARMSPERPAGE = 4
 
 
 class State:
@@ -16,28 +17,32 @@ class State:
 
         self.active_ui_section = UISection.CHAIN
         self.active_chain = ChainElements.IN
-        self.active_param = -1 #-1 would be on the chain, 0 would be parameter 0 etc
-        self.paramcount = 2
+        self.active_parm = -1 #-1 would be on the chain, 0 would be parmeter 0 etc
+        self.active_parm_page = 0
+        self.parmcount = 2
 
 
         #Init modules
-        self.chainmodules = [None]*TOTALSLOTCOUNT
-        self.chainmodules[0] = InputModule(self,0)
-        self.chainmodules[1] = TransportModule(self,1)
+        self.chain_modules = [None]*TOTALSLOTCOUNT
+        self.chain_modules[0] = InputModule(self,0)
+        self.chain_modules[1] = TransportModule(self,1)
         for slot in range (2,TOTALSLOTCOUNT-1):
-            self.chainmodules[slot] = EmptyModule(self,slot)
-        self.chainmodules[TOTALSLOTCOUNT-1] = OutputModule(self,TOTALSLOTCOUNT-1)
+            self.chain_modules[slot] = EmptyModule(self,slot)
+        self.chain_modules[TOTALSLOTCOUNT-1] = OutputModule(self,TOTALSLOTCOUNT-1)
 
 
 
     def move_active_chain_elem(self,delta):
         self.active_chain = (self.active_chain+delta)%9
+        self.parmcount = len(self.chain_modules[self.active_chain].get_parms())
+        self.active_parm = -1
 
-    def move_active_param_elem(self,delta):
-        self.active_param = (self.active_param+delta)%self.paramcount
+    def move_active_parm_elem(self,delta):
+        self.active_parm = ((self.active_parm + 1 + delta) % (self.parmcount + 1)) - 1
+        self.active_parm_page = page_index = max(0, self.active_parm) // PARMSPERPAGE
 
     def set_chain_module(self,slotid,moduleclass):
-        self.chainmodules[slotid]=moduleclass(self,slotid)
+        self.chain_modules[slotid]=moduleclass(self,slotid)
         
 class UISection:
     CHAIN = 0

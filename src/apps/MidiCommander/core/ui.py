@@ -3,18 +3,19 @@ from rainbowio import colorwheel
 from adafruit_macropad import MacroPad
 import displayio
 import terminalio
+import vectorio
 from adafruit_display_text.bitmap_label import Label
-from . import parms as Parms
+from .state import State
+from .state import PARMSPERPAGE
 
 DISPLAYRES = (128,64)
-PARMSPERPAGE = 4
-
 
 class UIManager:
-    def __init__(self,macropad: MacroPad):
+    def __init__(self,macropad: MacroPad,state):
         self.macropad = macropad
         self.main_group = displayio.Group()
         self.neopixels = NeoPixels(self.macropad)
+        self.state = state
         
         self.palette = displayio.Palette(4) 
         self.palette.make_transparent(0) # 0 = transparent
@@ -26,8 +27,8 @@ class UIManager:
         self.parmspacing = 2
         self.chainparmsepspacing = 4
 
-        self.chain = Chain(self.palette, self.margin, self.main_group)
-        self.parameter_section = ParameterSection(self.palette, self.margin, self.main_group, self.parmspacing, self.chainparmsepspacing)
+        self.chain = Chain(self.state, self.palette, self.margin, self.main_group)
+        self.parmeter_section = parmeterSection(self.state, self.palette, self.margin, self.main_group, self.parmspacing, self.chainparmsepspacing)
 
         self.screen = Screen(self.macropad,self.main_group)
 
@@ -48,14 +49,15 @@ class NeoPixels:
         macropad.pixels.fill(key_color)
 
 class Section:
-    def __init__(self):
+    def __init__(self,state: State):
         self.visible = True
         self.group = displayio.Group()
+        self.state = state
         pass
 
 class Chain(Section):
-    def __init__(self,palette,margin,main_group):
-        super().__init__()
+    def __init__(self,state,palette,margin,main_group):
+        super().__init__(state)
         
         self.items = ["I", "T", "1", "2", "3", "4", "5", "6", "O"]
         self.selected = 0
@@ -90,9 +92,16 @@ class Chain(Section):
         self.chain_label.text="-".join(labels)
         self.selected = selected
 
-class ParameterSection(Section):
-    def __init__(self,palette,margin,main_group,sparmspacing,chainparmsepspacing):
-        super().__init__()
+    def highlight_chain(self):
+        self.chain_label.clear_accent_ranges()
+        self.chain_label.add_accent_range(0,len(self.chain_label.text), 2, 3)
+
+    def clear_chain_highlights(self):
+        self.chain_label.clear_accent_ranges()
+
+class parmeterSection(Section):
+    def __init__(self,state,palette,margin,main_group,sparmspacing,chainparmsepspacing):
+        super().__init__(state)
         self.palette = palette
         self.margin = margin
         self.highlighted = None
@@ -118,20 +127,34 @@ class ParameterSection(Section):
             self.group.append(parmlabel)
             self.group.append(parmvalue)
 
+        # page indicator line
+        track_width = DISPLAYRES[0] - margin * 2
+        self.page_indicator = vectorio.Rectangle(
+            pixel_shader=palette,
+            width=track_width,
+            height=1,
+            x=margin,
+            y=DISPLAYRES[1] - margin,
+        )
+        self.page_indicator.color_index = 1
+        self.group.append(self.page_indicator)
+
+
         main_group.append(self.group)
             
-    def set_parm(self, i, labeltext, newvalue):
+    def update_parm(self, i, labeltext, newvalue):
         label = self.parmlabels[i]
         value = self.parmvalues[i]
         label.text = labeltext
         value.text = str(newvalue)
 
-    def set_parm_value(self, i, newvalue):
+    def update_parm_value(self, i, newvalue):
         value = self.parmvalues[i]
         value.text = str(newvalue)
 
-    def highlight_parm(self, highlightid):
-        if self.highlighted: 
+    def highlight_parm(self):
+        highlightid = self.state.active_parm
+        if self.highlighted is not None: 
             self.parmlabels[self.highlighted].clear_accent_ranges()
         thislabel = self.parmlabels[highlightid]
         thislabel.add_accent_to_substring(thislabel.text, 2, 3)
@@ -141,9 +164,36 @@ class ParameterSection(Section):
         for i in range(self.parmcount):
             self.parmlabels[i].clear_accent_ranges()
 
-    def rebuild_parm_section(self, parms: list[Parms.Parm]):
-        self.parmcount = len(parms)
-        self.pages = self.parmcount/PARMSPERPAGE
+    def rebuild_parm_section(self):
+        module = self.state.chain_modules[self.state.active_chain]
+        parms = module.get_parms()
+        self.parm_count = len(parms)
+        self.pages = self.parm_count//PARMSPERPAGE
+        self.activepage = self.state.active_parm//PARMSPERPAGE
+        start = self.active_page*PARMSPERPAGE
+        for i in range(PARMSPERPAGE):
+            if i<self.parm_count:
+                if parms[i+start]:
+                    newtext = None
+                    newtext = parms[i+start].label
+                    if parms[i+start].display_value:
+                        newtext = str(parms[i+start].display_value)
+                    else: 
+                        self.parmvalues[i].text = ""
+                    if newtext != self.parmvalues[i].text:
+                        self.parmlabels[i].text = newtext
+            else:
+                self.parmlabels[i].text = ""
+                self.parmvalues[i].text = ""
+
+    def set_page_indicator(self, page_index, page_count):
+        track_width = DISPLAYRES[0]-self.margin*2
+        indicator_width = track_width/page_count
+        x_offset = indicator_width*page_index
+        self.page_indicator.x = x_offset+self.margin
+        self.page_indicator.width = indicator_width
+
+        
 
 
 
