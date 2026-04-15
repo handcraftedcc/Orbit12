@@ -1,3 +1,4 @@
+#pylint:disable= 'unindent does not match any outer indentation level (apps.MidiCommander.MidiCommander, line 92)'
 # Main app manager
 from adafruit_macropad import MacroPad
 from .core import ui
@@ -26,6 +27,8 @@ class MidiCommander:
     def run(self):
         while True:
             
+            screen_update_needed = False
+            
             ### Update transport
             midi_tick = self.clock.update()
 
@@ -46,6 +49,7 @@ class MidiCommander:
             # Process encoder knob turn
             # -> depends on state - either navbar jogging, parm jogging or parm modification
             if knob_delta!=0:
+                screen_update_needed = True
                 if self.state.active_ui_section == state.UISection.CHAIN:
                         self.state.move_active_chain_elem(knob_delta)
                         self.ui_manager.chain.set_selected(self.state.active_chain)
@@ -75,7 +79,6 @@ class MidiCommander:
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
                     self.input.encoderpressconsumed = 1
-                    pass
                 else: #knob is not held -> simple button press
                     pass
 
@@ -85,18 +88,18 @@ class MidiCommander:
                 if self.input.encoderpressconsumed == 1: #Was consumed by a key press
                     self.input.encoderpressconsumed = None
                 else: # Was not consumed -> knob action
+                    screen_update_needed = True
                     if self.state.active_ui_section == state.UISection.CHAIN:
-                        #Switch state to active module
-                        self.state.active_ui_section = state.UISection.PARMSELECTION
+                	       #Switch state to active module
+                	       self.state.active_ui_section = state.UISection.PARMSELECTION
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
-                        #Check if on chain selection -> Switch back to chain selection
+                        #Check if on chain selection -> Switch back to chain selectionp
                         if self.state.active_parm == -1:
                             self.ui_manager.chain.clear_chain_highlights()
                             self.state.active_ui_section = state.UISection.CHAIN
                         else:
                             self.state.active_ui_section = state.UISection.PARMEDIT
                         #Otherwise go into parm edit mode
-                        pass
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
                         #Apply current parm setting and go back to parm selection mode
 
@@ -108,13 +111,12 @@ class MidiCommander:
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
                     self.input.encoderpressconsumed = 1
-                    pass
                 else: #knob is not held -> simple button press
                     pass
             
 
             # Update UI & screen (every nth tick)
-            if self.runtick % SCREENREFRESHRATE == 0:
+            if screen_update_needed and self.runtick % SCREENREFRESHRATE == 0:
             	self.ui_manager.screen.update()
             # Process slots
              
