@@ -43,4 +43,8 @@ class InputManager:
             self.last_knob_pos = knob_pos  # save new reading
 
         return pressed,released,knob_delta,self.downstate
+    
+
+
+    #Chord mode: Lower are 6 scale chords and upper 6 are modifiers: Inv   7   Sus   Add9   Bass   Spread -> ALTS: Octave, Power (only lower and upper), Borrow (Minor<>Major)
         
