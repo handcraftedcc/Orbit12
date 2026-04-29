@@ -2,6 +2,7 @@ from ._modules._input import Input as InputModule
 from ._modules._empty import Empty as EmptyModule
 from ._modules._transport import Transport as TransportModule
 from ._modules._output import Output as OutputModule
+import gc
 
 TOTALSLOTCOUNT = 9
 MODULESLOTCOUNT = 6
@@ -21,6 +22,7 @@ class State:
         self.active_parm_page = 0
         self.parmcount = 2
 
+        self.ui_manager = None
 
         #Init modules
         self.chain_modules = [None]*TOTALSLOTCOUNT
@@ -29,8 +31,6 @@ class State:
         for slot in range (2,TOTALSLOTCOUNT-1):
             self.chain_modules[slot] = EmptyModule(self,slot)
         self.chain_modules[TOTALSLOTCOUNT-1] = OutputModule(self,TOTALSLOTCOUNT-1)
-
-
 
     def move_active_chain_elem(self,delta):
         self.active_chain = (self.active_chain+delta)%9
@@ -43,6 +43,25 @@ class State:
 
     def set_chain_module(self,slotid,moduleclass):
         self.chain_modules[slotid]=moduleclass(self,slotid)
+        self.active_parm=0
+        self.ui_manager.parmeter_section.rebuild_parm_section()
+
+    def reset_chain_module(self, slotid):
+        oldmodule = self.chain_modules[slotid]
+
+        if oldmodule is not None:
+            oldmodule.remove()
+
+        self.chain_modules[slotid] = EmptyModule(self, slotid)
+        self.active_parm=0
+        self.ui_manager.parmeter_section.rebuild_parm_section()
+
+        gc.collect()
+
+
+    def get_active_module_parm(self):
+        return self.chain_modules[self.active_chain].get_parm(self.active_parm)
+
         
 class UISection:
     CHAIN = 0

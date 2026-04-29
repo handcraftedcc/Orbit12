@@ -18,7 +18,9 @@ class Parm:
             include_rates = True,
             multiple_octaves = False,
             octave_range = (1,8),
-            callback_function = None
+            edit_callback_function = None,
+            enter_callback_function = None,
+            exit_callback_function = None
         ):
 
         self.name = name
@@ -33,12 +35,19 @@ class Parm:
         self.include_rates = include_rates
         self.multiple_octaves = multiple_octaves
         self.octave_range = octave_range
-        self.callback_function = callback_function
+        self.edit_callback_function = edit_callback_function
+        self.enter_callback_function = enter_callback_function
+        self.exit_callback_function = exit_callback_function
 
     def edit(self,delta):
         self.value = self.type.edit(self,delta)
         return self.value
-        
+    
+    def enter(self):
+        return self.type.enter(self)
+
+    def exit(self):
+        return self.type.exit(self)        
 
 class ParmType:
     label = None
@@ -51,6 +60,16 @@ class ParmType:
             return max(parm.minmax[0],min(parm.minmax[1],parm.value+delta))
         else:
             return parm.value+delta
+        
+    def enter(cls,parm):
+        return ParmEnterResult.STAY_IN_EDIT
+
+    def exit(cls,parm):
+        pass
+
+class ParmEnterResult:
+    STAY_IN_EDIT = 0
+    RETURN_TO_SELECTION = 1
 
 class ValueType:
     INT = 0
@@ -74,10 +93,12 @@ class ButtonParmType(ParmType):
     value_type = ValueType.NONE
 
     @classmethod
-    def edit(cls, parm, delta):
-        if parm.callback_function is not None:
-            parm.callback_function()
-        return parm.value
+    def enter(cls, parm):
+        if parm.enter_callback_function is not None:
+            parm.enter_callback_function()
+
+        return ParmEnterResult.RETURN_TO_SELECTION
+
 
 
 class EnumParmType(ParmType):

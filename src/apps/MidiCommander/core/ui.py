@@ -185,6 +185,7 @@ class parmeterSection(Section):
             else:
                 self.parmlabels[i].text = ""
                 self.parmvalues[i].text = ""
+        if self.state.active_parm != -1: self.highlight_parm()
 
     def set_page_indicator(self, page_index, page_count):
         track_width = DISPLAYRES[0]-self.margin*2

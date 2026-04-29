@@ -5,6 +5,7 @@ from .core import ui
 from .core import transport
 from .core import input
 from .core import state
+from .core import parms as Parms
 
 SCREENREFRESHRATE = 1
 
@@ -16,6 +17,8 @@ class MidiCommander:
 
         self.state = state.State()
         self.ui_manager = ui.UIManager(self.macropad,self.state)
+        self.state.ui_manager = self.ui_manager
+
         self.clock = transport.clock()
         self.input = input.InputManager(self.macropad)
 
@@ -90,8 +93,8 @@ class MidiCommander:
                 else: # Was not consumed -> knob action
                     screen_update_needed = True
                     if self.state.active_ui_section == state.UISection.CHAIN:
-                	       #Switch state to active module
-                	       self.state.active_ui_section = state.UISection.PARMSELECTION
+                            #Switch state to active module
+                            self.state.active_ui_section = state.UISection.PARMSELECTION
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                         #Check if on chain selection -> Switch back to chain selectionp
                         if self.state.active_parm == -1:
@@ -99,10 +102,16 @@ class MidiCommander:
                             self.state.active_ui_section = state.UISection.CHAIN
                         else:
                             self.state.active_ui_section = state.UISection.PARMEDIT
+                            active_parm = self.state.get_active_module_parm()
+                            enter_result = active_parm.enter()
+                            if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
+                                self.state.active_ui_section = state.UISection.PARMSELECTION
                         #Otherwise go into parm edit mode
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
                         #Apply current parm setting and go back to parm selection mode
-
+                        active_parm = self.state.get_active_module_parm()
+                        active_parm.exit()
+                        self.state.active_ui_section = state.UISection.PARMSELECTION
                         pass
                 released &= ~1
 
@@ -117,7 +126,7 @@ class MidiCommander:
 
             # Update UI & screen (every nth tick)
             if screen_update_needed and self.runtick % SCREENREFRESHRATE == 0:
-            	self.ui_manager.screen.update()
+                self.ui_manager.screen.update()
             # Process slots
              
             # Output
