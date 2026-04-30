@@ -23,9 +23,9 @@ class MidiCommander:
         self.input = input.InputManager(self.macropad)
 
 
-        self.runtick = 0
+        self.run_tick = 0
 
-        self.encoderconsumed = None
+        self.encoder_consumed = None
 
     def run(self):
         while True:
@@ -58,7 +58,7 @@ class MidiCommander:
                         self.ui_manager.chain.set_selected(self.state.active_chain)
                         self.ui_manager.parmeter_section.rebuild_parm_section()
                 elif self.state.active_ui_section == state.UISection.PARMSELECTION:
-                    currentpage = self.state.active_parm_page
+                    current_page = self.state.active_parm_page
                     self.state.move_active_parm_elem(knob_delta)
                     if self.state.active_parm < 0:
                         self.ui_manager.chain.highlight_chain()
@@ -66,7 +66,7 @@ class MidiCommander:
                     else:
                         self.ui_manager.chain.clear_chain_highlights()
                         self.ui_manager.parmeter_section.highlight_parm()
-                    if currentpage != self.state.active_parm_page:
+                    if current_page != self.state.active_parm_page:
                         self.ui_manager.parmeter_section.rebuild_parm_section()
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
                     pass
@@ -74,29 +74,29 @@ class MidiCommander:
             # Process encoder button press
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if pressed & 1:
-                self.input.encoderpressconsumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
+                self.input.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
                 pressed &= ~1
 
             # Process midi key press
             # -> if knob down then use it as function - if not emit notes
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
-                    self.input.encoderpressconsumed = 1
+                    self.input.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
                     pass
 
             # Process encoder button press
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if released & 1:
-                if self.input.encoderpressconsumed == 1: #Was consumed by a key press
-                    self.input.encoderpressconsumed = None
+                if self.input.encoder_press_consumed == 1: #Was consumed by a key press
+                    self.input.encoder_press_consumed = None
                 else: # Was not consumed -> knob action
                     screen_update_needed = True
                     if self.state.active_ui_section == state.UISection.CHAIN:
                             #Switch state to active module
                             self.state.active_ui_section = state.UISection.PARMSELECTION
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
-                        #Check if on chain selection -> Switch back to chain selectionp
+                        #Check if on chain selection -> Switch back to chain selection
                         if self.state.active_parm == -1:
                             self.ui_manager.chain.clear_chain_highlights()
                             self.state.active_ui_section = state.UISection.CHAIN
@@ -119,13 +119,13 @@ class MidiCommander:
             # -> if knob down then use it as function - if not emit notes
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
-                    self.input.encoderpressconsumed = 1
+                    self.input.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
                     pass
             
 
             # Update UI & screen (every nth tick)
-            if screen_update_needed and self.runtick % SCREENREFRESHRATE == 0:
+            if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:
                 self.ui_manager.screen.update()
             # Process slots
              
@@ -133,4 +133,4 @@ class MidiCommander:
 
             #Manages the flow through the loop
 
-            self.runtick+=1
+            self.run_tick+=1
