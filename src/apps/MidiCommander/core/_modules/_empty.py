@@ -1,6 +1,6 @@
 from .. import module as Module
 from .. import parms as Parms
-from ...modules import _registry as moduleregistry
+from ...modules import _registry as module_registry
 
 try:
     from typing import TYPE_CHECKING
@@ -10,10 +10,10 @@ except ImportError:
     pass
 
 class Empty(Module.Module):
-    def __init__(self,state: "State",slotid):
+    def __init__(self, state: "State", slot_id):
         parms = []
-        for module_class in moduleregistry.AVAILABLE_MODULES.values():
-            callback_function=lambda module_class=module_class: self.state.set_chain_module(self.slotid, module_class)
-            moduleparm = Parms.Parm(module_class.name,module_class.label,Parms.ButtonParmType,0,enter_callback_function=callback_function)
-            parms.append(moduleparm)
-        super().__init__(state,slotid,parms,include_default_parms=False)
+        for module_class in module_registry.AVAILABLE_MODULES.values():
+            callback_function=lambda module_class=module_class: self.state.set_chain_module(self.slot_id, module_class)
+            module_parm = Parms.Parm(module_class.name,module_class.label,Parms.ButtonParmType,0,enter_callback_function=callback_function)
+            parms.append(module_parm)
+        super().__init__(state, slot_id, parms, include_default_parms=False)

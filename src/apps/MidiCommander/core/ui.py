@@ -14,7 +14,7 @@ class UIManager:
     def __init__(self,macropad: MacroPad,state):
         self.macropad = macropad
         self.main_group = displayio.Group()
-        self.neopixels = NeoPixels(self.macropad)
+        self.neo_pixels = NeoPixels(self.macropad)
         self.state = state
         
         self.palette = displayio.Palette(4) 
@@ -24,11 +24,11 @@ class UIManager:
         self.palette[3] = 0xFFFFFF # 3 = selected background (white)
 
         self.margin = 3
-        self.parmspacing = 2
-        self.chainparmsepspacing = 4
+        self.parm_spacing = 2
+        self.chain_parm_sep_spacing = 4
 
         self.chain = Chain(self.state, self.palette, self.margin, self.main_group)
-        self.parmeter_section = parmeterSection(self.state, self.palette, self.margin, self.main_group, self.parmspacing, self.chainparmsepspacing)
+        self.parameter_section = ParameterSection(self.state, self.palette, self.margin, self.main_group, self.parm_spacing, self.chain_parm_sep_spacing)
 
         self.screen = Screen(self.macropad,self.main_group)
 
@@ -99,7 +99,7 @@ class Chain(Section):
     def clear_chain_highlights(self):
         self.chain_label.clear_accent_ranges()
 
-class parmeterSection(Section):
+class ParameterSection(Section):
     def __init__(self,state,palette,margin,main_group,sparmspacing,chainparmsepspacing):
         super().__init__(state)
         self.palette = palette
@@ -115,17 +115,17 @@ class parmeterSection(Section):
         for i in range(PARMSPERPAGE):
             ypos = 15+11*i
             labeltext = "label" + str(i)
-            parmlabel = Label(terminalio.FONT, color_palette=palette, text=labeltext)
-            parmlabel.anchor_point = (0, 0)
-            parmlabel.anchored_position = (margin, ypos)
-            self.parmlabels.append(parmlabel)
+            parm_label = Label(terminalio.FONT, color_palette=palette, text=labeltext)
+            parm_label.anchor_point = (0, 0)
+            parm_label.anchored_position = (margin, ypos)
+            self.parmlabels.append(parm_label)
             valuetext = str(5)
-            parmvalue = Label(terminalio.FONT, color_palette=self.palette, text=valuetext)
-            parmvalue.anchor_point = (1, 0)
-            parmvalue.anchored_position = (DISPLAYRES[0]-margin, ypos)
-            self.parmvalues.append(parmvalue)
-            self.group.append(parmlabel)
-            self.group.append(parmvalue)
+            parm_value = Label(terminalio.FONT, color_palette=self.palette, text=valuetext)
+            parm_value.anchor_point = (1, 0)
+            parm_value.anchored_position = (DISPLAYRES[0]-margin, ypos)
+            self.parmvalues.append(parm_value)
+            self.group.append(parm_label)
+            self.group.append(parm_value)
 
         # page indicator line
         track_width = DISPLAYRES[0] - margin * 2
@@ -153,12 +153,12 @@ class parmeterSection(Section):
         value.text = str(newvalue)
 
     def highlight_parm(self):
-        highlightid = self.state.active_parm
+        highlight_id = self.state.active_parm
         if self.highlighted is not None: 
             self.parmlabels[self.highlighted].clear_accent_ranges()
-        thislabel = self.parmlabels[highlightid]
-        thislabel.add_accent_to_substring(thislabel.text, 2, 3)
-        self.highlighted = highlightid
+        this_label = self.parmlabels[highlight_id]
+        this_label.add_accent_to_substring(this_label.text, 2, 3)
+        self.highlighted = highlight_id
 
     def clear_parm_highlights(self):
         for i in range(self.parmcount):

@@ -9,7 +9,7 @@ class Parm:
             self,
             name,
             label,
-            parmtype,
+            parm_type,
             default,
             minmax = None,
             increment = 1,
@@ -25,11 +25,11 @@ class Parm:
 
         self.name = name
         self.label = label
-        self.type = parmtype
+        self.type = parm_type
         self.value = default
         self.display_value = self.value
         self.minmax = minmax
-        self.jogincrement = increment
+        self.jog_increment = increment
         self.options = options
         self.include_bars = include_bars
         self.include_rates = include_rates

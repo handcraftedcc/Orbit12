@@ -9,7 +9,7 @@ class clock:
 		self.mode = 0 #mode0 = internal - mode1 = external
 				
 	def update(self):
-		# todo: instead of using current time comparison, schedule a nexttime so lateness doesn's stack and drift'
+		# todo: instead of using current time comparison, schedule a next_time so lateness doesn't stack and drift'
 		if not self.running:
 			return False
 		

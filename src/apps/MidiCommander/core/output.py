@@ -1,1 +1,1 @@
-# Handles ouput (primarily midi)
+# Handles output (primarily midi)

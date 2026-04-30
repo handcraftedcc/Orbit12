@@ -18,7 +18,7 @@ class State:
 
         self.active_ui_section = UISection.CHAIN
         self.active_chain = ChainElements.IN
-        self.active_parm = -1 #-1 would be on the chain, 0 would be parmeter 0 etc
+        self.active_parm = -1 #-1 would be on the chain, 0 would be parameter 0 etc
         self.active_parm_page = 0
         self.parmcount = 2
 
@@ -44,7 +44,7 @@ class State:
     def set_chain_module(self,slotid,moduleclass):
         self.chain_modules[slotid]=moduleclass(self,slotid)
         self.active_parm=0
-        self.ui_manager.parmeter_section.rebuild_parm_section()
+        self.ui_manager.parameter_section.rebuild_parm_section()
 
     def reset_chain_module(self, slotid):
         oldmodule = self.chain_modules[slotid]
@@ -54,7 +54,7 @@ class State:
 
         self.chain_modules[slotid] = EmptyModule(self, slotid)
         self.active_parm=0
-        self.ui_manager.parmeter_section.rebuild_parm_section()
+        self.ui_manager.parameter_section.rebuild_parm_section()
 
         gc.collect()
 

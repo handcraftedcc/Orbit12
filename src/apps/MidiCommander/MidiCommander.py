@@ -56,18 +56,18 @@ class MidiCommander:
                 if self.state.active_ui_section == state.UISection.CHAIN:
                         self.state.move_active_chain_elem(knob_delta)
                         self.ui_manager.chain.set_selected(self.state.active_chain)
-                        self.ui_manager.parmeter_section.rebuild_parm_section()
+                        self.ui_manager.parameter_section.rebuild_parm_section()
                 elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                     current_page = self.state.active_parm_page
                     self.state.move_active_parm_elem(knob_delta)
                     if self.state.active_parm < 0:
                         self.ui_manager.chain.highlight_chain()
-                        self.ui_manager.parmeter_section.clear_parm_highlights()
+                        self.ui_manager.parameter_section.clear_parm_highlights()
                     else:
                         self.ui_manager.chain.clear_chain_highlights()
-                        self.ui_manager.parmeter_section.highlight_parm()
+                        self.ui_manager.parameter_section.highlight_parm()
                     if current_page != self.state.active_parm_page:
-                        self.ui_manager.parmeter_section.rebuild_parm_section()
+                        self.ui_manager.parameter_section.rebuild_parm_section()
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
                     pass
 
