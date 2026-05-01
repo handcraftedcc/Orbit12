@@ -2,6 +2,7 @@ from ._modules._input import Input as InputModule
 from ._modules._empty import Empty as EmptyModule
 from ._modules._transport import Transport as TransportModule
 from ._modules._output import Output as OutputModule
+from ..modules._registry import AVAILABLE_MODULES
 import gc
 
 TOTALSLOTCOUNT = 9
@@ -20,9 +21,18 @@ class State:
         self.active_chain = ChainElements.IN
         self.active_parm = -1 #-1 would be on the chain, 0 would be parameter 0 etc
         self.active_parm_page = 0
-        self.parmcount = 2
+        self.parm_count = 2
 
         self.ui_manager = None
+
+        #Build available module list:
+        self.available_modules = {"empty": EmptyModule}
+        self.available_modules.update(AVAILABLE_MODULES)
+        self.available_modules_names = list(self.available_modules.keys())
+        self.available_modules_labels = []
+        for module_key in self.available_modules_names:
+            module_class = self.available_modules[module_key]
+            self.available_modules_labels.append(module_class.label)
 
         #Init modules
         self.chain_modules = [None]*TOTALSLOTCOUNT
@@ -34,35 +44,33 @@ class State:
 
     def move_active_chain_elem(self,delta):
         self.active_chain = (self.active_chain+delta)%9
-        self.parmcount = len(self.chain_modules[self.active_chain].get_parms())
+        self.parm_count = len(self.chain_modules[self.active_chain].get_parms())
         self.active_parm = -1
 
     def move_active_parm_elem(self,delta):
-        self.active_parm = ((self.active_parm + 1 + delta) % (self.parmcount + 1)) - 1
+        self.active_parm = ((self.active_parm + 1 + delta) % (self.parm_count + 1)) - 1
         self.active_parm_page = page_index = max(0, self.active_parm) // PARMSPERPAGE
 
-    def set_chain_module(self,slotid,moduleclass):
-        self.chain_modules[slotid]=moduleclass(self,slotid)
+    def set_chain_module(self, slot_id, module_class):
+        self.chain_modules[slot_id]=module_class(self, slot_id)
         self.active_parm=0
-        self.ui_manager.parameter_section.rebuild_parm_section()
 
-    def reset_chain_module(self, slotid):
-        oldmodule = self.chain_modules[slotid]
+    def reset_chain_module(self, slot_id):
+        old_module = self.chain_modules[slot_id]
 
-        if oldmodule is not None:
-            oldmodule.remove()
+        if old_module is not None:
+            old_module.remove()
 
-        self.chain_modules[slotid] = EmptyModule(self, slotid)
+        self.chain_modules[slot_id] = EmptyModule(self, slot_id)
         self.active_parm=0
-        self.ui_manager.parameter_section.rebuild_parm_section()
 
-        gc.collect()
-
+    def get_active_chain_module(self):
+        return self.chain_modules[self.active_chain]
 
     def get_active_module_parm(self):
-        return self.chain_modules[self.active_chain].get_parm(self.active_parm)
+        return self.get_active_chain_module().get_parm(self.active_parm)
 
-        
+
 class UISection:
     CHAIN = 0
     PARMSELECTION = 1

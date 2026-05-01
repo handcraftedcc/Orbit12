@@ -127,8 +127,6 @@ class ParameterSection(Section):
             self.group.append(parm_label)
             self.group.append(parm_value)
 
-        self.rebuild_parm_section()
-
         # page indicator line
         track_width = DISPLAYRES[0] - margin * 2
         self.page_indicator = vectorio.Rectangle(
@@ -176,9 +174,13 @@ class ParameterSection(Section):
         for i in range(PARMSPERPAGE):
             if i<self.parm_count:
                 if parms[i+start]:
-                    parm = parms[i + start]
-                    self.parm_labels[i].text = parm.label
-                    self.parm_values[i].text = str(parm.display_value)
+                    new_text = parms[i+start].label
+                    if parms[i+start].display_value:
+                        new_text = str(parms[i+start].display_value)
+                    else: 
+                        self.parm_values[i].text = ""
+                    if new_text != self.parm_values[i].text:
+                        self.parm_labels[i].text = new_text
             else:
                 self.parm_labels[i].text = ""
                 self.parm_values[i].text = ""

@@ -1,6 +1,6 @@
 import adafruit_ticks as ticks
 
-class clock:
+class Clock:
 	def __init__(self,):
 		self.bpm = 100
 		self.midi_tick = 0
@@ -15,23 +15,22 @@ class clock:
 		
 		current = ticks.ticks_ms()
 		if self.midi_tick_scheduled<=current:
-			self.schedule_next_tick(self)
+			self.schedule_next_tick()
 			self.midi_tick += 1
 			return True
 		else:
 			return False
 			
 	def schedule_next_tick(self):
-		interval = 60000 / (self.bpm * 24)
+		interval = int(60000 / (self.bpm * 24))
 		self.midi_tick_scheduled += ticks.ticks_add(self.midi_tick_scheduled,interval)
-			
 
 	def reset(self):
 		self.midi_tick = 0
 	
 	def clock_start(self):
 		self.reset()
-		self.schedule_next_tick(self)
+		self.schedule_next_tick()
 		self.running = 1
 		
 	def clock_stop(self):
@@ -43,7 +42,3 @@ class clock:
 		
 	def set_mode(self,mode):
 		self.mode=mode
-		
-		
-		
-		 

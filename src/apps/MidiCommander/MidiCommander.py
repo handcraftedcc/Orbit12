@@ -19,7 +19,7 @@ class MidiCommander:
         self.ui_manager = ui.UIManager(self.macropad,self.state)
         self.state.ui_manager = self.ui_manager
 
-        self.clock = transport.clock()
+        self.clock = transport.Clock()
         self.input = input.InputManager(self.macropad)
 
 
@@ -69,7 +69,8 @@ class MidiCommander:
                     if current_page != self.state.active_parm_page:
                         self.ui_manager.parameter_section.rebuild_parm_section()
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
-                    pass
+                    new_value, new_display_value = self.state.get_active_module_parm().edit(knob_delta)
+                    self.ui_manager.parameter_section.update_parm_value(self.state.active_parm,new_display_value)
 
             # Process encoder button press
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
@@ -95,6 +96,9 @@ class MidiCommander:
                     if self.state.active_ui_section == state.UISection.CHAIN:
                             #Switch state to active module
                             self.state.active_ui_section = state.UISection.PARMSELECTION
+                            self.state.active_parm = 0
+                            self.ui_manager.chain.clear_chain_highlights()
+                            self.ui_manager.parameter_section.highlight_parm()
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                         #Check if on chain selection -> Switch back to chain selection
                         if self.state.active_parm == -1:

@@ -27,7 +27,6 @@ class Parm:
         self.label = label
         self.type = parm_type
         self.value = default
-        self.display_value = self.value
         self.minmax = minmax
         self.jog_increment = increment
         self.options = options
@@ -39,9 +38,16 @@ class Parm:
         self.enter_callback_function = enter_callback_function
         self.exit_callback_function = exit_callback_function
 
+        self.display_value = self.get_display_value()
+
+    def get_display_value(self):
+        self.display_value = self.type.get_display_value(self)
+        return self.display_value
+
     def edit(self,delta):
         self.value = self.type.edit(self,delta)
-        return self.value
+        self.display_value = self.get_display_value()
+        return self.value, self.display_value
     
     def enter(self):
         return self.type.enter(self)
@@ -55,17 +61,30 @@ class ParmType:
     value_type = None
 
     @classmethod
+    def get_display_value(cls, parm):
+        return parm.value
+
+    @classmethod
     def edit(cls, parm, delta):
+        new_value = None
         if parm.minmax:
-            return max(parm.minmax[0],min(parm.minmax[1],parm.value+delta))
+            new_value = max(parm.minmax[0],min(parm.minmax[1],parm.value+delta))
         else:
-            return parm.value+delta
-        
+            new_value = parm.value+delta
+        if parm.edit_callback_function is not None:
+            parm.edit_callback_function(new_value)
+        return new_value
+
+    @classmethod
     def enter(cls,parm):
+        if parm.enter_callback_function is not None:
+            parm.enter_callback_function(parm.value)
         return ParmEnterResult.STAY_IN_EDIT
 
+    @classmethod
     def exit(cls,parm):
-        pass
+        if parm.exit_callback_function is not None:
+            parm.exit_callback_function(parm.value)
 
 class ParmEnterResult:
     STAY_IN_EDIT = 0
@@ -99,10 +118,18 @@ class ButtonParmType(ParmType):
 
         return ParmEnterResult.RETURN_TO_SELECTION
 
+    @classmethod
+    def get_display_value(cls, parm):
+        return ""
+
 
 
 class EnumParmType(ParmType):
     value_type = ValueType.INT
+
+    @classmethod
+    def get_display_value(cls, parm):
+        return parm.options[parm.value]
 
     @classmethod
     def edit(cls, parm, delta):
@@ -110,7 +137,9 @@ class EnumParmType(ParmType):
         if count == 0:
             return 0
         else:
-            return (parm.value + delta) % count
+            new_value = (parm.value + delta) % count
+            parm.display_value = parm.options[new_value]
+            return new_value
 
 class RateParmType(ParmType):
     value_type = ValueType.INT

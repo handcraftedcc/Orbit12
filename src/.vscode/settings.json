@@ -9,5 +9,7 @@
     ],
     "circuitpythonsync.drivepath": "/Volumes/CIRCUITPY",
     "circuitpythonsync.doNotShowWelcome": true,
-    "circuitpythonsync.cpboardname": "adafruit_feather_rp2040"
+    "circuitpythonsync.cpboardname": "adafruit_feather_rp2040",
+    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.autoImportCompletions": true
 }
