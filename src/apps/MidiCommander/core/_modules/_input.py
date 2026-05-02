@@ -4,13 +4,14 @@ from .. import music as Music
 import gc
 
 
-def print_ram_usage():
+def print_ram_usage(value):
     gc.collect()
     print(gc.mem_alloc())
     print(gc.mem_free())
 
 
 class Input(Module):
+    #TODO: Break input into different input modules for different types - so notes, drum & chord
     name = "input"
     label = "Input"
     def __init__(self, state, slot_id):
@@ -24,21 +25,21 @@ class Input(Module):
 
         # Root
         key_parm = Parms.Parm(name="key", label="Key", parm_type=Parms.NoteParmType, default=state.key,
-                              exit_callback_function=self.set_key)
+                              edit_callback_function=self.set_key)
         self.parms.append(key_parm)
 
         #Scale
         scale_parm = Parms.Parm(name="scale", label="Scale", parm_type=Parms.EnumParmType, default=state.scale,
-                                options=Music.SCALENAMES, exit_callback_function=self.set_scale)
+                                options=Music.SCALENAMES, edit_callback_function=self.set_scale)
         self.parms.append(scale_parm)
         # Octave
         octave_parm = Parms.Parm(name="octave", label="Octave", parm_type=Parms.IntParmType, default=0,
-                              exit_callback_function=self.set_octave)
+                              edit_callback_function=self.set_octave)
         self.parms.append(octave_parm)
 
         # Key Offset
         key_offset_parm = Parms.Parm(name="key_offset", label="Key Offset", parm_type=Parms.IntParmType, default=0,
-                                 exit_callback_function=self.set_key_offset)
+                                 edit_callback_function=self.set_key_offset)
         self.parms.append(key_offset_parm)
 
         ## Init Attributes ##

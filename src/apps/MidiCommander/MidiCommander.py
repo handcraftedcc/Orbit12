@@ -18,7 +18,7 @@ class MidiCommander:
         self.macropad.encoder_switch_debounced.interval = 0.001
 
         # Init objects
-        self.state = state.State()
+        self.state = state.State(self.macropad)
         self.ui_manager = ui.UIManager(self.macropad,self.state)
         self.clock = transport.Clock()
         self.input_manager = input.InputManager(self.macropad)
@@ -155,7 +155,7 @@ class MidiCommander:
 
             ## Process midi key release ##
             # -> if knob down then use it as function - if not emit notes
-            if pressed != 0:
+            if released != 0:
                 if downstate & 1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
@@ -170,13 +170,24 @@ class MidiCommander:
                 self.ui_manager.screen.update()
 
             ### Process slots ###
-
-            # Process inputs
+            ## Process input ##
             note_ons = self.note_ons
             note_offs = self.note_offs
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs)
 
-            for module in self.state.chain_modules:
-                note_ons, note_offs = module.process(note_ons, note_offs)
+            ## Process transport ##
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs)
+
+            ## Process modules ##
+            for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
+                note_ons, note_offs = self.state.chain_modules[slot].process(note_ons, note_offs)
+
+            ## Process output ##
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs)
+
+
+            #for module in self.state.chain_modules:
+            #    note_ons, note_offs = module.process(note_ons, note_offs)
 
             if note_ons:
                 print("Ons:", [Music.note_num_to_name(n) for n in note_ons])

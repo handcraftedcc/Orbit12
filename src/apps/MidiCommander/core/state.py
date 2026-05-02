@@ -16,7 +16,7 @@ POLYPHONY = 8
 
 
 class State:
-    def __init__(self):
+    def __init__(self, macropad):
         # Music State
         self.key = NOTES.index("C")
         self.scale = 0
@@ -39,6 +39,7 @@ class State:
         # Others
         self.ui_manager = None
         self.input_manager = None
+        self.macropad = macropad
 
         #Build available module list:
         self.available_modules = {"empty": EmptyModule}
@@ -50,6 +51,7 @@ class State:
             self.available_modules_labels.append(module_class.label)
 
         #Init modules
+        #TODO: Move this into the main midi commander out of state
         self.chain_modules = [None]*TOTALSLOTCOUNT
         self.chain_modules[0] = InputModule(self,0)
         self.chain_modules[1] = TransportModule(self,1)
