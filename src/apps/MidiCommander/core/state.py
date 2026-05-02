@@ -12,12 +12,15 @@ TOTALSLOTCOUNT = 9
 MODULESLOTCOUNT = 6
 PARMSPERPAGE = 4
 
+POLYPHONY = 8
+
 
 class State:
     def __init__(self):
         # Music State
         self.key = NOTES.index("C")
         self.scale = 0
+        self.octave = 0
         self.key_offset = 0
 
         # Timing State

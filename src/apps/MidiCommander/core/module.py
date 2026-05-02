@@ -1,8 +1,6 @@
 from . import parms as Parms
 
-
 # Module base
-
 class Module:
     name = None
     label = None
@@ -30,6 +28,8 @@ class Module:
                                      exit_callback_function=switch_module)
             self.parms.append(module_picker_parm)
 
+    ### UI Utilities ###
+
     def get_parms(self):
         return self.parms
 
@@ -55,6 +55,7 @@ class Module:
             self.state = None
             self.slot_id = None
 
-class ModuleSelector():
-    def __init__(self):
-        pass
+
+    ### Process inputs ###
+    def process(self, note_ons, note_offs):
+        return note_ons, note_offs

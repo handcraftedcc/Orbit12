@@ -1,38 +1,46 @@
-#pylint:disable= 'unindent does not match any outer indentation level (apps.MidiCommander.MidiCommander, line 92)'
 # Main app manager
 from adafruit_macropad import MacroPad
+
 from .core import ui
 from .core import transport
 from .core import input
 from .core import state
 from .core import parms as Parms
+from .core import music as Music
 
 SCREENREFRESHRATE = 1
 
 class MidiCommander:
     def __init__(self):
+        # Init macropad
         self.macropad = MacroPad(rotation=0)  # create the macropad object, rotate orientation
         self.macropad.display.auto_refresh = False  # avoid lag
         self.macropad.encoder_switch_debounced.interval = 0.001
 
+        # Init objects
         self.state = state.State()
         self.ui_manager = ui.UIManager(self.macropad,self.state)
-
         self.clock = transport.Clock()
         self.input_manager = input.InputManager(self.macropad)
 
+        # Know objects
         self.state.ui_manager = self.ui_manager
         self.state.input = self.input_manager
 
-
+        # Init items that get used each loop
         self.run_tick = 0
-
         self.encoder_consumed = None
+
+        self.note_ons = []
+        self.note_offs = []
+
 
     def run(self):
         while True:
             
             screen_update_needed = False
+            self.note_ons.clear()
+            self.note_offs.clear()
             
             ### Update transport
             midi_tick = self.clock.update()
@@ -88,13 +96,17 @@ class MidiCommander:
                 pressed &= ~1
 
 
+
             ## Process midi key press ##
             # -> if knob down then use it as function - if not emit notes
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
-                    pass
+                    # Generate note ons from keys
+                    for bit_index in range(1, 13):
+                        if pressed & (1 << bit_index):
+                            self.note_ons.append(bit_index - 1)
 
 
             ## Process encoder button release ##
@@ -147,14 +159,31 @@ class MidiCommander:
                 if downstate & 1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
-                    pass
+                    # Generate note offs from keys
+                    for bit_index in range(1, 13):
+                        if released & (1 << bit_index):
+                            self.note_offs.append(bit_index - 1)
             
 
             ### Update UI & screen (every nth tick) ###
             if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:
                 self.ui_manager.screen.update()
+
             ### Process slots ###
-             
+
+            # Process inputs
+            note_ons = self.note_ons
+            note_offs = self.note_offs
+
+            for module in self.state.chain_modules:
+                note_ons, note_offs = module.process(note_ons, note_offs)
+
+            if note_ons:
+                print("Ons:", [Music.note_num_to_name(n) for n in note_ons])
+
+            if note_offs:
+                print("Offs:", [Music.note_num_to_name(n) for n in note_offs])
+
             ### Output ###
 
             ### Loop Progression ###
