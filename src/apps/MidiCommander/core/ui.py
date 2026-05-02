@@ -127,8 +127,6 @@ class ParameterSection(Section):
             self.group.append(parm_label)
             self.group.append(parm_value)
 
-        self.rebuild_parm_section()
-
         # page indicator line
         track_width = DISPLAYRES[0] - margin * 2
         self.page_indicator = vectorio.Rectangle(
@@ -141,21 +139,27 @@ class ParameterSection(Section):
         self.page_indicator.color_index = 1
         self.group.append(self.page_indicator)
 
+        self.rebuild_parm_section()
 
         main_group.append(self.group)
             
-    def update_parm(self, i, labeltext, new_value):
-        label = self.parm_labels[i]
-        value = self.parm_values[i]
+    def update_parm(self, labeltext, new_value):
+        parm_id = self.state.active_parm % PARMSPERPAGE
+        label = self.parm_labels[parm_id]
+        value = self.parm_values[parm_id]
         label.text = labeltext
         value.text = str(new_value)
 
-    def update_parm_value(self, i, new_value):
-        value = self.parm_values[i]
+    def update_parm_value(self, new_value):
+        parm_id = self.state.active_parm % PARMSPERPAGE
+        value = self.parm_values[parm_id]
         value.text = str(new_value)
+        if parm_id == self.highlighted:
+            value.clear_accent_ranges()
+            value.add_accent_range(0, len(value.text), 2, 3)
 
     def highlight_parm(self):
-        highlight_id = self.state.active_parm
+        highlight_id = self.state.active_parm % PARMSPERPAGE
         if self.highlighted is not None: 
             self.parm_labels[self.highlighted].clear_accent_ranges()
         this_label = self.parm_labels[highlight_id]
@@ -163,33 +167,54 @@ class ParameterSection(Section):
         self.highlighted = highlight_id
 
     def clear_parm_highlights(self):
-        for i in range(self.parm_count):
+        for i in range(PARMSPERPAGE):
             self.parm_labels[i].clear_accent_ranges()
+
+    def highlight_parm_value(self):
+        highlight_id = self.state.active_parm % PARMSPERPAGE
+
+        if self.highlighted is not None:
+            self.parm_values[self.highlighted].clear_accent_ranges()
+
+        this_label = self.parm_values[highlight_id]
+        this_label.clear_accent_ranges()
+        this_label.add_accent_range(0, len(this_label.text), 2, 3)
+
+        self.highlighted = highlight_id
+
+    def clear_parm_value_highlight(self):
+        highlight_id = self.state.active_parm % PARMSPERPAGE
+        self.parm_values[highlight_id].clear_accent_ranges()
+
+    def set_page_indicator(self):
+        track_width = DISPLAYRES[0]-self.margin*2
+        indicator_width = int(track_width/self.pages)
+        x_offset = indicator_width*self.active_page
+        self.page_indicator.x = x_offset+self.margin
+        self.page_indicator.width = indicator_width
 
     def rebuild_parm_section(self):
         module = self.state.chain_modules[self.state.active_chain]
         parms = module.get_parms()
         self.parm_count = len(parms)
-        self.pages = self.parm_count//PARMSPERPAGE
-        self.active_page = max(0,self.state.active_parm // PARMSPERPAGE)
+        self.pages = (self.parm_count + PARMSPERPAGE -1 )//PARMSPERPAGE
+        self.active_page = max(0,self.state.active_parm) // PARMSPERPAGE
         start = self.active_page*PARMSPERPAGE
         for i in range(PARMSPERPAGE):
-            if i<self.parm_count:
-                if parms[i+start]:
-                    parm = parms[i + start]
-                    self.parm_labels[i].text = parm.label
-                    self.parm_values[i].text = str(parm.display_value)
+            parm_index = start + i
+
+            if parm_index < self.parm_count:
+                parm = parms[parm_index]
+                self.parm_labels[i].text = parm.label
+                self.parm_values[i].text = str(parm.display_value)
             else:
                 self.parm_labels[i].text = ""
                 self.parm_values[i].text = ""
         if self.state.active_parm != -1: self.highlight_parm()
 
-    def set_page_indicator(self, page_index, page_count):
-        track_width = DISPLAYRES[0]-self.margin*2
-        indicator_width = track_width/page_count
-        x_offset = indicator_width*page_index
-        self.page_indicator.x = x_offset+self.margin
-        self.page_indicator.width = indicator_width
+        self.set_page_indicator()
+
+
 
         
 

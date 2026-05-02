@@ -3,6 +3,9 @@ from ._modules._empty import Empty as EmptyModule
 from ._modules._transport import Transport as TransportModule
 from ._modules._output import Output as OutputModule
 from ..modules._registry import AVAILABLE_MODULES
+from .music import NOTES
+from .music import SCALENAMES as SCALES
+
 import gc
 
 TOTALSLOTCOUNT = 9
@@ -12,18 +15,27 @@ PARMSPERPAGE = 4
 
 class State:
     def __init__(self):
-        self.chain_modules = []
-        self.key = "C"
-        self.scale = "chrom"
+        # Music State
+        self.key = NOTES.index("C")
+        self.scale = 0
+        self.key_offset = 0
+
+        # Timing State
         self.bpm = 100
 
+        # Chain State
+        self.chain_modules = []
         self.active_ui_section = UISection.CHAIN
         self.active_chain = ChainElements.IN
+
+        # Parm State
         self.active_parm = -1 #-1 would be on the chain, 0 would be parameter 0 etc
         self.active_parm_page = 0
         self.parm_count = 2
 
+        # Others
         self.ui_manager = None
+        self.input_manager = None
 
         #Build available module list:
         self.available_modules = {"empty": EmptyModule}
@@ -42,9 +54,14 @@ class State:
             self.chain_modules[slot] = EmptyModule(self,slot)
         self.chain_modules[TOTALSLOTCOUNT-1] = OutputModule(self,TOTALSLOTCOUNT-1)
 
+        self.update_parm_count()
+
+    def update_parm_count(self):
+        self.parm_count = len(self.chain_modules[self.active_chain].get_parms())
+
     def move_active_chain_elem(self,delta):
         self.active_chain = (self.active_chain+delta)%9
-        self.parm_count = len(self.chain_modules[self.active_chain].get_parms())
+        self.update_parm_count()
         self.active_parm = -1
 
     def move_active_parm_elem(self,delta):
@@ -53,6 +70,7 @@ class State:
 
     def set_chain_module(self, slot_id, module_class):
         self.chain_modules[slot_id]=module_class(self, slot_id)
+        self.update_parm_count()
         self.active_parm=0
 
     def reset_chain_module(self, slot_id):
@@ -62,6 +80,7 @@ class State:
             old_module.remove()
 
         self.chain_modules[slot_id] = EmptyModule(self, slot_id)
+        self.update_parm_count()
         self.active_parm=0
 
     def get_active_chain_module(self):

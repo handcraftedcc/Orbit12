@@ -1,4 +1,8 @@
 # Creates parm templates
+from .music import SCALENAMES
+from .music import NOTES
+from .music import RATE_LABELS
+from .music import RATE_VALUES
 
 class parmManager:
     def __init__(self):
@@ -44,15 +48,24 @@ class Parm:
         self.display_value = self.type.get_display_value(self)
         return self.display_value
 
+    def get_actual_value(self):
+        return self.type.get_actual_value(self)
+
     def edit(self,delta):
-        self.value = self.type.edit(self,delta)
+        self.value = self.type.edit(self,delta*self.jog_increment)
         self.display_value = self.get_display_value()
+        if self.edit_callback_function:
+            self.edit_callback_function(self.value)
         return self.value, self.display_value
     
     def enter(self):
+        if self.enter_callback_function:
+            self.enter_callback_function(self.value)
         return self.type.enter(self)
 
     def exit(self):
+        if self.exit_callback_function:
+            self.exit_callback_function(self.value)
         return self.type.exit(self)        
 
 class ParmType:
@@ -65,26 +78,25 @@ class ParmType:
         return parm.value
 
     @classmethod
+    def get_actual_value(cls, parm):
+        return parm.value
+
+    @classmethod
     def edit(cls, parm, delta):
         new_value = None
         if parm.minmax:
             new_value = max(parm.minmax[0],min(parm.minmax[1],parm.value+delta))
         else:
             new_value = parm.value+delta
-        if parm.edit_callback_function is not None:
-            parm.edit_callback_function(new_value)
         return new_value
 
     @classmethod
     def enter(cls,parm):
-        if parm.enter_callback_function is not None:
-            parm.enter_callback_function(parm.value)
         return ParmEnterResult.STAY_IN_EDIT
 
     @classmethod
     def exit(cls,parm):
-        if parm.exit_callback_function is not None:
-            parm.exit_callback_function(parm.value)
+        pass
 
 class ParmEnterResult:
     STAY_IN_EDIT = 0
@@ -113,9 +125,6 @@ class ButtonParmType(ParmType):
 
     @classmethod
     def enter(cls, parm):
-        if parm.enter_callback_function is not None:
-            parm.enter_callback_function()
-
         return ParmEnterResult.RETURN_TO_SELECTION
 
     @classmethod
@@ -143,21 +152,16 @@ class EnumParmType(ParmType):
 
 class RateParmType(ParmType):
     value_type = ValueType.INT
-    bars_labels = [None] * 16
-    bars_values = [None] * 16 #16ths
-    for bar in range(16):
-        bars_labels[bar] = str(16-bar)+"bars"
-        bars_values[bar] = 16*(16-bar)
-    rates_labels = ["1/1","1/1T","1/2","1/2T","1/4","1/4T","1/8","1/8T","1/16","1/16T","1/32","1/32T"]
-    rates_value = [16,16/3,8,8/3,4,4/3,2,2/3,1,1/3,0.5,0.5/3]
-    len_bars = len(bars_labels)
-    len_rates = len(rates_labels)
+    rates_labels = RATE_LABELS
+    rates_values = RATE_VALUES
+    bar_count = 16
+    len_rates = len(RATE_VALUES)
 
     @classmethod
     def edit(cls, parm, delta):
         count = 0
         if parm.include_bars:
-            count+=cls.len_bars
+            count+=cls.bar_count
         if parm.include_rates:
             count+=cls.len_rates
         if count == 0:
@@ -165,33 +169,51 @@ class RateParmType(ParmType):
         else:
             return (parm.value + delta) % count
 
+    @classmethod
+    def get_display_value(cls, parm):
+        label = None
+
+        # Rates and bars
+        if parm.include_bars and parm.include_rates:
+            if parm.value < cls.bar_count:
+                label = str(16-parm.value) + "bars"
+            else:
+                label = cls.rates_labels[parm.value-cls.bar_count]
+
+        # Rates only
+        elif parm.include_rates:
+            label = cls.rates_labels[parm.value]
+
+        # Bars only
+        else:
+            label = str(16 - parm.value)
+
+        return label
+
+    @classmethod
+    def get_actual_value(cls, parm):
+        rate = 0
+
+        # Rates and bars
+        if parm.include_bars and parm.include_rates:
+            if parm.value < cls.bar_count:
+                rate = (16-parm.value)*16
+            else:
+                rate = cls.rates_values[parm.value-cls.bar_count]
+
+        # Rates only
+        elif parm.include_rates:
+            rate = cls.rates_values[parm.value]
+
+        # Bars only
+        else:
+            rate = (16-parm.value)*16
+
+        return rate
+
 class NoteParmType(ParmType):
     value_type = ValueType.INT
-    notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-    @classmethod
-    def get_range_labels(cls,parm): #TODO: Instead of getting all the labels in one big list just write one that just gets the current label instead.
-        labels = []
-        for octave in range(parm.octave_range[0],parm.octave_range[1]):
-            for note in cls.notes:
-                labels.append(note+str(octave))
-        labels.append(cls.notes[0]+str(parm.octave_range[1]))
-
-        return labels
-        
-    @classmethod
-    def get_label(cls,parm):
-        label = None
-        if parm.multiple_octaves:
-            notenum = parm.value%12
-            octavenum = parm.value//12+parm.octave_range[0]
-            label = cls.notes[notenum]+str(octavenum)
-        else:
-            notenum = parm.value
-            label = cls.notes[notenum]
-    	
-        return label
-    		
+    notes = NOTES
 
     @classmethod
     def edit(cls, parm, delta):
@@ -202,5 +224,18 @@ class NoteParmType(ParmType):
             count = 12
         
         return max(0,min(count-1,(parm.value + delta)))
+
+    @classmethod
+    def get_display_value(cls, parm):
+        label = None
+        if parm.multiple_octaves:
+            note_num = parm.value % 12
+            octave_num = parm.value // 12 + parm.octave_range[0]
+            label = cls.notes[note_num] + str(octave_num)
+        else:
+            note_num = parm.value
+            label = cls.notes[note_num]
+
+        return label
 
 

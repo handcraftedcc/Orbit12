@@ -17,10 +17,12 @@ class MidiCommander:
 
         self.state = state.State()
         self.ui_manager = ui.UIManager(self.macropad,self.state)
-        self.state.ui_manager = self.ui_manager
 
         self.clock = transport.Clock()
-        self.input = input.InputManager(self.macropad)
+        self.input_manager = input.InputManager(self.macropad)
+
+        self.state.ui_manager = self.ui_manager
+        self.state.input = self.input_manager
 
 
         self.run_tick = 0
@@ -36,7 +38,7 @@ class MidiCommander:
             midi_tick = self.clock.update()
 
             ### Get input
-            pressed,released,knob_delta,downstate = self.input.get_inputs()
+            pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
 
             # Bitmasks:
             # FLAG = 1 << spot
@@ -48,15 +50,19 @@ class MidiCommander:
             # KNOB bit == 1
             # Key bits == 1 << KeyNum
 
-            ### Process inputs
-            # Process encoder knob turn
+            ### Process inputs ###
+            ## Process encoder knob turn ##
             # -> depends on state - either navbar jogging, parm jogging or parm modification
             if knob_delta!=0:
                 screen_update_needed = True
+
+                # Active section: Chain #
                 if self.state.active_ui_section == state.UISection.CHAIN:
                         self.state.move_active_chain_elem(knob_delta)
                         self.ui_manager.chain.set_selected(self.state.active_chain)
                         self.ui_manager.parameter_section.rebuild_parm_section()
+
+                # Active section: Parm Selection #
                 elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                     current_page = self.state.active_parm_page
                     self.state.move_active_parm_elem(knob_delta)
@@ -68,73 +74,88 @@ class MidiCommander:
                         self.ui_manager.parameter_section.highlight_parm()
                     if current_page != self.state.active_parm_page:
                         self.ui_manager.parameter_section.rebuild_parm_section()
+
+                # Active Section: Parm Edit #
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
                     new_value, new_display_value = self.state.get_active_module_parm().edit(knob_delta)
-                    self.ui_manager.parameter_section.update_parm_value(self.state.active_parm,new_display_value)
+                    self.ui_manager.parameter_section.update_parm_value(new_display_value)
 
-            # Process encoder button press
+
+            ## Process encoder button press ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if pressed & 1:
-                self.input.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
+                self.input_manager.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
                 pressed &= ~1
 
-            # Process midi key press
+
+            ## Process midi key press ##
             # -> if knob down then use it as function - if not emit notes
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
-                    self.input.encoder_press_consumed = 1
+                    self.input_manager.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
                     pass
 
-            # Process encoder button press
+
+            ## Process encoder button release ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if released & 1:
-                if self.input.encoder_press_consumed == 1: #Was consumed by a key press
-                    self.input.encoder_press_consumed = None
+                if self.input_manager.encoder_press_consumed == 1: #Was consumed by a key press
+                    self.input_manager.encoder_press_consumed = None
                 else: # Was not consumed -> knob action
                     screen_update_needed = True
+
+                    # Active section: Chain #
                     if self.state.active_ui_section == state.UISection.CHAIN:
                             #Switch state to active module
                             self.state.active_ui_section = state.UISection.PARMSELECTION
                             self.state.active_parm = 0
                             self.ui_manager.chain.clear_chain_highlights()
                             self.ui_manager.parameter_section.highlight_parm()
+
+                    # Active section: Parm Selection #
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                         #Check if on chain selection -> Switch back to chain selection
                         if self.state.active_parm == -1:
                             self.ui_manager.chain.clear_chain_highlights()
                             self.state.active_ui_section = state.UISection.CHAIN
-                        else:
+                        else: #Go into parm edit
                             self.state.active_ui_section = state.UISection.PARMEDIT
                             active_parm = self.state.get_active_module_parm()
                             enter_result = active_parm.enter()
                             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                                 self.state.active_ui_section = state.UISection.PARMSELECTION
-                        #Otherwise go into parm edit mode
+
+                            self.ui_manager.parameter_section.clear_parm_highlights()
+                            self.ui_manager.parameter_section.highlight_parm_value()
+
+                    # Active section: Parm Edit #
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
                         #Apply current parm setting and go back to parm selection mode
                         active_parm = self.state.get_active_module_parm()
                         active_parm.exit()
                         self.state.active_ui_section = state.UISection.PARMSELECTION
-                        pass
-                released &= ~1
 
-            # Process midi key release
+                        self.ui_manager.parameter_section.clear_parm_value_highlight()
+                        self.ui_manager.parameter_section.highlight_parm()
+
+                released &= ~1 # Clear knob release bit
+
+            ## Process midi key release ##
             # -> if knob down then use it as function - if not emit notes
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
-                    self.input.encoder_press_consumed = 1
+                    self.input_manager.encoder_press_consumed = 1
                 else: #knob is not held -> simple button press
                     pass
             
 
-            # Update UI & screen (every nth tick)
+            ### Update UI & screen (every nth tick) ###
             if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:
                 self.ui_manager.screen.update()
-            # Process slots
+            ### Process slots ###
              
-            # Output
+            ### Output ###
 
-            #Manages the flow through the loop
-
+            ### Loop Progression ###
             self.run_tick+=1

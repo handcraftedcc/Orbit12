@@ -10,6 +10,7 @@ class Module:
     def __init__(self, state, slot_id, parms: list[Parms.Parm], include_default_parms = True):
         self.parms = parms
         self.state = state
+        self.input = input
         self.slot_id = slot_id
 
         # Add default parms each module will have
@@ -22,9 +23,10 @@ class Module:
                     return None
                 else:
                     self.state.set_chain_module(self.slot_id, self.state.available_modules[module_key])
+                    self.state.ui_manager.parameter_section.rebuild_parm_section()
                     return module_key
             current_module_index = state.available_modules_names.index(self.name)
-            module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index, options=state.available_modules_labels,
+            module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index, options=self.state.available_modules_labels,
                                      exit_callback_function=switch_module)
             self.parms.append(module_picker_parm)
 
