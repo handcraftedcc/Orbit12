@@ -23,6 +23,8 @@ class MidiCommander:
         self.clock = transport.Clock()
         self.input_manager = input.InputManager(self.macropad)
 
+        #TODO: Instead of passing individual items into modules create one object that has all the references and pass that.
+
         # Know objects
         self.state.ui_manager = self.ui_manager
         self.state.input = self.input_manager

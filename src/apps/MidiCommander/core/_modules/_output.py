@@ -11,7 +11,7 @@ class Output(Module):
     def process(self, note_ons, note_offs):
         #TODO: Move the specifics to the output.py and just have this module call those.
         #TODO: Also, need to handle note_offs if input module changed (keys shifted etc)
-        
+
         for note in note_ons:
             self.macropad.midi.send(self.macropad.NoteOn(note, 120))  # send midi noteon
         for note in note_offs:
