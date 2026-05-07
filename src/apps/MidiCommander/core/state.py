@@ -19,7 +19,7 @@ class State:
     def __init__(self, macropad):
         # Music State
         self.key = NOTES.index("C")
-        self.scale = 0
+        self.scale = 1
         self.octave = 0
         self.key_offset = 0
 
