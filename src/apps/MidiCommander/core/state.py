@@ -1,8 +1,8 @@
-from ._modules._input import Input as InputModule
+from ..inputmodules.note import Note as InputModule
 from ._modules._empty import Empty as EmptyModule
 from ._modules._transport import Transport as TransportModule
 from ._modules._output import Output as OutputModule
-from ..modules._registry import AVAILABLE_MODULES
+from ..modules._registry import AVAILABLE_MODULES, AVAILABLE_MODULE_NAMES, AVAILABLE_MODULE_LABELS
 from .music import NOTES
 from .music import SCALENAMES as SCALES
 
@@ -40,15 +40,6 @@ class State:
         self.ui_manager = None
         self.input_manager = None
         self.macropad = macropad
-
-        #Build available module list:
-        self.available_modules = {"empty": EmptyModule}
-        self.available_modules.update(AVAILABLE_MODULES)
-        self.available_modules_names = list(self.available_modules.keys())
-        self.available_modules_labels = []
-        for module_key in self.available_modules_names:
-            module_class = self.available_modules[module_key]
-            self.available_modules_labels.append(module_class.label)
 
         #Init modules
         #TODO: Move this into the main midi commander out of state

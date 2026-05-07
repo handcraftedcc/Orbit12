@@ -1,4 +1,5 @@
 OCTAVEOFFSET = 4 #C3
+DRUMBASENOTE = 36
 
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 

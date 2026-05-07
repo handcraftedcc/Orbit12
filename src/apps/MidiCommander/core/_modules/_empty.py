@@ -1,6 +1,5 @@
 from .. import module as Module
 from .. import parms as Parms
-from ...modules import _registry as module_registry
 
 try:
     from typing import TYPE_CHECKING

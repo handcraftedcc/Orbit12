@@ -111,6 +111,21 @@ class ValueType:
 class IntParmType(ParmType):
     value_type = ValueType.INT
 
+class BooleanParmType(ParmType):
+    value_type = ValueType.INT
+
+    @classmethod
+    def get_display_value(cls, parm):
+        if parm.value == 0:
+            parm.display_value = "False"
+        else:
+            parm.display_value = "True"
+        return parm.display_value
+
+    @classmethod
+    def edit(cls, parm, delta):
+        return (parm.value + delta) % 2
+
 class FloatParmType(ParmType):
     value_type = ValueType.FLOAT
 
@@ -130,8 +145,6 @@ class ButtonParmType(ParmType):
     @classmethod
     def get_display_value(cls, parm):
         return ""
-
-
 
 class EnumParmType(ParmType):
     value_type = ValueType.INT

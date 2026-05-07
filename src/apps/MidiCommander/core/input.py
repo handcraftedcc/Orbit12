@@ -37,7 +37,7 @@ class InputManager:
             released |= 1
             self.downstate &= ~1
             
-        if self.last_knob_pos is not macropad.encoder:  # knob has been turned
+        if self.last_knob_pos != macropad.encoder:  # knob has been turned
             knob_pos = macropad.encoder  # read encoder
             knob_delta = knob_pos - self.last_knob_pos  # compute knob_delta since last read
             self.last_knob_pos = knob_pos  # save new reading

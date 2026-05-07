@@ -1,5 +1,6 @@
 # Main app manager
 from adafruit_macropad import MacroPad
+import keypad
 
 from .core import ui
 from .core import transport
@@ -16,6 +17,15 @@ class MidiCommander:
         self.macropad = MacroPad(rotation=0)  # create the macropad object, rotate orientation
         self.macropad.display.auto_refresh = False  # avoid lag
         self.macropad.encoder_switch_debounced.interval = 0.001
+        self.macropad._keys.deinit()
+        self.macropad._keys = keypad.Keys(
+            self.macropad._key_pins,
+            value_when_pressed=False,
+            pull=True,
+            interval=0.002,
+            max_events=64,
+            debounce_threshold=1,
+        )
 
         # Init objects
         self.state = state.State(self.macropad)
@@ -165,11 +175,7 @@ class MidiCommander:
                     for bit_index in range(1, 13):
                         if released & (1 << bit_index):
                             self.note_offs.append(bit_index - 1)
-            
 
-            ### Update UI & screen (every nth tick) ###
-            if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:
-                self.ui_manager.screen.update()
 
             ### Process slots ###
             ## Process input ##
@@ -177,8 +183,8 @@ class MidiCommander:
             note_offs = self.note_offs
             note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs)
 
-            ## Process transport ##
-            note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs)
+            ### Process transport ##
+            #note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs)
 
             ## Process modules ##
             for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
@@ -187,15 +193,9 @@ class MidiCommander:
             ## Process output ##
             note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs)
 
-
-            #for module in self.state.chain_modules:
-            #    note_ons, note_offs = module.process(note_ons, note_offs)
-
-            if note_ons:
-                print("Ons:", [Music.note_num_to_name(n) for n in note_ons])
-
-            if note_offs:
-                print("Offs:", [Music.note_num_to_name(n) for n in note_offs])
+            ### Update UI & screen (every nth tick) ###
+            if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:
+                self.ui_manager.screen.update()
 
             ### Output ###
 

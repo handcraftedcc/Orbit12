@@ -13,18 +13,24 @@ class Module:
 
         # Add default parms each module will have
         if include_default_parms:
+            from ..modules._registry import (
+                AVAILABLE_MODULES,
+                AVAILABLE_MODULE_NAMES,
+                AVAILABLE_MODULE_LABELS,
+            )
+
             #swap_parm = Parms.Parm("swap","Swap",Parms.ButtonParmType,None)
             #self.parms.append(swap_parm)
             def switch_module(value):
-                module_key = state.available_modules_names[value]
+                module_key = AVAILABLE_MODULE_NAMES[value]
                 if module_key == self.name:
                     return None
                 else:
-                    self.state.set_chain_module(self.slot_id, self.state.available_modules[module_key])
+                    self.state.set_chain_module(self.slot_id, AVAILABLE_MODULES[module_key])
                     self.state.ui_manager.parameter_section.rebuild_parm_section()
                     return module_key
-            current_module_index = state.available_modules_names.index(self.name)
-            module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index, options=self.state.available_modules_labels,
+            current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
+            module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index, options=AVAILABLE_MODULE_LABELS,
                                      exit_callback_function=switch_module)
             self.parms.append(module_picker_parm)
 
