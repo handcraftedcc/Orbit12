@@ -27,6 +27,12 @@ class Drum(Input):
                                      edit_callback_function=self.set_key_offset)
         self.parms.append(key_offset_parm)
 
+        # Velocity
+        velocity_parm = Parms.Parm(name="velocity", label="Velocity", parm_type=Parms.IntParmType, default=127,
+                                   minmax=[0, 127], edit_callback_function=self.set_velocity)
+        self.parms.append(velocity_parm)
+
+        self.velocity = 127
         self.state.key = 0
         self.state.scale = 0
         self.state.octave = 0
@@ -54,15 +60,17 @@ class Drum(Input):
         return pad_note+Music.DRUMBASENOTE+self.state.key_offset
 
 
-    def process(self, note_ons, note_offs):
+    def process(self, note_ons, note_offs, velocities):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
+        self.velocities_out.clear()
 
         for pad_note in note_ons:
             self.note_ons_out.append(self.convert_note(pad_note, None, None))
+            self.velocities_out.append(self.velocity)
 
         for pad_note in note_offs:
             self.note_offs_out.append(self.convert_note(pad_note, None, None))
 
-        return self.note_ons_out, self.note_offs_out
+        return self.note_ons_out, self.note_offs_out, self.velocities_out
         

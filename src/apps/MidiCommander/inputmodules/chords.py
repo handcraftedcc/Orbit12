@@ -39,6 +39,7 @@ class Chords(Input):
         super().__init__(state, slot_id, include_musical_parms=True)
         self.held_modifiers = []
         self.held_note_relationship = {}
+        self.held_notes = []
         self.note_ons = []
         self.note_offs = []
 
@@ -109,11 +110,12 @@ class Chords(Input):
 
         return chord
 
-    def process(self, note_ons, note_offs):
+    def process(self, note_ons, note_offs, velocities):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         self.note_ons.clear()
         self.note_offs.clear()
+        self.velocities_out.clear()
 
         ## Process input notes and split them into notes and modifiers
         for pad_note in note_ons:
@@ -139,16 +141,21 @@ class Chords(Input):
             chord = self.build_chord(pad_note)
             self.held_note_relationship[pad_note] = chord
             for note in chord:
+                self.held_notes.append(note)
                 if note not in self.note_ons_out:
                     self.note_ons_out.append(note)
+                    self.velocities_out.append(self.velocity)
+
 
         for pad_note in self.note_offs:
             chord = self.held_note_relationship.get(pad_note)  # returns None if missing
             if chord:
                 for note in chord:
-                    if note not in self.note_offs_out:
+                    if note in self.held_notes:
+                        self.held_notes.remove(note)
+                    if note not in self.note_offs_out and note not in self.held_notes:
                         self.note_offs_out.append(note)
                 self.held_note_relationship.pop(pad_note, None)
 
-        return self.note_ons_out, self.note_offs_out
+        return self.note_ons_out, self.note_offs_out, self.velocities_out
         

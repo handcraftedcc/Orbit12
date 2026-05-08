@@ -5,7 +5,6 @@ from .. import music as Music
 PADMAP = [9,10,11,6,7,8,3,4,5,0,1,2]
 
 class Input(Module):
-    #TODO: Break input into different input modules for different types - so notes, drum & chord
     name = "input"
     label = "Input"
     def __init__(self, state, slot_id, include_musical_parms=True):
@@ -53,9 +52,17 @@ class Input(Module):
                                      edit_callback_function=self.set_key_offset)
             self.parms.append(key_offset_parm)
 
+            # Velocity
+            velocity_parm = Parms.Parm(name="velocity", label="Velocity", parm_type=Parms.IntParmType, default=127,
+                                       minmax = [0,127], edit_callback_function=self.set_velocity)
+            self.parms.append(velocity_parm)
+
+            self.velocity = 127
+
         ## Init Attributes ##
         self.note_ons_out = []
         self.note_offs_out = []
+        self.velocities_out = []
 
     def set_key(self, key_id):
         self.state.key = key_id
@@ -68,6 +75,9 @@ class Input(Module):
 
     def set_key_offset(self, key_offset_id):
         self.state.key_offset = key_offset_id
+
+    def set_velocity(self, velocity):
+        self.velocity = velocity
 
     def convert_note(self, pad_note, scale, scale_notes):
         pad_map = PADMAP
@@ -82,5 +92,7 @@ class Input(Module):
                 + (octave + Music.OCTAVEOFFSET) * 12
         )
 
+    def process(self, note_ons, note_offs, velocities):
+        return note_ons, note_offs, velocities
 
         

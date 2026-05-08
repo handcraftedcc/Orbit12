@@ -181,17 +181,18 @@ class MidiCommander:
             ## Process input ##
             note_ons = self.note_ons
             note_offs = self.note_offs
-            note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs)
+            velocities = []
+            note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs, velocities)
 
             ### Process transport ##
-            #note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs)
+            note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs, velocities)
 
             ## Process modules ##
             for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
-                note_ons, note_offs = self.state.chain_modules[slot].process(note_ons, note_offs)
+                note_ons, note_offs, velocities = self.state.chain_modules[slot].process(note_ons, note_offs, velocities)
 
             ## Process output ##
-            note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs)
+            note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs, velocities)
 
             ### Update UI & screen (every nth tick) ###
             if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:

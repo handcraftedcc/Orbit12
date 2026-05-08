@@ -18,15 +18,19 @@ class Output(Module):
     def set_print(self, value):
         self.print_state = value
 
-    def process(self, note_ons, note_offs):
+    def process(self, note_ons, note_offs, velocities):
         #TODO: Move the specifics to the output.py and just have this module call those.
         #TODO: Also, need to handle note_offs if input module changed (keys shifted etc)
 
-        for note in note_ons:
-            self.macropad.midi.send(self.macropad.NoteOn(note, 120))  # send midi noteon
+        for idx, note in enumerate(note_ons):
+            if velocities[idx]:
+                velocity = velocities[idx]
+            else:
+                velocity = 127
+            self.macropad.midi.send(self.macropad.NoteOn(note, velocity))  # send midi note_on
         for note in note_offs:
-            self.macropad.midi.send(self.macropad.NoteOff(note, 0))  # send midi noteon
+            self.macropad.midi.send(self.macropad.NoteOff(note, 0))  # send midi note_off
 
         if self.print_state == 1:
             print("Ons:", note_ons, "Offs:", note_offs)
-        return note_ons, note_offs
+        return note_ons, note_offs, velocities
