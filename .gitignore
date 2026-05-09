@@ -11,6 +11,6 @@ build/
 .venv/
 src/libArchive
 src/stubArchive
-src/apps/MidiCommander/._helpers/Chords/__pycache__
-src/apps/MidiCommander/__pycache__
+src/apps/Orion/._helpers/Chords/__pycache__
+src/apps/Orion/__pycache__
 src/apps/__pycache__

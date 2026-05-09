@@ -6,6 +6,7 @@ from .core import ui
 from .core import transport
 from .core import input
 from .core import state
+from .core import output
 from .core import parms as Parms
 from .core import music as Music
 
@@ -32,6 +33,7 @@ class MidiCommander:
         self.ui_manager = ui.UIManager(self.macropad,self.state)
         self.clock = transport.Clock()
         self.input_manager = input.InputManager(self.macropad)
+        self.output_manager = output.OutputManager(self.macropad, self.state)
 
         #TODO: Instead of passing individual items into modules create one object that has all the references and pass that.
 

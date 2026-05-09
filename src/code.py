@@ -1,8 +1,8 @@
 from adafruit_macropad import MacroPad
 
-import apps.MidiCommander.MidiCommander as MidiCommander
+import apps.Orion.MidiCommander as MidiCommander
 #import apps.MidiTester.code as MidiTester
-#import apps.MidiCommander.tinytest as tinytest
+#import apps.Orion.tinytest as tinytest
 
 
 

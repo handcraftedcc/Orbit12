@@ -4,6 +4,7 @@
     <option name="sourcePathsSet">
       <set>
         <option value="$PROJECT_DIR$/src/libArchive/libstubs" />
+        <option value="$PROJECT_DIR$/src/apps/MidiCommander" />
       </set>
     </option>
   </component>
