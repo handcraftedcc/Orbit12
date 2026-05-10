@@ -149,6 +149,7 @@ class MidiCommander:
             if released & 1:
                 if self.input_manager.encoder_press_consumed == 1: #Was consumed by a key press
                     self.input_manager.encoder_press_consumed = None
+                    self.output_manager.all_notes_off()
                 else: # Was not consumed -> knob action
                     screen_update_needed = True
 
@@ -222,6 +223,7 @@ class MidiCommander:
                 self.ui_manager.screen.update()
 
             ### Output ###
+            self.output_manager.process_midi_out()
 
             ### Loop Progression ###
             self.run_tick+=1

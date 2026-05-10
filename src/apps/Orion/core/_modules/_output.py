@@ -22,14 +22,8 @@ class Output(Module):
         #TODO: Move the specifics to the output.py and just have this module call those.
         #TODO: Also, need to handle note_offs if input module changed (keys shifted etc)
 
-        for idx, note in enumerate(note_ons):
-            if velocities[idx]:
-                velocity = velocities[idx]
-            else:
-                velocity = 127
-            self.macropad.midi.send(self.macropad.NoteOn(note, velocity))  # send midi note_on
-        for note in note_offs:
-            self.macropad.midi.send(self.macropad.NoteOff(note, 0))  # send midi note_off
+        if note_ons or note_offs:
+            self.module_helper.output_manager.schedule_midi(note_ons, note_offs, velocities)
 
         if self.print_state == 1:
             print("Ons:", note_ons, "Offs:", note_offs)

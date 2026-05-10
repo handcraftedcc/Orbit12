@@ -64,6 +64,36 @@ SCALES = [
     [0, 2, 3, 5, 6, 8, 9, 11],        # Diminished (Whole-Half)
 ]
 
+AUTOBORROWRELATIONSHIP = {
+    0: 0,   # CHR   -> CHR
+
+    1: 2,   # MAJ   -> MIN
+    2: 1,   # MIN  -> MAJ
+    3: 2,   # HMIN  -> MIN
+    4: 6,   # MMIN  -> DOR
+
+    5: 2,   # ION   -> MIN
+    6: 2,   # DOR   -> MIN
+    7: 2,   # PHR   -> MIN
+    8: 5,   # LYD   -> ION
+    9: 5,   # MIX   -> ION
+    10: 5,  # AEO  -> ION
+    11: 7,  # LOC   -> PHR
+
+    12: 1,  # MPEN  -> MAJ
+    13: 2,  # mPEN  -> MIN
+    14: 6,  # SPEN  -> DOR
+
+    15: 13, # BLU   -> mPEN
+
+    16: 2,  # m6    -> MIN
+    17: 1,  # M7b   -> MAJ
+
+    18: 9,  # WT    -> MIX
+    19: 3,  # DIMh  -> HMIN
+    20: 2,  # DIMw  -> MIN
+}
+
 def note_num_to_name(note_num):
     note_octave = note_num // 12 - 1
     note_name = NOTES[note_num%12]

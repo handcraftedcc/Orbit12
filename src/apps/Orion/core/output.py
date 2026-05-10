@@ -15,11 +15,20 @@ class OutputManager:
                 self.note_ons_out.append(note)
                 self.velocities_out.append(velocities[idx])
 
-        for note in note_ons:
+        for note in note_offs:
             if note in self.held_notes:
                 self.held_notes.remove(note)
             if note not in self.note_offs_out and note not in self.held_notes:
                 self.note_offs_out.append(note)
+
+        print("held notes: ", self.held_notes)
+
+    def all_notes_off(self):
+        for held_note in self.held_notes:
+            self.note_offs_out.append(held_note)
+        self.held_notes.clear()
+
+
 
     def process_midi_out(self):
         for idx, note in enumerate(self.note_ons_out):

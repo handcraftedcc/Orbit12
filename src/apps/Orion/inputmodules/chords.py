@@ -18,18 +18,21 @@ Top 6 buttons are modifiers:
 Bottom 6 buttons are root notes.
 '''
 
-# TODO: Add parms for some of the settings & instead of a base modifier maybe just make that a parameter?
 # TODO: Update key color for chords
-# TODO: Stop one chord off from swallowing another one -> if the current node is still being held by another key then don't send note off?
-#  Maybe before sending note off check if the note is held by any other chord. Or create a simple note list, where you pop and add the played notes.
-#  And then only remove the note if it's the "last one in it"
 class ModifierMap: #What keys do what -> Might turn this into parameters at some point
     SEV = 0
     ADD9 = 3
     SUS = 1
     INV = 4
-    BASS = 2
-    SPREAD = 5
+    POWER = 2
+    BORROW = 5
+
+class BassModes:
+    NoBass = 0
+    Root = 1
+    Second = 2
+    Lowest = 3
+    Highest = 4
 
 class Chords(Input):
     name = "chords"
@@ -37,42 +40,85 @@ class Chords(Input):
     def __init__(self, module_helper, slot_id):
         parms = []
         super().__init__(module_helper, slot_id, include_musical_parms=True)
+
+        # Bass Mode
+        bass_modes = ("None", "Root", "Second", "Lowest", "Highest")
+        self.bass_mode = 0
+        bass_mode_parm = Parms.Parm(name="bass", label="Bass", parm_type=Parms.EnumParmType, default=0,
+                                      options=bass_modes,
+                                      edit_callback_function=self.set_bass_mode)
+        self.parms.append(bass_mode_parm)
+
+        # Spread Mode
+        spread_modes = ("Tight", "Medium", "Wide")
+        self.spread_mode = 0
+        spread_mode_parm = Parms.Parm(name="spread", label="Spread", parm_type=Parms.EnumParmType, default=0,
+                                      options=spread_modes,
+                                      edit_callback_function=self.set_spread_mode)
+        self.parms.append(spread_mode_parm)
+
+        # Borrow Scale
+        borrow_scale_options = ["AUTO"]
+        borrow_scale_options.extend(Music.SCALENAMES[1:])
+        self.borrow_scale = 0
+        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="Borrow Scale", parm_type=Parms.EnumParmType, default=0,
+                                      options=borrow_scale_options,
+                                      edit_callback_function=self.set_borrow_scale)
+        self.parms.append(borrow_scale_parm)
+
         self.held_modifiers = []
         self.held_note_relationship = {}
-        self.held_notes = []
         self.note_ons = []
         self.note_offs = []
 
+    def set_bass_mode(self, bass_mode):
+        self.bass_mode = bass_mode
+
+    def set_spread_mode(self, spread_mode):
+        self.spread_mode = spread_mode
+
+    def set_borrow_scale(self, borrow_scale):
+        self.borrow_scale = borrow_scale
+
     def build_chord(self, pad_note):
-        scale = Music.SCALES[self.state.scale]
+        if ModifierMap.BORROW in self.held_modifiers:
+            if self.borrow_scale == 0:
+                borrow_scale = Music.AUTOBORROWRELATIONSHIP[self.state.scale]
+            else:
+                borrow_scale = self.borrow_scale
+            scale = Music.SCALES[borrow_scale]
+        else:
+            scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)
 
         # Build chord tones
         root_pad_note = pad_note + self.state.key_offset
+        #TODO: Extract octave and add to final octave as currently the keys just wrap in same octave
         root_degree = root_pad_note % scale_notes
+        #TODO: Add offsets for pentatonic scales - 2,3 for MPEN, 1,3 for mPEN and 2,3 for SPEN
         note2_degree = root_degree+2
         note3_degree = root_degree+4
 
         seventh_degree = None
         add9_degree = None
-        bass_degree = None
 
         # Apply sus/7th/add9
         if ModifierMap.SUS in self.held_modifiers:
-            if root_degree == 5:
-                note2_degree += 1
-            else:
-                note2_degree -= 1
+            #if root_degree == 5:
+            #   note2_degree += 1
+            #else:
+            note2_degree -= 1
             print("sus")
 
         if ModifierMap.SEV in self.held_modifiers:
+            #TODO: Add override for pentatonic (+4 instead of +6)
             seventh_degree = root_degree + 6
             print("seventh")
 
         if ModifierMap.ADD9 in self.held_modifiers:
+            # TODO: Add override for pentatonic (+4 instead of +8)
             add9_degree = root_degree + 8
             print("add9")
-
 
         # Create upper voicing
         # Resolve degrees into actual notes
@@ -91,6 +137,8 @@ class Chords(Input):
             note = scale[degree]+self.state.key
             chord[idx] = note + octave
 
+        root = chord[0]
+
         print("base_chord_notes: ", chord)
 
         # Apply inversion to upper voicing
@@ -99,14 +147,25 @@ class Chords(Input):
             print("inversion")
 
         # Apply spread to upper voicing
-        if ModifierMap.SPREAD in self.held_modifiers:
+        if self.spread_mode != 0:
             chord[-1] += 12
-            print("spread")
+            if self.spread_mode == 2:
+                chord[-2] += 12
+
+        # Apply power chord (remove second)
+        if ModifierMap.POWER in self.held_modifiers:
+            chord.pop(1)
 
         # Add base note underneath
-        if ModifierMap.BASS in self.held_modifiers:
-            chord = [chord[0]-12]+chord
-            print("bass")
+        if self.bass_mode != BassModes.NoBass:
+            if self.bass_mode == BassModes.Root:
+                chord = [root - 12] + chord
+            if self.bass_mode == BassModes.Second:
+                chord = [chord[1]-12]+chord
+            if self.bass_mode == BassModes.Lowest:
+                chord = [min(chord) - 12] + chord
+            if self.bass_mode == BassModes.Highest:
+                chord = [max(chord)-12]+chord
 
         return chord
 
@@ -141,21 +200,19 @@ class Chords(Input):
             chord = self.build_chord(pad_note)
             self.held_note_relationship[pad_note] = chord
             for note in chord:
-                self.held_notes.append(note)
-                if note not in self.note_ons_out:
-                    self.note_ons_out.append(note)
-                    self.velocities_out.append(self.velocity)
+                self.note_ons_out.append(note)
+                self.velocities_out.append(self.velocity)
 
 
         for pad_note in self.note_offs:
             chord = self.held_note_relationship.get(pad_note)  # returns None if missing
             if chord:
                 for note in chord:
-                    if note in self.held_notes:
-                        self.held_notes.remove(note)
-                    if note not in self.note_offs_out and note not in self.held_notes:
-                        self.note_offs_out.append(note)
+                    self.note_offs_out.append(note)
                 self.held_note_relationship.pop(pad_note, None)
+
+        if note_ons or note_offs:
+            print("Held Notes Relationship: ", self.held_note_relationship)
 
         return self.note_ons_out, self.note_offs_out, self.velocities_out
         

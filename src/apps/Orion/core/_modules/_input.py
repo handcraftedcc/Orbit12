@@ -66,15 +66,19 @@ class Input(Module):
 
     def set_key(self, key_id):
         self.state.key = key_id
+        self.module_helper.output_manager.all_notes_off()
 
     def set_scale(self, scale_id):
         self.state.scale = scale_id
+        self.module_helper.output_manager.all_notes_off()
 
     def set_octave(self, octave_id):
         self.state.octave = octave_id
+        self.module_helper.output_manager.all_notes_off()
 
     def set_key_offset(self, key_offset_id):
         self.state.key_offset = key_offset_id
+        self.module_helper.output_manager.all_notes_off()
 
     def set_velocity(self, velocity):
         self.velocity = velocity

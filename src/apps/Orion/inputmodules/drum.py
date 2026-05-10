@@ -38,6 +38,7 @@ class Drum(Input):
 
     def set_layout(self, layout_id):
         self.layout = layout_id
+        self.module_helper.output_manager.all_notes_off()
 
     def convert_note(self, pad_note, scale, scale_notes):
         pad_note = PADMAP.index(pad_note)
