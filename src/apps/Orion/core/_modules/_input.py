@@ -7,7 +7,7 @@ PADMAP = [9,10,11,6,7,8,3,4,5,0,1,2]
 class Input(Module):
     name = "input"
     label = "Input"
-    def __init__(self, state, slot_id, include_musical_parms=True):
+    def __init__(self, module_helper, slot_id, include_musical_parms=True):
         from ...inputmodules._registry import (
             AVAILABLE_MODULES,
             AVAILABLE_MODULE_NAMES,
@@ -15,7 +15,7 @@ class Input(Module):
         )
 
         parms = []
-        super().__init__(state, slot_id, parms, include_default_parms=False)
+        super().__init__(module_helper, slot_id, parms, include_default_parms=False)
 
         def switch_module(value):
             module_key = AVAILABLE_MODULE_NAMES[value]
@@ -23,7 +23,7 @@ class Input(Module):
                 return None
             else:
                 self.state.set_chain_module(self.slot_id, AVAILABLE_MODULES[module_key])
-                self.state.ui_manager.parameter_section.rebuild_parm_section()
+                self.module_helper.ui_manager.parameter_section.rebuild_parm_section()
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
@@ -34,12 +34,12 @@ class Input(Module):
 
         if include_musical_parms:
             # Key
-            key_parm = Parms.Parm(name="key", label="Key", parm_type=Parms.NoteParmType, default=state.key,
+            key_parm = Parms.Parm(name="key", label="Key", parm_type=Parms.NoteParmType, default=self.state.key,
                                   edit_callback_function=self.set_key)
             self.parms.append(key_parm)
 
             #Scale
-            scale_parm = Parms.Parm(name="scale", label="Scale", parm_type=Parms.EnumParmType, default=state.scale,
+            scale_parm = Parms.Parm(name="scale", label="Scale", parm_type=Parms.EnumParmType, default=self.state.scale,
                                     options=Music.SCALENAMES, edit_callback_function=self.set_scale)
             self.parms.append(scale_parm)
             # Octave

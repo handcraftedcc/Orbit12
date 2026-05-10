@@ -9,9 +9,9 @@ from ..core import music as Music
 class Note(Input):
     name = "note"
     label = "Note"
-    def __init__(self, state, slot_id):
+    def __init__(self, module_helper, slot_id):
         parms = []
-        super().__init__(state, slot_id, include_musical_parms=True)
+        super().__init__(module_helper, slot_id, include_musical_parms=True)
 
     def process(self, note_ons, note_offs, velocities):
         self.note_ons_out.clear()

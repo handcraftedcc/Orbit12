@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/AdaFruitResources/adafruit-circuitpython-bundle-py-20260328/lib" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/apps/Orion" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/apps/Orion/core" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/src/.venv" />
     </content>

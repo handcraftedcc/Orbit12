@@ -6,9 +6,9 @@ class Arp(Module):
     name = "arp"
     label = "Arp"
     version = 1
-    def __init__(self, state, slot_id):
+    def __init__(self, module_helper, slot_id):
             parms = []
-            super().__init__(state, slot_id, parms)
+            super().__init__(module_helper, slot_id, parms)
 
             # Setup Attribs
             self.rate = 1

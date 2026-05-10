@@ -40,17 +40,7 @@ class State:
         self.ui_manager = None
         self.input_manager = None
         self.macropad = macropad
-
-        #Init modules
-        #TODO: Move this into the main midi commander out of state
-        self.chain_modules = [None]*TOTALSLOTCOUNT
-        self.chain_modules[0] = InputModule(self,0)
-        self.chain_modules[1] = TransportModule(self,1)
-        for slot in range (2,TOTALSLOTCOUNT-1):
-            self.chain_modules[slot] = EmptyModule(self,slot)
-        self.chain_modules[TOTALSLOTCOUNT-1] = OutputModule(self,TOTALSLOTCOUNT-1)
-
-        self.update_parm_count()
+        self.module_helper = None
 
     def update_parm_count(self):
         self.parm_count = len(self.chain_modules[self.active_chain].get_parms())
@@ -65,7 +55,7 @@ class State:
         self.active_parm_page = page_index = max(0, self.active_parm) // PARMSPERPAGE
 
     def set_chain_module(self, slot_id, module_class):
-        self.chain_modules[slot_id]=module_class(self, slot_id)
+        self.chain_modules[slot_id]=module_class(self.module_helper, slot_id)
         self.update_parm_count()
         self.active_parm=0
 
@@ -75,7 +65,7 @@ class State:
         if old_module is not None:
             old_module.remove()
 
-        self.chain_modules[slot_id] = EmptyModule(self, slot_id)
+        self.chain_modules[slot_id] = EmptyModule(self.module_helper, slot_id)
         self.update_parm_count()
         self.active_parm=0
 

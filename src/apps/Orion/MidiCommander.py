@@ -9,6 +9,12 @@ from .core import state
 from .core import output
 from .core import parms as Parms
 from .core import music as Music
+from .core import module
+
+from .inputmodules.note import Note as InputModule
+from .core._modules._empty import Empty as EmptyModule
+from .core._modules._transport import Transport as TransportModule
+from .core._modules._output import Output as OutputModule
 
 SCREENREFRESHRATE = 1
 
@@ -30,16 +36,17 @@ class MidiCommander:
 
         # Init objects
         self.state = state.State(self.macropad)
-        self.ui_manager = ui.UIManager(self.macropad,self.state)
         self.clock = transport.Clock()
         self.input_manager = input.InputManager(self.macropad)
         self.output_manager = output.OutputManager(self.macropad, self.state)
+        self.module_helper = module.ModuleHelper(self.macropad, self.state, self.input_manager, self.output_manager, self.clock)
+
 
         #TODO: Instead of passing individual items into modules create one object that has all the references and pass that.
 
         # Know objects
-        self.state.ui_manager = self.ui_manager
         self.state.input = self.input_manager
+        self.state.module_helper = self.module_helper
 
         # Init items that get used each loop
         self.run_tick = 0
@@ -47,6 +54,20 @@ class MidiCommander:
 
         self.note_ons = []
         self.note_offs = []
+
+        #Init modules
+        self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
+        self.state.chain_modules[0] = InputModule(self.module_helper,0)
+        self.state.chain_modules[1] = TransportModule(self.module_helper,1)
+        for slot in range (2,state.TOTALSLOTCOUNT-1):
+            self.state.chain_modules[slot] = EmptyModule(self.module_helper,slot)
+        self.state.chain_modules[state.TOTALSLOTCOUNT-1] = OutputModule(self.module_helper,state.TOTALSLOTCOUNT-1)
+        self.state.update_parm_count()
+
+        # Init UI
+        self.ui_manager = ui.UIManager(self.macropad,self.state)
+        self.module_helper.ui_manager = self.ui_manager
+        self.state.ui_manager = self.ui_manager
 
 
     def run(self):

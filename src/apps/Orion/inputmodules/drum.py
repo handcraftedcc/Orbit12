@@ -11,9 +11,9 @@ FOURBYFOURBOTTOM3ROWSMAPPINGFLIPPED = [0,4,8,1,5,9,2,6,10,3,7,11]
 class Drum(Input):
     name = "drum"
     label = "Drum"
-    def __init__(self, state, slot_id):
+    def __init__(self, module_helper, slot_id):
         parms = []
-        super().__init__(state, slot_id, include_musical_parms=False)
+        super().__init__(module_helper, slot_id, include_musical_parms=False)
 
         layout_options = ("InOrder","4x4Left12", "4x4Right12", "4x4Bott3Row","4x4Bott3RowFli")
         self.layout = 0
@@ -33,8 +33,6 @@ class Drum(Input):
         self.parms.append(velocity_parm)
 
         self.velocity = 127
-        self.state.key = 0
-        self.state.scale = 0
         self.state.octave = 0
         self.state.key_offset = 0
 

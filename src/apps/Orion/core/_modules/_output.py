@@ -4,9 +4,9 @@ from .. import parms as Parms
 class Output(Module):
     name = "output"
     label = "Output"
-    def __init__(self, state, slot_id, macropad = None):
+    def __init__(self, module_helper, slot_id, macropad = None):
         parms = []
-        super().__init__(state, slot_id, parms, include_default_parms=False)
+        super().__init__(module_helper, slot_id, parms, include_default_parms=False)
         self.macropad = self.state.macropad
         self.print_state = 0
 

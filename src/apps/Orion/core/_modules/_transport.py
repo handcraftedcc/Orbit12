@@ -12,7 +12,7 @@ def print_ram_usage(value):
 class Transport(Module):
     name = "transport"
     label = "Transport"
-    def __init__(self, state, slot_id):
+    def __init__(self, module_helper, slot_id):
             self.parms = [
                   Parm("test","test",Parms.FloatParmType,0.25,[-5,5])
             ]
@@ -21,4 +21,4 @@ class Transport(Module):
                                               enter_callback_function=print_ram_usage)
             self.parms.append(print_ram_usage_parm)
 
-            super().__init__(state, slot_id, self.parms, include_default_parms=False)
+            super().__init__(module_helper, slot_id, self.parms, include_default_parms=False)
