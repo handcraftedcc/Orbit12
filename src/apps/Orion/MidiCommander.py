@@ -41,10 +41,7 @@ class MidiCommander:
         self.output_manager = output.OutputManager(self.macropad, self.state)
         self.module_helper = module.ModuleHelper(self.macropad, self.state, self.input_manager, self.output_manager, self.clock)
 
-
-        #TODO: Instead of passing individual items into modules create one object that has all the references and pass that.
-
-        # Know objects
+        # Pass objects to state (Have to do after because of circular dependency)
         self.state.input = self.input_manager
         self.state.module_helper = self.module_helper
 
@@ -142,6 +139,9 @@ class MidiCommander:
                     for bit_index in range(1, 13):
                         if pressed & (1 << bit_index):
                             self.note_ons.append(bit_index - 1)
+                for bit_index in range(1, 13):
+                    if pressed & (1 << bit_index):
+                        self.ui_manager.neo_pixels.set_held_pixel(bit_index-1)
 
 
             ## Process encoder button release ##
@@ -199,6 +199,9 @@ class MidiCommander:
                     for bit_index in range(1, 13):
                         if released & (1 << bit_index):
                             self.note_offs.append(bit_index - 1)
+                for bit_index in range(1, 13):
+                    if released & (1 << bit_index):
+                        self.ui_manager.neo_pixels.release_held_pixel(bit_index-1)
 
 
             ### Process slots ###

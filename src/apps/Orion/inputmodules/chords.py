@@ -1,6 +1,8 @@
 from ..core.module import Module
 from ..core import parms as Parms
 from ..core._modules._input import Input
+from ..core import ui
+import rainbowio
 
 from ..core import music as Music
 from ..core._modules._input import PADMAP
@@ -66,6 +68,8 @@ class Chords(Input):
                                       edit_callback_function=self.set_borrow_scale)
         self.parms.append(borrow_scale_parm)
 
+        self.color_pixels()
+
         self.held_modifiers = []
         self.held_note_relationship = {}
         self.note_ons = []
@@ -80,6 +84,14 @@ class Chords(Input):
     def set_borrow_scale(self, borrow_scale):
         self.borrow_scale = borrow_scale
 
+    def color_pixels(self, color_overrides: dict = None):
+        # set special color
+        overrides = {}
+        for i in range(6):
+            overrides[i+6] = rainbowio.colorwheel(i*60)
+        super().color_pixels(overrides)
+
+
     def build_chord(self, pad_note):
         if ModifierMap.BORROW in self.held_modifiers:
             if self.borrow_scale == 0:
@@ -93,6 +105,7 @@ class Chords(Input):
 
         # Build chord tones
         root_pad_note = pad_note + self.state.key_offset
+        root_pad_octave = root_pad_note // scale_notes
         #TODO: Extract octave and add to final octave as currently the keys just wrap in same octave
         root_degree = root_pad_note % scale_notes
         #TODO: Add offsets for pentatonic scales - 2,3 for MPEN, 1,3 for mPEN and 2,3 for SPEN
@@ -132,7 +145,7 @@ class Chords(Input):
         print("base_chord_degrees: ", chord)
 
         for idx, note in enumerate(chord):
-            octave = (note // scale_notes + (self.state.octave + Music.OCTAVEOFFSET))*12
+            octave = (note // scale_notes + (self.state.octave + Music.OCTAVEOFFSET + root_pad_octave))*12
             degree = note % scale_notes
             note = scale[degree]+self.state.key
             chord[idx] = note + octave

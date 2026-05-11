@@ -1,4 +1,5 @@
 from ..module import Module
+from .. import ui
 from .. import parms as Parms
 from .. import music as Music
 
@@ -64,6 +65,9 @@ class Input(Module):
         self.note_offs_out = []
         self.velocities_out = []
 
+        ## Color Pixels ##
+        self.color_pixels()
+
     def set_key(self, key_id):
         self.state.key = key_id
         self.module_helper.output_manager.all_notes_off()
@@ -71,6 +75,7 @@ class Input(Module):
     def set_scale(self, scale_id):
         self.state.scale = scale_id
         self.module_helper.output_manager.all_notes_off()
+        self.color_pixels()
 
     def set_octave(self, octave_id):
         self.state.octave = octave_id
@@ -79,9 +84,32 @@ class Input(Module):
     def set_key_offset(self, key_offset_id):
         self.state.key_offset = key_offset_id
         self.module_helper.output_manager.all_notes_off()
+        self.color_pixels()
 
     def set_velocity(self, velocity):
         self.velocity = velocity
+
+    def color_pixels(self, color_overrides: dict = None):
+        color_array = [ui.KEYCOLORBASE]*12
+        scale = Music.SCALES[self.state.scale]
+        scale_notes = len(scale)
+
+        # set roots
+        for idx, color in enumerate(color_array):
+            if (idx + self.state.key_offset) % scale_notes == 0:
+                key = PADMAP.index(idx)
+                color_array[key] = ui.KEYCOLORROOT
+
+        # set overrides
+        if color_overrides:
+            for key in color_overrides.keys():
+                pad_key = PADMAP.index(int(key))
+                color_array[pad_key] = color_overrides[key]
+
+        try:
+            self.module_helper.ui_manager.neo_pixels.set_key_colors(color_array)
+        except:
+            pass
 
     def convert_note(self, pad_note, scale, scale_notes):
         pad_map = PADMAP

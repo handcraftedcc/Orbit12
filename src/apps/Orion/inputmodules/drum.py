@@ -1,5 +1,6 @@
 from ..core.module import Module
 from ..core import parms as Parms
+from ..core import ui
 from ..core._modules._input import Input, PADMAP
 
 from ..core import music as Music
@@ -39,6 +40,14 @@ class Drum(Input):
     def set_layout(self, layout_id):
         self.layout = layout_id
         self.module_helper.output_manager.all_notes_off()
+
+    def color_pixels(self, color_overrides: dict = None):
+        color_array = [ui.KEYCOLORDRUMS]*12
+
+        try:
+            self.module_helper.ui_manager.neo_pixels.set_key_colors(color_array)
+        except:
+            pass
 
     def convert_note(self, pad_note, scale, scale_notes):
         pad_note = PADMAP.index(pad_note)
