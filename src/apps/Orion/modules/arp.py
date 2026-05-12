@@ -41,6 +41,7 @@ class Arp(Module):
         self.retrigger_mode_list = [
             "Retrigger",
             "Continuous",
+            "Stable",
         ]
         self.random_seed = 0
         self.gate = 0
@@ -48,6 +49,7 @@ class Arp(Module):
         self.held_notes = []
 
         self.last_midi_tick = self.transport.midi_tick
+        self.was_transport_running = self.transport.running
 
 
         # Setup Parms
@@ -129,19 +131,22 @@ class Arp(Module):
             for note in self.note_register:
                 self.note_ons_out.append(note)
                 self.velocities_out.append(127)
-                print("repeat")
         else:
-            note = self.note_register[self.note_register_position % len(self.note_register)]
+            register_note_count = len(self.note_register)
+            if self.retrigger_mode == 2:
+                midi_tick = self.transport.midi_tick
+                self.note_register_position = int(midi_tick % (self.rate_to_midi_ticks()*register_note_count)/register_note_count)
+            note = self.note_register[self.note_register_position % register_note_count]
             self.note_ons_out.append(note)
             self.velocities_out.append(127)
-            self.note_register_position = (self.note_register_position+1) % len(self.note_register)
+            self.note_register_position = (self.note_register_position+1) % register_note_count
 
         self.scheduled_offs.extend(self.note_ons_out)
         scheduled_list = [scheduled]*len(self.note_ons_out)
         self.scheduled_offs_time.extend(scheduled_list)
 
-        print("Note Register", self.note_register)
-        print("Note Register Position", self.note_register_position)
+        #print("Note Register", self.note_register)
+        #print("Note Register Position", self.note_register_position)
 
     def process_note_offs(self):
         current = ticks.ticks_ms()
@@ -152,35 +157,61 @@ class Arp(Module):
                 self.note_offs_out.append(note_off)
                 popped_ids.append(idx)
 
-        for popped_id in popped_ids:
+        for popped_id in reversed(popped_ids):
             self.scheduled_offs.pop(popped_id)
             self.scheduled_offs_time.pop(popped_id)
 
     def process(self, note_ons, note_offs, velocities):
         #TODO: Implement velocities in note_register and then be passed along
-        #TODO: Make 3rd mode: continuos deterministic -> where register timing stays constant, and can't get
-        # thrown off by more or less notes being added
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         self.velocities_out.clear()
+        running = self.transport.running
         if note_ons or note_offs:
             self.update_note_register(note_ons, note_offs, velocities)
         if self.arp_state == 1 and not self.note_register: #All keys released
             self.arp_state = 0
-            print("All Keys Released")
+            #print("All Keys Released")
             if self.retrigger_mode == 0:
                 self.note_register_position = 0
             self.update_random_seed()
         if self.arp_state == 0 and self.note_register: #From no keys pressed -> keys pressed
             self.arp_state = 1
-            print("Keys Pressed")
+            self.last_midi_tick = self.transport.midi_tick
+            #print("Keys Pressed")
         if self.arp_state == 1 and self.transport.running:
-            midi_tick = self.transport.midi_tick
-            if midi_tick != self.last_midi_tick:
-                self.last_midi_tick = midi_tick
-                if midi_tick % self.rate_to_midi_ticks() == 0:
+            interval = self.rate_to_midi_ticks()  # e.g. 6 for 1/16
+            last_tick = self.last_midi_tick
+            now_tick = self.transport.midi_tick
+            if now_tick < last_tick: #On transport reset
+                self.last_midi_tick = now_tick
+                last_tick = now_tick
+
+            # detect transport start edge
+            if running and not self.was_transport_running:
+                # re-anchor arp timing to new transport tick origin
+                self.last_midi_tick = self.transport.midi_tick
+
+                # restart pattern position on transport start
+                if self.retrigger_mode == 0:
+                    self.note_register_position = 0
+
+                # emit immediately if notes are held
+                if self.note_register:
                     self.generate_notes()
+
+            if now_tick > last_tick:
+                prev_bin = last_tick // interval
+                curr_bin = now_tick // interval
+                triggers = curr_bin - prev_bin  # how many grid steps crossed
+
+                for _ in range(triggers):
+                    self.generate_notes()
+
+                self.last_midi_tick = now_tick
         self.process_note_offs()
+
+        self.was_transport_running = running
 
         return self.note_ons_out, self.note_offs_out, self.velocities_out
 

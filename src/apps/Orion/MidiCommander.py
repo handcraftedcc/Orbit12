@@ -2,6 +2,7 @@
 from adafruit_macropad import MacroPad
 import keypad
 import adafruit_ticks as ticks
+import gc
 
 from .core import ui
 from .core import transport
@@ -17,7 +18,7 @@ from .core._modules._empty import Empty as EmptyModule
 from .core._modules._transport import Transport as TransportModule
 from .core._modules._output import Output as OutputModule
 
-SCREENREFRESHRATE = 1
+SCREENREFRESHRATE = 4
 
 class MidiCommander:
     def __init__(self):
@@ -37,9 +38,9 @@ class MidiCommander:
 
         # Init objects
         self.state = state.State(self.macropad)
-        self.transport = transport.Transport(self.state)
         self.input_manager = input.InputManager(self.macropad)
         self.output_manager = output.OutputManager(self.macropad, self.state)
+        self.transport = transport.Transport(self.state, self.output_manager, self.macropad)
         self.module_helper = module.ModuleHelper(self.macropad, self.state, self.input_manager, self.output_manager, self.transport)
 
         # Pass objects to state (Have to do after because of circular dependency)
@@ -49,6 +50,10 @@ class MidiCommander:
         # Init items that get used each loop
         self.run_tick = 0
         self.encoder_consumed = None
+        self.screen_update_needed = False
+        self.ui_queue = []
+        self.last_gc_ms = ticks.ticks_ms()
+        #self.ui_rebuild_pending = False
 
         self.note_ons = []
         self.note_offs = []
@@ -67,16 +72,53 @@ class MidiCommander:
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
 
+        #gc.disable()
+
+    def add_to_ui_queue(self, callback):
+        if callback not in self.ui_queue:
+            self.ui_queue.append(callback)
+        #self.ui_rebuild_pending = True
+
+    def can_do_ui_work(self, min_slack_ms=6):
+        if self.state.transport_mode == 1:
+            return self.output_manager.pending_midi_clock_ticks == 0
+        elif self.transport.running:
+            now = ticks.ticks_ms()
+            ms_to_next = ticks.ticks_diff(self.transport.midi_tick_scheduled, now)
+            return self.output_manager.pending_midi_clock_ticks == 0 and ms_to_next >= min_slack_ms
+        else:
+            return True
+
+    def maybe_gc(self):
+        now = ticks.ticks_ms()
+
+        if not self.transport.running:
+            if ticks.ticks_diff(now, self.last_gc_ms) > 300:
+                gc.collect()
+                self.last_gc_ms = now
+            return
+
+        if self.state.transport_mode == 0:
+            ms_to_next = ticks.ticks_diff(self.transport.midi_tick_scheduled, now)
+            safe = (
+                    self.output_manager.pending_midi_clock_ticks == 0
+                    and ms_to_next >= 15
+                    and not self.ui_queue
+                    and ticks.ticks_diff(now, self.last_gc_ms) > 300
+            )
+            if safe:
+                gc.collect()
+                self.last_gc_ms = now
 
     def run(self):
         while True:
-            
-            screen_update_needed = False
+            #current = ticks.ticks_ms()
             self.note_ons.clear()
             self.note_offs.clear()
             
             ### Update transport
             midi_tick = self.transport.update()
+            self.output_manager.process_midi_out()
 
             ### Get input
             pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
@@ -95,26 +137,24 @@ class MidiCommander:
             ## Process encoder knob turn ##
             # -> depends on state - either navbar jogging, parm jogging or parm modification
             if knob_delta!=0:
-                screen_update_needed = True
-
                 # Active section: Chain #
                 if self.state.active_ui_section == state.UISection.CHAIN:
                         self.state.move_active_chain_elem(knob_delta)
-                        self.ui_manager.chain.set_selected(self.state.active_chain)
-                        self.ui_manager.parameter_section.rebuild_parm_section()
+                        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
+                        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
 
                 # Active section: Parm Selection #
                 elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                     current_page = self.state.active_parm_page
                     self.state.move_active_parm_elem(knob_delta)
                     if self.state.active_parm < 0:
-                        self.ui_manager.chain.highlight_chain()
-                        self.ui_manager.parameter_section.clear_parm_highlights()
+                        self.add_to_ui_queue(self.ui_manager.chain.highlight_chain)
+                        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
                     else:
-                        self.ui_manager.chain.clear_chain_highlights()
-                        self.ui_manager.parameter_section.highlight_parm()
+                        self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+                        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
                     if current_page != self.state.active_parm_page:
-                        self.ui_manager.parameter_section.rebuild_parm_section()
+                        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
 
                 # Active Section: Parm Edit #
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
@@ -135,17 +175,24 @@ class MidiCommander:
             if pressed != 0:
                 if downstate & 1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
+                    if pressed & (1 << 10):
+                        self.transport.clock_start()
+                    elif pressed & (1 << 11):
+                        self.transport.clock_stop()
+
                 else: #knob is not held -> simple button press
                     # Generate note ons from keys
                     for bit_index in range(1, 13):
                         if pressed & (1 << bit_index):
                             self.note_ons.append(bit_index - 1)
+                    if not self.transport.running and self.state.transport_mode == 0:
+                        self.transport.clock_start()
+
                 for bit_index in range(1, 13):
                     if pressed & (1 << bit_index):
                         self.ui_manager.neo_pixels.set_held_pixel(bit_index-1)
 
-                if not self.transport.running:
-                    self.transport.clock_start()
+
 
 
             ## Process encoder button release ##
@@ -155,21 +202,19 @@ class MidiCommander:
                     self.input_manager.encoder_press_consumed = None
                     self.output_manager.all_notes_off()
                 else: # Was not consumed -> knob action
-                    screen_update_needed = True
-
                     # Active section: Chain #
                     if self.state.active_ui_section == state.UISection.CHAIN:
                             #Switch state to active module
                             self.state.active_ui_section = state.UISection.PARMSELECTION
                             self.state.active_parm = 0
-                            self.ui_manager.chain.clear_chain_highlights()
-                            self.ui_manager.parameter_section.highlight_parm()
+                            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+                            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
 
                     # Active section: Parm Selection #
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                         #Check if on chain selection -> Switch back to chain selection
                         if self.state.active_parm == -1:
-                            self.ui_manager.chain.clear_chain_highlights()
+                            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
                             self.state.active_ui_section = state.UISection.CHAIN
                         else: #Go into parm edit
                             self.state.active_ui_section = state.UISection.PARMEDIT
@@ -178,8 +223,8 @@ class MidiCommander:
                             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                                 self.state.active_ui_section = state.UISection.PARMSELECTION
 
-                            self.ui_manager.parameter_section.clear_parm_highlights()
-                            self.ui_manager.parameter_section.highlight_parm_value()
+                            self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
+                            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm_value)
 
                     # Active section: Parm Edit #
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
@@ -188,8 +233,8 @@ class MidiCommander:
                         active_parm.exit()
                         self.state.active_ui_section = state.UISection.PARMSELECTION
 
-                        self.ui_manager.parameter_section.clear_parm_value_highlight()
-                        self.ui_manager.parameter_section.highlight_parm()
+                        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_value_highlight)
+                        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
 
                 released &= ~1 # Clear knob release bit
 
@@ -207,7 +252,6 @@ class MidiCommander:
                     if released & (1 << bit_index):
                         self.ui_manager.neo_pixels.release_held_pixel(bit_index-1)
 
-
             ### Process slots ###
             ## Process input ##
             note_ons = self.note_ons
@@ -221,16 +265,32 @@ class MidiCommander:
             ## Process modules ##
             for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
                 note_ons, note_offs, velocities = self.state.chain_modules[slot].process(note_ons, note_offs, velocities)
-
             ## Process output ##
             note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs, velocities)
 
-            ### Update UI & screen (every nth tick) ###
-            if screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0:
-                self.ui_manager.screen.update()
-
             ### Output ###
             self.output_manager.process_midi_out()
+
+            self.maybe_gc()
+
+            ### Update UI & screen ###
+            if self.ui_queue and self.can_do_ui_work(min_slack_ms=8):
+                callback = self.ui_queue.pop(0)
+                current = ticks.ticks_ms()
+                callback()
+                difference = ticks.ticks_diff(ticks.ticks_ms(), current)
+
+            # mark refresh, but don't flush display immediately
+            self.screen_update_needed = True
+
+            #diff = ticks.ticks_diff(ticks.ticks_ms(), current)
+            #if diff > 3: print(diff)
+
+            if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work():
+                self.ui_manager.screen.update()
+                self.screen_update_needed = False
+
+            self.maybe_gc()
 
             ### Loop Progression ###
             self.run_tick+=1

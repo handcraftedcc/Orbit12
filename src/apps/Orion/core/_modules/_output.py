@@ -23,7 +23,7 @@ class Output(Module):
         #TODO: Also, need to handle note_offs if input module changed (keys shifted etc)
 
         if note_ons or note_offs:
-            self.module_helper.output_manager.schedule_midi(note_ons, note_offs, velocities)
+            self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, velocities)
 
         if self.print_state == 1:
             print("Ons:", note_ons, "Offs:", note_offs)

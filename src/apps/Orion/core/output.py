@@ -1,3 +1,10 @@
+from adafruit_midi.start import Start
+from adafruit_midi.stop import Stop
+from adafruit_midi.timing_clock import TimingClock
+import adafruit_macropad as MacroPad
+from adafruit_midi import start
+
+
 class OutputManager:
     def __init__(self, macropad, state):
         self.macropad = macropad
@@ -7,8 +14,11 @@ class OutputManager:
         self.note_offs_out = []
         self.velocities_out = []
         self.held_notes = []
+        self.pending_midi_clock_ticks = 0
+        self.midi_start = False
+        self.midi_stop = False
 
-    def schedule_midi(self, note_ons, note_offs, velocities):
+    def schedule_midi_notes(self, note_ons, note_offs, velocities):
         self.held_notes.extend(note_ons)
         for idx,note in enumerate(note_ons):
             if note not in self.note_ons_out:
@@ -21,16 +31,31 @@ class OutputManager:
             if note not in self.note_offs_out and note not in self.held_notes:
                 self.note_offs_out.append(note)
 
-        print("held notes: ", self.held_notes)
+        #print("held notes: ", self.held_notes)
+
+    def schedule_midi_clock(self):
+        self.pending_midi_clock_ticks += 1
+        print("tick")
+
+    def schedule_midi_start(self):
+        self.midi_start = True
+
+    def schedule_midi_stop(self):
+        self.midi_stop = True
+
 
     def all_notes_off(self):
         for held_note in self.held_notes:
             self.note_offs_out.append(held_note)
         self.held_notes.clear()
 
-
-
     def process_midi_out(self):
+        #Send Midi Clock
+        while self.pending_midi_clock_ticks>0:
+            self.macropad.midi.send(TimingClock())
+            self.pending_midi_clock_ticks -= 1
+
+        # Send Midi Notes
         for idx, note in enumerate(self.note_ons_out):
             if self.velocities_out[idx]:
                 velocity = self.velocities_out[idx]
@@ -39,6 +64,16 @@ class OutputManager:
             self.macropad.midi.send(self.macropad.NoteOn(note, velocity))  # send midi note_on
         for note in self.note_offs_out:
             self.macropad.midi.send(self.macropad.NoteOff(note, 0))  # send midi note_off
+
+        #Send Midi Start
+        if self.midi_start:
+            self.macropad.midi.send(Start())
+            self.midi_start = False
+
+        #Send Midi Stop
+        if self.midi_stop:
+            self.macropad.midi.send(Stop())
+            self.midi_stop = False
 
         self.note_ons_out.clear()
         self.note_offs_out.clear()

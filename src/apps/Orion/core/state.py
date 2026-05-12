@@ -21,9 +21,10 @@ class State:
         self.key_offset = 0
 
         # Timing State
-        self.bpm = 100
+        self.bpm = 120
         self.swing = 0
         self.timing_step = TimingSteps.One16th
+        self.transport_mode = 0
 
         # Chain State
         self.chain_modules = []

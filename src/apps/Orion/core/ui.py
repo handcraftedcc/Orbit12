@@ -119,9 +119,8 @@ class Chain(Section):
         super().__init__(state)
         
         self.items = ["I", "T", "1", "2", "3", "4", "5", "6", "O"]
-        self.selected = 0
-        text = "-".join(self.items)
-        self.text = text
+        self.temp_items = self.items.copy()
+        self.text = "-".join(self.items)
         self.chain_label = Label(
             terminalio.FONT,
             text=self.text,
@@ -132,7 +131,7 @@ class Chain(Section):
         self.chain_label.anchored_position = (margin,margin-3)
         self.group.append(self.chain_label)
 
-        self.set_selected(0)
+        self.rebuild_chain_section()
 
         # divider line
         line = displayio.Bitmap(DISPLAYRES[0]-margin*2, 1, 2)  # width, height, colors
@@ -145,11 +144,13 @@ class Chain(Section):
 
         main_group.append(self.group)
 
-    def set_selected(self,selected):
-        labels = self.items.copy()
-        labels[selected]=f"[{labels[selected]}]"
-        self.chain_label.text="-".join(labels)
-        self.selected = selected
+    def rebuild_chain_section(self):
+        for idx, _ in enumerate(self.temp_items):
+            if idx == self.state.active_chain:
+                self.temp_items[idx] = "[" + self.items[idx] + "]"
+            else:
+                self.temp_items[idx] = self.items[idx]
+        self.chain_label.text="-".join(self.temp_items)
 
     def highlight_chain(self):
         self.chain_label.clear_accent_ranges()
