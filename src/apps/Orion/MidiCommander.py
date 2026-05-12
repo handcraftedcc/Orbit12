@@ -1,6 +1,7 @@
 # Main app manager
 from adafruit_macropad import MacroPad
 import keypad
+import adafruit_ticks as ticks
 
 from .core import ui
 from .core import transport
@@ -36,10 +37,10 @@ class MidiCommander:
 
         # Init objects
         self.state = state.State(self.macropad)
-        self.clock = transport.Clock()
+        self.transport = transport.Transport(self.state)
         self.input_manager = input.InputManager(self.macropad)
         self.output_manager = output.OutputManager(self.macropad, self.state)
-        self.module_helper = module.ModuleHelper(self.macropad, self.state, self.input_manager, self.output_manager, self.clock)
+        self.module_helper = module.ModuleHelper(self.macropad, self.state, self.input_manager, self.output_manager, self.transport)
 
         # Pass objects to state (Have to do after because of circular dependency)
         self.state.input = self.input_manager
@@ -75,7 +76,7 @@ class MidiCommander:
             self.note_offs.clear()
             
             ### Update transport
-            midi_tick = self.clock.update()
+            midi_tick = self.transport.update()
 
             ### Get input
             pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
@@ -142,6 +143,9 @@ class MidiCommander:
                 for bit_index in range(1, 13):
                     if pressed & (1 << bit_index):
                         self.ui_manager.neo_pixels.set_held_pixel(bit_index-1)
+
+                if not self.transport.running:
+                    self.transport.clock_start()
 
 
             ## Process encoder button release ##

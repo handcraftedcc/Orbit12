@@ -1,8 +1,4 @@
-from ..inputmodules.note import Note as InputModule
 from ._modules._empty import Empty as EmptyModule
-from ._modules._transport import Transport as TransportModule
-from ._modules._output import Output as OutputModule
-from ..modules._registry import AVAILABLE_MODULES, AVAILABLE_MODULE_NAMES, AVAILABLE_MODULE_LABELS
 from .music import NOTES
 from .music import SCALENAMES as SCALES
 
@@ -16,6 +12,7 @@ POLYPHONY = 8
 
 
 class State:
+    """ Handles general state of the App. See parameter list below """
     def __init__(self, macropad):
         # Music State
         self.key = NOTES.index("C")
@@ -25,6 +22,8 @@ class State:
 
         # Timing State
         self.bpm = 100
+        self.swing = 0
+        self.timing_step = TimingSteps.One16th
 
         # Chain State
         self.chain_modules = []
@@ -91,3 +90,8 @@ class ChainElements:
     SLOT5 = 6
     SLOT6 = 7
     OUT = 8
+
+class TimingSteps:
+    One16th = 0
+    One32nd = 1
+    One64th = 2

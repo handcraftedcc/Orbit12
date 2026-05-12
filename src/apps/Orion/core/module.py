@@ -1,13 +1,13 @@
 from . import parms as Parms
 
 class ModuleHelper: #Used to centralize and unify module object access
-    def __init__(self, macropad, state, input_manager, output_manager, clock):
+    def __init__(self, macropad, state, input_manager, output_manager, transport):
         self.macropad = macropad
         self.state = state
         self.input_manager = input_manager
         self.output_manager = output_manager
         self.ui_manager = None
-        self.clock = clock
+        self.transport = transport
 
 # Module base
 class Module:
