@@ -59,6 +59,7 @@ class OutputManager:
         #Send Midi Stop
         if self.midi_stop:
             self.macropad.midi.send(Stop())
+            self.macropad.midi.send(Stop())
             self.midi_stop = False
 
         #Send Midi Clock

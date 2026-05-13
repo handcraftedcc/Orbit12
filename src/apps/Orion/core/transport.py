@@ -105,12 +105,10 @@ class Transport:
 		self.reset()
 		self.schedule_next_tick()
 		self.running = 1
-		if self.state.transport_mode != 1:
-			self.output_manager.schedule_midi_start()
+		self.output_manager.schedule_midi_start()
 		
 	def clock_stop(self):
 		self.reset()
 		self.running = 0
-		if self.state.transport_mode != 1:
-			self.output_manager.schedule_midi_stop()
+		self.output_manager.schedule_midi_stop()
 		self.state.stop_all_modules()
