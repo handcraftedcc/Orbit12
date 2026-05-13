@@ -174,16 +174,18 @@ class Arp(Module):
         running = self.transport.running
         if note_ons or note_offs:
             self.update_note_register(note_ons, note_offs, velocities)
+
         if self.arp_state == 1 and not self.note_register: #All keys released
             self.arp_state = 0
             #print("All Keys Released")
             if self.retrigger_mode == 0:
                 self.note_register_position = 0
             self.update_random_seed()
+
         if self.arp_state == 0 and self.note_register: #From no keys pressed -> keys pressed
             self.arp_state = 1
             self.last_midi_tick = self.transport.midi_tick
-            #print("Keys Pressed")
+
         if self.arp_state == 1 and self.transport.running:
             interval = self.rate_to_midi_ticks()  # e.g. 6 for 1/16
             last_tick = self.last_midi_tick

@@ -21,8 +21,6 @@ class Transport(Module):
             self.transport_mode = self.state.transport_mode
             self.bpm = self.state.bpm
             self.swing = self.state.swing
-            self.timing_step = self.state.timing_step
-
             self.parms = []
 
             print_ram_usage_parm = Parms.Parm("printRam", "Print Ram", Parms.ButtonParmType, None,
@@ -42,11 +40,6 @@ class Transport(Module):
                                               edit_callback_function=self.set_bpm)
             self.parms.append(swing_parm)
 
-            timing_step_options = ["1/16","1/32","1/64"]
-            timing_step_parm = Parms.Parm("timing_step", "Timing", Parms.EnumParmType, 0,
-                                          options = timing_step_options, edit_callback_function=self.set_timing_step)
-            self.parms.append(timing_step_parm)
-
             super().__init__(module_helper, slot_id, self.parms, include_default_parms=False)
 
     def set_transport_mode(self, value):
@@ -60,7 +53,3 @@ class Transport(Module):
 
     def set_swing(self, value):
         self.swing = value
-
-    def set_timing_step(self, value):
-        self.timing_step = value
-        self.transport.set_timing_step_interval(value)

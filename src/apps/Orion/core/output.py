@@ -39,12 +39,12 @@ class OutputManager:
         #print("tick")
 
     def schedule_midi_start(self):
-        self.midi_start = True
+        #self.midi_start = True
         self.macropad.midi.send([Start(),TimingClock()])
 
 
     def schedule_midi_stop(self):
-        self.midi_stop = True
+        #self.midi_stop = True
         self.macropad.midi.send(Stop())
 
 

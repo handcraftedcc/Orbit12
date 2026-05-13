@@ -83,12 +83,13 @@ class MidiCommander:
         #self.ui_rebuild_pending = True
 
     def can_do_ui_work(self, min_slack_ms=6):
-        if self.state.transport_mode == 1:
-            return self.output_manager.pending_midi_clock_ticks == 0
-        elif self.transport.running:
+        #if self.state.transport_mode == 1:
+        #    return self.output_manager.pending_midi_clock_ticks == 0
+        if self.transport.running:
             now = ticks.ticks_ms()
             ms_to_next = ticks.ticks_diff(self.transport.midi_tick_scheduled, now)
-            return self.output_manager.pending_midi_clock_ticks == 0 and ms_to_next >= min_slack_ms
+            #return self.output_manager.pending_midi_clock_ticks == 0 and ms_to_next >= min_slack_ms
+            return ms_to_next >= min_slack_ms
         else:
             return True
 
@@ -246,11 +247,10 @@ class MidiCommander:
             if released != 0:
                 if downstate & 1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
-                else: #knob is not held -> simple button press
-                    # Generate note offs from keys
-                    for bit_index in range(1, 13):
-                        if released & (1 << bit_index):
-                            self.note_offs.append(bit_index - 1)
+                # Generate note offs from keys
+                for bit_index in range(1, 13):
+                    if released & (1 << bit_index):
+                        self.note_offs.append(bit_index - 1)
                 for bit_index in range(1, 13):
                     if released & (1 << bit_index):
                         self.ui_manager.neo_pixels.release_held_pixel(bit_index-1)
