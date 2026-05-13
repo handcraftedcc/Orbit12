@@ -1,5 +1,6 @@
 import adafruit_ticks as ticks
 from .state import TimingSteps
+import gc
 
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
@@ -62,25 +63,26 @@ class Transport:
 					#	self.clock_start()
 					stepped = True
 				elif isinstance(msg, Start):
-					self.clock_start()
+					self.clock_start(send_out = False)
 				elif isinstance(msg, Stop):
-					self.clock_stop()
+					self.clock_stop(send_out = False)
 				elif isinstance(msg, Continue):
 					pass
 				else:
 					pass
-
-		elif self.running == 1:
+		else:
 			while ticks.ticks_less(self.midi_tick_scheduled, current):
 				self.schedule_next_tick()
 				self.midi_tick += 1
 				self.output_manager.schedule_midi_clock()
-				if self.midi_tick % self.timing_step_interval == 0:
-					self.timing_step += 1
-					self.timing_stepped = 1
-				else:
-					self.timing_stepped = 0
 				stepped = True
+
+		if self.running == 1:
+			if self.midi_tick % self.timing_step_interval == 0:
+				self.timing_step += 1
+				self.timing_stepped = 1
+			else:
+				self.timing_stepped = 0
 
 		return stepped
 
@@ -101,14 +103,18 @@ class Transport:
 		self.midi_tick_scheduled = now
 		self.output_manager.pending_midi_clock_ticks = 0
 
-	def clock_start(self):
+	def clock_start(self, send_out = True):
+		gc.collect()
 		self.reset()
 		self.schedule_next_tick()
 		self.running = 1
-		self.output_manager.schedule_midi_start()
+		self.output_manager.pending_midi_clock_ticks = 0
+		if send_out: self.output_manager.schedule_midi_start()
 		
-	def clock_stop(self):
+	def clock_stop(self, send_out = True):
 		self.reset()
 		self.running = 0
-		self.output_manager.schedule_midi_stop()
+		self.output_manager.pending_midi_clock_ticks = 0
+		if send_out: self.output_manager.schedule_midi_stop()
 		self.state.stop_all_modules()
+		gc.collect()

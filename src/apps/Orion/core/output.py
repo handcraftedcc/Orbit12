@@ -35,13 +35,17 @@ class OutputManager:
 
     def schedule_midi_clock(self):
         self.pending_midi_clock_ticks += 1
-        print("tick")
+        self.macropad.midi.send(TimingClock())
+        #print("tick")
 
     def schedule_midi_start(self):
         self.midi_start = True
+        self.macropad.midi.send([Start(),TimingClock()])
+
 
     def schedule_midi_stop(self):
         self.midi_stop = True
+        self.macropad.midi.send(Stop())
 
 
     def all_notes_off(self):
@@ -51,21 +55,19 @@ class OutputManager:
 
     def process_midi_out(self):
         #Send Midi Start
-        if self.midi_start:
-            self.macropad.midi.send(Start())
-            self.macropad.midi.send(TimingClock())
-            self.midi_start = False
+        #if self.midi_start:
+        #    self.macropad.midi.send(Start())
+        #    self.midi_start = False
 
         #Send Midi Stop
-        if self.midi_stop:
-            self.macropad.midi.send(Stop())
-            self.macropad.midi.send(Stop())
-            self.midi_stop = False
+        #if self.midi_stop:
+        #    self.macropad.midi.send(Stop())
+        #    self.midi_stop = False
 
         #Send Midi Clock
-        while self.pending_midi_clock_ticks>0:
-            self.macropad.midi.send(TimingClock())
-            self.pending_midi_clock_ticks -= 1
+        #while self.pending_midi_clock_ticks>0:
+        #    self.macropad.midi.send(TimingClock())
+        #    self.pending_midi_clock_ticks -= 1
 
         # Send Midi Notes
         for idx, note in enumerate(self.note_ons_out):

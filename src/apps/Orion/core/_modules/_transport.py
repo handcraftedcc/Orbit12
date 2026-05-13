@@ -51,7 +51,7 @@ class Transport(Module):
 
     def set_transport_mode(self, value):
         self.state.transport_mode = value
-        self.transport.pending_midi_clock_ticks = 0
+        self.module_helper.output_manager.pending_midi_clock_ticks = 0
         self.transport.running = 0
         self.transport.reset()
 
