@@ -4,6 +4,9 @@ import keypad
 import adafruit_ticks as ticks
 import gc
 
+import microcontroller
+microcontroller.cpu.frequency = 250_000_000
+
 from .core import ui
 from .core import transport
 from .core import input
