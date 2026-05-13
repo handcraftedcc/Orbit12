@@ -1,8 +1,6 @@
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.timing_clock import TimingClock
-import adafruit_macropad as MacroPad
-from adafruit_midi import start
 
 
 class OutputManager:
@@ -35,7 +33,6 @@ class OutputManager:
 
     def schedule_midi_clock(self):
         self.pending_midi_clock_ticks += 1
-        print("tick")
 
     def schedule_midi_start(self):
         self.midi_start = True

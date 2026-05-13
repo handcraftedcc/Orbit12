@@ -119,8 +119,13 @@ class Chain(Section):
         super().__init__(state)
         
         self.items = ["I", "T", "1", "2", "3", "4", "5", "6", "O"]
-        self.temp_items = self.items.copy()
-        self.text = "-".join(self.items)
+        self.selected = -1
+        self.selected_texts = []
+        for idx in range(len(self.items)):
+            labels = self.items.copy()
+            labels[idx] = "[" + labels[idx] + "]"
+            self.selected_texts.append("-".join(labels))
+        self.text = self.selected_texts[0]
         self.chain_label = Label(
             terminalio.FONT,
             text=self.text,
@@ -145,12 +150,11 @@ class Chain(Section):
         main_group.append(self.group)
 
     def rebuild_chain_section(self):
-        for idx, _ in enumerate(self.temp_items):
-            if idx == self.state.active_chain:
-                self.temp_items[idx] = "[" + self.items[idx] + "]"
-            else:
-                self.temp_items[idx] = self.items[idx]
-        self.chain_label.text="-".join(self.temp_items)
+        selected = self.state.active_chain
+        if selected == self.selected:
+            return
+        self.chain_label.text = self.selected_texts[selected]
+        self.selected = selected
 
     def highlight_chain(self):
         self.chain_label.clear_accent_ranges()
@@ -171,6 +175,12 @@ class ParameterSection(Section):
         self.parm_count = 4
         self.parm_labels = []
         self.parm_values = []
+        self._last_chain = None
+        self._last_page = None
+        self._rebuild_parms = []
+        self._rebuild_start = 0
+        self._rebuild_chain = 0
+        self._rebuild_page = 0
         
         for i in range(PARMSPERPAGE):
             ypos = 15+11*i
@@ -202,18 +212,81 @@ class ParameterSection(Section):
         self.rebuild_parm_section()
 
         main_group.append(self.group)
+
+    def _set_parm_row(self, row_index):
+        parm_index = self._rebuild_start + row_index
+        if parm_index < self.parm_count:
+            parm = self._rebuild_parms[parm_index]
+            new_label = parm.label
+            new_value = str(parm.display_value)
+        else:
+            new_label = ""
+            new_value = ""
+
+        if self.parm_labels[row_index].text != new_label:
+            self.parm_labels[row_index].text = new_label
+        if self.parm_values[row_index].text != new_value:
+            self.parm_values[row_index].text = new_value
+
+    def _rebuild_parm_section_start(self):
+        self._rebuild_chain = self.state.active_chain
+        self._rebuild_page = max(0,self.state.active_parm) // PARMSPERPAGE
+        module = self.state.chain_modules[self._rebuild_chain]
+        parms = module.get_parms()
+        self._rebuild_parms = parms
+        self.parm_count = len(parms)
+        self.pages = max(1, (self.parm_count + PARMSPERPAGE - 1) // PARMSPERPAGE)
+        self.active_page = self._rebuild_page
+        self._rebuild_start = self.active_page * PARMSPERPAGE
+
+    def _rebuild_parm_section_row0(self):
+        self._set_parm_row(0)
+
+    def _rebuild_parm_section_row1(self):
+        self._set_parm_row(1)
+
+    def _rebuild_parm_section_row2(self):
+        self._set_parm_row(2)
+
+    def _rebuild_parm_section_row3(self):
+        self._set_parm_row(3)
+
+    def _rebuild_parm_section_finish(self):
+        if self.state.active_parm != -1:
+            self.highlight_parm()
+        self.set_page_indicator()
+        self._last_chain = self._rebuild_chain
+        self._last_page = self._rebuild_page
+
+    def queue_rebuild_parm_section(self, add_callback, force=False):
+        chain = self.state.active_chain
+        page = max(0,self.state.active_parm) // PARMSPERPAGE
+        if not force and chain == self._last_chain and page == self._last_page:
+            return
+        add_callback("parm_rebuild_start", self._rebuild_parm_section_start)
+        add_callback("parm_rebuild_row0", self._rebuild_parm_section_row0)
+        add_callback("parm_rebuild_row1", self._rebuild_parm_section_row1)
+        add_callback("parm_rebuild_row2", self._rebuild_parm_section_row2)
+        add_callback("parm_rebuild_row3", self._rebuild_parm_section_row3)
+        add_callback("parm_rebuild_finish", self._rebuild_parm_section_finish)
             
     def update_parm(self, labeltext, new_value):
         parm_id = self.state.active_parm % PARMSPERPAGE
         label = self.parm_labels[parm_id]
         value = self.parm_values[parm_id]
-        label.text = labeltext
-        value.text = str(new_value)
+        label_text = str(labeltext)
+        value_text = str(new_value)
+        if label.text != label_text:
+            label.text = label_text
+        if value.text != value_text:
+            value.text = value_text
 
     def update_parm_value(self, new_value):
         parm_id = self.state.active_parm % PARMSPERPAGE
         value = self.parm_values[parm_id]
-        value.text = str(new_value)
+        value_text = str(new_value)
+        if value.text != value_text:
+            value.text = value_text
         if parm_id == self.highlighted:
             value.clear_accent_ranges()
             value.add_accent_range(0, len(value.text), 2, 3)
@@ -254,30 +327,14 @@ class ParameterSection(Section):
         self.page_indicator.width = indicator_width
 
     def rebuild_parm_section(self):
-        module = self.state.chain_modules[self.state.active_chain]
-        parms = module.get_parms()
-        self.parm_count = len(parms)
-        self.pages = (self.parm_count + PARMSPERPAGE -1 )//PARMSPERPAGE
-        self.active_page = max(0,self.state.active_parm) // PARMSPERPAGE
-        start = self.active_page*PARMSPERPAGE
-        for i in range(PARMSPERPAGE):
-            parm_index = start + i
-
-            if parm_index < self.parm_count:
-                parm = parms[parm_index]
-                self.parm_labels[i].text = parm.label
-                self.parm_values[i].text = str(parm.display_value)
-            else:
-                self.parm_labels[i].text = ""
-                self.parm_values[i].text = ""
-        if self.state.active_parm != -1: self.highlight_parm()
-
-        self.set_page_indicator()
+        self._rebuild_parm_section_start()
+        for row_index in range(PARMSPERPAGE):
+            self._set_parm_row(row_index)
+        self._rebuild_parm_section_finish()
 
 
 
         
-
 
 
 

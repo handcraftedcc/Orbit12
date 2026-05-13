@@ -6,6 +6,9 @@ from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.midi_continue import Continue
 
+import microcontroller
+microcontroller.cpu.frequency = 250_000_000
+
 class Transport:
 	def __init__(self,state,output_manager, macropad):
 		self.output_manager = output_manager
@@ -46,27 +49,28 @@ class Transport:
 		stepped = False
 
 		if self.state.transport_mode == 1:
-			max_msgs = 200
+			max_msgs = 24
 			for _ in range(max_msgs):
 				msg = self.macropad.midi.receive()
 				if msg is None:
 					break
+				elif isinstance(msg, Start):
+					self.reset()
+					self.running = 1
+				elif isinstance(msg, Stop):
+					self.running = 0
+				elif isinstance(msg, Continue):
+					self.running = 1
 				elif isinstance(msg, TimingClock):
+					if self.running == 0:
+						continue
 					self.midi_tick += 1
 					if self.midi_tick % self.timing_step_interval == 0:
 						self.timing_step += 1
 						self.timing_stepped = 1
 					else:
 						self.timing_stepped = 0
-					if self.running == 0:
-						self.clock_start()
 					stepped = True
-				elif isinstance(msg, Start):
-					self.clock_start()
-				elif isinstance(msg, Stop):
-					self.clock_stop()
-				elif isinstance(msg, Continue):
-					pass
 				else:
 					pass
 

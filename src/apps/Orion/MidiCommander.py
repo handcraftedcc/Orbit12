@@ -52,8 +52,9 @@ class MidiCommander:
         self.encoder_consumed = None
         self.screen_update_needed = False
         self.ui_queue = []
+        self.ui_queue_head = 0
+        self.ui_queue_keys = set()
         self.last_gc_ms = ticks.ticks_ms()
-        #self.ui_rebuild_pending = False
 
         self.note_ons = []
         self.note_offs = []
@@ -72,12 +73,15 @@ class MidiCommander:
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
 
-        #gc.disable()
+    def add_to_ui_queue(self, key, callback):
+        if key in self.ui_queue_keys:
+            return
+        self.ui_queue.append((key, callback))
+        self.ui_queue_keys.add(key)
+        self.screen_update_needed = True
 
-    def add_to_ui_queue(self, callback):
-        if callback not in self.ui_queue:
-            self.ui_queue.append(callback)
-        #self.ui_rebuild_pending = True
+    def ui_queue_has_work(self):
+        return self.ui_queue_head < len(self.ui_queue)
 
     def can_do_ui_work(self, min_slack_ms=6):
         if self.state.transport_mode == 1:
@@ -101,10 +105,10 @@ class MidiCommander:
         if self.state.transport_mode == 0:
             ms_to_next = ticks.ticks_diff(self.transport.midi_tick_scheduled, now)
             safe = (
-                    self.output_manager.pending_midi_clock_ticks == 0
-                    and ms_to_next >= 15
-                    and not self.ui_queue
-                    and ticks.ticks_diff(now, self.last_gc_ms) > 300
+                self.output_manager.pending_midi_clock_ticks == 0
+                and ms_to_next >= 15
+                and not self.ui_queue_has_work()
+                and ticks.ticks_diff(now, self.last_gc_ms) > 300
             )
             if safe:
                 gc.collect()
@@ -112,12 +116,11 @@ class MidiCommander:
 
     def run(self):
         while True:
-            #current = ticks.ticks_ms()
             self.note_ons.clear()
             self.note_offs.clear()
             
             ### Update transport
-            midi_tick = self.transport.update()
+            self.transport.update()
             self.output_manager.process_midi_out()
 
             ### Get input
@@ -140,26 +143,27 @@ class MidiCommander:
                 # Active section: Chain #
                 if self.state.active_ui_section == state.UISection.CHAIN:
                         self.state.move_active_chain_elem(knob_delta)
-                        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+                        self.add_to_ui_queue("chain_rebuild", self.ui_manager.chain.rebuild_chain_section)
+                        self.ui_manager.parameter_section.queue_rebuild_parm_section(self.add_to_ui_queue)
 
                 # Active section: Parm Selection #
                 elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                     current_page = self.state.active_parm_page
                     self.state.move_active_parm_elem(knob_delta)
                     if self.state.active_parm < 0:
-                        self.add_to_ui_queue(self.ui_manager.chain.highlight_chain)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
+                        self.add_to_ui_queue("chain_highlight", self.ui_manager.chain.highlight_chain)
+                        self.add_to_ui_queue("parm_highlight_clear", self.ui_manager.parameter_section.clear_parm_highlights)
                     else:
-                        self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+                        self.add_to_ui_queue("chain_highlight_clear", self.ui_manager.chain.clear_chain_highlights)
+                        self.add_to_ui_queue("parm_highlight", self.ui_manager.parameter_section.highlight_parm)
                     if current_page != self.state.active_parm_page:
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+                        self.ui_manager.parameter_section.queue_rebuild_parm_section(self.add_to_ui_queue)
 
                 # Active Section: Parm Edit #
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
                     new_value, new_display_value = self.state.get_active_module_parm().edit(knob_delta)
                     self.ui_manager.parameter_section.update_parm_value(new_display_value)
+                    self.screen_update_needed = True
 
 
             ## Process encoder button press ##
@@ -207,14 +211,14 @@ class MidiCommander:
                             #Switch state to active module
                             self.state.active_ui_section = state.UISection.PARMSELECTION
                             self.state.active_parm = 0
-                            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
-                            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+                            self.add_to_ui_queue("chain_highlight_clear", self.ui_manager.chain.clear_chain_highlights)
+                            self.add_to_ui_queue("parm_highlight", self.ui_manager.parameter_section.highlight_parm)
 
                     # Active section: Parm Selection #
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                         #Check if on chain selection -> Switch back to chain selection
                         if self.state.active_parm == -1:
-                            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+                            self.add_to_ui_queue("chain_highlight_clear", self.ui_manager.chain.clear_chain_highlights)
                             self.state.active_ui_section = state.UISection.CHAIN
                         else: #Go into parm edit
                             self.state.active_ui_section = state.UISection.PARMEDIT
@@ -223,8 +227,8 @@ class MidiCommander:
                             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                                 self.state.active_ui_section = state.UISection.PARMSELECTION
 
-                            self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
-                            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm_value)
+                            self.add_to_ui_queue("parm_highlight_clear", self.ui_manager.parameter_section.clear_parm_highlights)
+                            self.add_to_ui_queue("parm_value_highlight", self.ui_manager.parameter_section.highlight_parm_value)
 
                     # Active section: Parm Edit #
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
@@ -233,8 +237,8 @@ class MidiCommander:
                         active_parm.exit()
                         self.state.active_ui_section = state.UISection.PARMSELECTION
 
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_value_highlight)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+                        self.add_to_ui_queue("parm_value_highlight_clear", self.ui_manager.parameter_section.clear_parm_value_highlight)
+                        self.add_to_ui_queue("parm_highlight", self.ui_manager.parameter_section.highlight_parm)
 
                 released &= ~1 # Clear knob release bit
 
@@ -271,20 +275,15 @@ class MidiCommander:
             ### Output ###
             self.output_manager.process_midi_out()
 
-            self.maybe_gc()
-
             ### Update UI & screen ###
-            if self.ui_queue and self.can_do_ui_work(min_slack_ms=8):
-                callback = self.ui_queue.pop(0)
-                current = ticks.ticks_ms()
+            if self.ui_queue_has_work() and self.can_do_ui_work(min_slack_ms=8):
+                key, callback = self.ui_queue[self.ui_queue_head]
+                self.ui_queue_head += 1
+                self.ui_queue_keys.discard(key)
                 callback()
-                difference = ticks.ticks_diff(ticks.ticks_ms(), current)
-
-            # mark refresh, but don't flush display immediately
-            self.screen_update_needed = True
-
-            #diff = ticks.ticks_diff(ticks.ticks_ms(), current)
-            #if diff > 3: print(diff)
+                if self.ui_queue_head >= len(self.ui_queue):
+                    self.ui_queue.clear()
+                    self.ui_queue_head = 0
 
             if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work():
                 self.ui_manager.screen.update()
