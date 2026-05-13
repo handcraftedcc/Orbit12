@@ -4,45 +4,48 @@ class InputManager:
     def __init__(self,macropad: MacroPad):
         self.macropad = macropad
         self.last_knob_pos = macropad.encoder
-        self.downstate = 0
+        self.downstate = bytearray(13)
         self.encoder_press_consumed = None
+
+        self.pressed = bytearray(13)  # bytearray - encoder + 12 keys
+        self.released = bytearray(13)  # bytearray - encoder + 12 keys
+        self.knob_delta = 0
 
 
     def get_inputs(self):
-        pressed = 0 #bitmask - encoder + 12 keys
-        released = 0 #bitmask - encoder + 12 keys
-        knob_delta = 0 #encoder int value
+        for i in range(13):
+            self.pressed[i] = 0
+            self.released[i] = 0
+            self.knob_delta = 0
 
-        macropad = self.macropad
-        while macropad.keys.events:  # check for key press or release
-            key_event = macropad.keys.events.get()
+        while self.macropad.keys.events:  # check for key press or release
+            key_event = self.macropad.keys.events.get()
             if key_event:
                 key = key_event.key_number
-                flag = 1 << (key + 1)
                 if key_event.pressed:
-                    pressed |= flag
-                    self.downstate |= flag
+                    self.pressed[key+1] = 1
+                    self.downstate[key+1] = 1
 
                 if key_event.released:
-                    released |= flag
-                    self.downstate &= ~flag
+                    self.released[key + 1] = 1
+                    self.downstate[key + 1] = 0
             
-        macropad.encoder_switch_debounced.update()  # check the knob switch for press or release
+        self.macropad.encoder_switch_debounced.update()  # check the knob switch for press or release
         
-        if macropad.encoder_switch_debounced.pressed:
-            pressed |= 1
-            self.downstate |= 1
+        if self.macropad.encoder_switch_debounced.pressed:
+            self.pressed[0] = 1
+            self.downstate[0] = 1
 
-        if macropad.encoder_switch_debounced.released:
-            released |= 1
-            self.downstate &= ~1
+        if self.macropad.encoder_switch_debounced.released:
+            self.released[0] = 1
+            self.downstate[0] = 0
             
-        if self.last_knob_pos != macropad.encoder:  # knob has been turned
-            knob_pos = macropad.encoder  # read encoder
-            knob_delta = knob_pos - self.last_knob_pos  # compute knob_delta since last read
+        if self.last_knob_pos != self.macropad.encoder:  # knob has been turned
+            knob_pos = self.macropad.encoder  # read encoder
+            self.knob_delta = knob_pos - self.last_knob_pos  # compute knob_delta since last read
             self.last_knob_pos = knob_pos  # save new reading
 
-        return pressed,released,knob_delta,self.downstate
+        return self.pressed, self.released, self.knob_delta, self.downstate
     
 
 

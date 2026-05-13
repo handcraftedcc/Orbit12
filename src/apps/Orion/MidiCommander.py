@@ -127,16 +127,6 @@ class MidiCommander:
             ### Get input
             pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
 
-            # Bitmasks:
-            # FLAG = 1 << spot
-            # Set bit: mask |= FLAG
-            # Clear bit: mask &= ~FLAG
-            # Test bit: mask & FLAG
-            # Toggle bit: mask ^= FLAG
-
-            # KNOB bit == 1
-            # Key bits == 1 << KeyNum
-
             ### Process inputs ###
             ## Process encoder knob turn ##
             # -> depends on state - either navbar jogging, parm jogging or parm modification
@@ -168,40 +158,51 @@ class MidiCommander:
 
             ## Process encoder button press ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
-            if pressed & 1:
+            if pressed[0]:
                 self.input_manager.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
-                pressed &= ~1
+                pressed [0] = 0
 
 
 
             ## Process midi key press ##
             # -> if knob down then use it as function - if not emit notes
-            if pressed != 0:
-                if downstate & 1: #knob is held -> combination
+            if any(pressed):
+                self.input_manager.encoder_press_consumed = 1
+                if downstate[0]==1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
-                    if pressed & (1 << 10):
+                    if pressed[11]:
                         self.transport.clock_start()
-                    elif pressed & (1 << 11):
+                    elif pressed[10]:
                         self.transport.clock_stop()
+                    elif pressed[2]:
+                        self.state.octave+=1
+                    elif pressed[5]:
+                        self.state.octave-=1
+                    elif pressed[4]:
+                        self.state.key_offset-=1
+                        self.state.chain_modules[0].color_pixels()
+                    elif pressed[6]:
+                        self.state.key_offset+=1
+                        self.state.chain_modules[0].color_pixels()
 
                 else: #knob is not held -> simple button press
                     # Generate note ons from keys
-                    for bit_index in range(1, 13):
-                        if pressed & (1 << bit_index):
-                            self.note_ons.append(bit_index - 1)
+                    for index in range(1, 13):
+                        if pressed[index]:
+                            self.note_ons.append(index - 1)
                     if not self.transport.running and self.state.transport_mode == 0:
                         self.transport.clock_start()
 
-                for bit_index in range(1, 13):
-                    if pressed & (1 << bit_index):
-                        self.ui_manager.neo_pixels.set_held_pixel(bit_index-1)
+                for index in range(1, 13):
+                    if pressed[index]:
+                        self.ui_manager.neo_pixels.set_held_pixel(index-1)
 
 
 
 
             ## Process encoder button release ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
-            if released & 1:
+            if released[0]:
                 if self.input_manager.encoder_press_consumed == 1: #Was consumed by a key press
                     self.input_manager.encoder_press_consumed = None
                     self.output_manager.all_notes_off()
@@ -240,20 +241,20 @@ class MidiCommander:
                         self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_value_highlight)
                         self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
 
-                released &= ~1 # Clear knob release bit
+                released[0] = 0 # Clear knob release bit
 
             ## Process midi key release ##
             # -> if knob down then use it as function - if not emit notes
-            if released != 0:
-                if downstate & 1: #knob is held -> combination
+            if any(released):
+                if downstate[0]: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
                 # Generate note offs from keys
-                for bit_index in range(1, 13):
-                    if released & (1 << bit_index):
-                        self.note_offs.append(bit_index - 1)
-                for bit_index in range(1, 13):
-                    if released & (1 << bit_index):
-                        self.ui_manager.neo_pixels.release_held_pixel(bit_index-1)
+                for index in range(1, 13):
+                    if released[index]:
+                        self.note_offs.append(index - 1)
+                for index in range(1, 13):
+                    if released[index]:
+                        self.ui_manager.neo_pixels.release_held_pixel(index-1)
 
             ### Process slots ###
             ## Process input ##
