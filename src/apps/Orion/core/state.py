@@ -75,6 +75,10 @@ class State:
     def get_active_module_parm(self):
         return self.get_active_chain_module().get_parm(self.active_parm)
 
+    def stop_all_modules(self):
+        for module in self.chain_modules:
+            module.stop()
+
 
 class UISection:
     CHAIN = 0

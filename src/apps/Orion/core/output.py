@@ -50,6 +50,17 @@ class OutputManager:
         self.held_notes.clear()
 
     def process_midi_out(self):
+        #Send Midi Start
+        if self.midi_start:
+            self.macropad.midi.send(Start())
+            self.macropad.midi.send(TimingClock())
+            self.midi_start = False
+
+        #Send Midi Stop
+        if self.midi_stop:
+            self.macropad.midi.send(Stop())
+            self.midi_stop = False
+
         #Send Midi Clock
         while self.pending_midi_clock_ticks>0:
             self.macropad.midi.send(TimingClock())
@@ -64,16 +75,6 @@ class OutputManager:
             self.macropad.midi.send(self.macropad.NoteOn(note, velocity))  # send midi note_on
         for note in self.note_offs_out:
             self.macropad.midi.send(self.macropad.NoteOff(note, 0))  # send midi note_off
-
-        #Send Midi Start
-        if self.midi_start:
-            self.macropad.midi.send(Start())
-            self.midi_start = False
-
-        #Send Midi Stop
-        if self.midi_stop:
-            self.macropad.midi.send(Stop())
-            self.midi_stop = False
 
         self.note_ons_out.clear()
         self.note_offs_out.clear()

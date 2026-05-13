@@ -148,12 +148,17 @@ class Arp(Module):
         #print("Note Register", self.note_register)
         #print("Note Register Position", self.note_register_position)
 
-    def process_note_offs(self):
+    def process_note_offs(self, force_all = False):
         current = ticks.ticks_ms()
         popped_ids = []
-        for idx, note_off in enumerate(self.scheduled_offs):
-            off_time = self.scheduled_offs_time[idx]
-            if ticks.ticks_less(off_time, current):
+        if not force_all:
+            for idx, note_off in enumerate(self.scheduled_offs):
+                off_time = self.scheduled_offs_time[idx]
+                if ticks.ticks_less(off_time, current):
+                    self.note_offs_out.append(note_off)
+                    popped_ids.append(idx)
+        else: #Send note offs for all
+            for idx, note_off in enumerate(self.scheduled_offs):
                 self.note_offs_out.append(note_off)
                 popped_ids.append(idx)
 
@@ -214,6 +219,11 @@ class Arp(Module):
         self.was_transport_running = running
 
         return self.note_ons_out, self.note_offs_out, self.velocities_out
+
+    def stop(self):
+        self.process_note_offs(force_all = True)
+        self.held_notes.clear()
+
 
 
 

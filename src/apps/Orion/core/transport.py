@@ -7,7 +7,7 @@ from adafruit_midi.stop import Stop
 from adafruit_midi.midi_continue import Continue
 
 class Transport:
-	def __init__(self,state,output_manager, macropad):
+	def __init__(self, state,output_manager, macropad):
 		self.output_manager = output_manager
 		self.macropad = macropad
 		self.state = state
@@ -58,8 +58,8 @@ class Transport:
 						self.timing_stepped = 1
 					else:
 						self.timing_stepped = 0
-					if self.running == 0:
-						self.clock_start()
+					#if self.running == 0:
+					#	self.clock_start()
 					stepped = True
 				elif isinstance(msg, Start):
 					self.clock_start()
@@ -99,6 +99,7 @@ class Transport:
 		self.timing_stepped = 0
 		self.tick_interval_err = 0.0
 		self.midi_tick_scheduled = now
+		self.output_manager.pending_midi_clock_ticks = 0
 
 	def clock_start(self):
 		self.reset()
@@ -112,3 +113,4 @@ class Transport:
 		self.running = 0
 		if self.state.transport_mode != 1:
 			self.output_manager.schedule_midi_stop()
+		self.state.stop_all_modules()

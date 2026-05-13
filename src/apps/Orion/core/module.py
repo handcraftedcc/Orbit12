@@ -76,3 +76,6 @@ class Module:
     def process(self, note_ons, note_offs, velocities):
         return note_ons, note_offs, velocities
 
+    def stop(self):
+        pass
+
