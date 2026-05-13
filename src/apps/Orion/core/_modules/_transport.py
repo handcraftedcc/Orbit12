@@ -34,7 +34,7 @@ class Transport(Module):
                                           options=transport_mode_options, exit_callback_function=self.set_transport_mode)
             self.parms.append(transport_mode_parm)
 
-            bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, 120,
+            bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, 120, minmax=[1,300],
                                               edit_callback_function=self.set_bpm)
             self.parms.append(bpm_parm)
 
@@ -51,6 +51,9 @@ class Transport(Module):
 
     def set_transport_mode(self, value):
         self.state.transport_mode = value
+        self.transport.pending_midi_clock_ticks = 0
+        self.transport.running = 0
+        self.transport.reset()
 
     def set_bpm(self, value):
         self.transport.update_bpm(value)

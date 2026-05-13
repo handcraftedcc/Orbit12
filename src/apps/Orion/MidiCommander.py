@@ -75,6 +75,9 @@ class MidiCommander:
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
 
+        # Start midi clock
+        self.transport.restart_clock()
+
         #gc.disable()
 
     def add_to_ui_queue(self, callback):
@@ -120,8 +123,7 @@ class MidiCommander:
             self.note_offs.clear()
             
             ### Update transport
-            midi_tick = self.transport.update()
-            self.output_manager.process_midi_out()
+            #self.output_manager.process_midi_out()
 
             ### Get input
             pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
@@ -135,6 +137,9 @@ class MidiCommander:
 
             # KNOB bit == 1
             # Key bits == 1 << KeyNum
+
+            # Update Midi Clock & Timing
+            midi_tick = self.transport.update()
 
             ### Process inputs ###
             ## Process encoder knob turn ##
@@ -179,9 +184,9 @@ class MidiCommander:
                 if downstate & 1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
                     if pressed & (1 << 10):
-                        self.transport.clock_start()
+                        self.transport.transport_start()
                     elif pressed & (1 << 11):
-                        self.transport.clock_stop()
+                        self.transport.transport_stop()
 
                 else: #knob is not held -> simple button press
                     # Generate note ons from keys
@@ -189,7 +194,7 @@ class MidiCommander:
                         if pressed & (1 << bit_index):
                             self.note_ons.append(bit_index - 1)
                     if not self.transport.running and self.state.transport_mode == 0:
-                        self.transport.clock_start()
+                        self.transport.transport_start()
 
                 for bit_index in range(1, 13):
                     if pressed & (1 << bit_index):

@@ -17,6 +17,7 @@ class Transport:
 		self.timing_step = state.timing_step
 		self.midi_tick = 1
 		self.midi_tick_scheduled = 1
+		self.last_midi_tick_timestamp = ticks.ticks_ms()
 		self.tick_interval_ms_f = 0
 		self.tick_interval_ms_i = 0
 		self.tick_interval_err = 0
@@ -25,6 +26,8 @@ class Transport:
 		self.timing_step = 0
 		self.timing_step_interval = 6
 		self.timing_stepped = 0
+		self.timing_wait = 0
+		self.timing_step_phase = 0.0
 		self.running = 0
 
 	def set_timing_step_interval(self,value):
@@ -62,27 +65,35 @@ class Transport:
 					#	self.clock_start()
 					stepped = True
 				elif isinstance(msg, Start):
-					self.clock_start()
+					self.transport_start()
 				elif isinstance(msg, Stop):
-					self.clock_stop()
+					self.transport_stop()
 				elif isinstance(msg, Continue):
 					pass
 				else:
 					pass
 
-		elif self.running == 1:
+		else:
 			while ticks.ticks_less(self.midi_tick_scheduled, current):
 				self.schedule_next_tick()
 				self.midi_tick += 1
 				self.output_manager.schedule_midi_clock()
-				if self.midi_tick % self.timing_step_interval == 0:
+				stepped = True
+				self.timing_wait = 0 #Reset after midi stepped
+		if self.running == 1 and self.timing_wait:
+			now = ticks.ticks_ms()
+			self.timing_stepped = 0
+			if self.midi_tick % self.timing_step_interval == 0:
+				current_phase = (now-self.last_midi_tick_timestamp)/self.tick_interval_ms_f
+				if current_phase>=self.timing_step_phase:
 					self.timing_step += 1
 					self.timing_stepped = 1
-				else:
-					self.timing_stepped = 0
-				stepped = True
-
+					self.timing_wait = 1 # Wait until next midi step
 		return stepped
+
+	def update_timing_step_phase(self):
+		self.timing_step_phase = (ticks.ticks_ms()-self.last_midi_tick_timestamp)/self.tick_interval_ms_f
+		return self.timing_step_phase
 
 	def schedule_next_tick(self):
 		interval = self.tick_interval_ms_i
@@ -93,24 +104,28 @@ class Transport:
 		self.midi_tick_scheduled = ticks.ticks_add(self.midi_tick_scheduled, interval)
 
 	def reset(self):
-		now = ticks.ticks_ms()
 		self.midi_tick = 0
 		self.timing_step = 0
 		self.timing_stepped = 0
-		self.tick_interval_err = 0.0
-		self.midi_tick_scheduled = now
-		self.output_manager.pending_midi_clock_ticks = 0
+		self.update_timing_step_phase()
 
-	def clock_start(self):
+	def transport_start(self):
 		self.reset()
-		self.schedule_next_tick()
 		self.running = 1
+		self.output_manager.pending_midi_clock_ticks = 0
 		if self.state.transport_mode != 1:
 			self.output_manager.schedule_midi_start()
 		
-	def clock_stop(self):
+	def transport_stop(self):
 		self.reset()
 		self.running = 0
+		self.output_manager.pending_midi_clock_ticks = 0
 		if self.state.transport_mode != 1:
 			self.output_manager.schedule_midi_stop()
 		self.state.stop_all_modules()
+
+	def restart_clock(self):
+		self.reset()
+		now = ticks.ticks_ms()
+		self.tick_interval_err = 0.0
+		self.midi_tick_scheduled = now
