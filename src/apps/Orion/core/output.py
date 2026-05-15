@@ -1,8 +1,6 @@
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.timing_clock import TimingClock
-import adafruit_macropad as MacroPad
-from adafruit_midi import start
 
 
 class OutputManager:
@@ -33,18 +31,15 @@ class OutputManager:
 
         #print("held notes: ", self.held_notes)
 
-    def schedule_midi_clock(self):
+    def schedule_midi_clock(self): #send immediately
         self.pending_midi_clock_ticks += 1
         self.macropad.midi.send(TimingClock())
-        #print("tick")
 
-    def schedule_midi_start(self):
-        #self.midi_start = True
+    def schedule_midi_start(self): #send immediately
         self.macropad.midi.send([Start(),TimingClock()])
 
 
     def schedule_midi_stop(self):
-        #self.midi_stop = True
         self.macropad.midi.send(Stop())
 
 
@@ -54,21 +49,6 @@ class OutputManager:
         self.held_notes.clear()
 
     def process_midi_out(self):
-        #Send Midi Start
-        #if self.midi_start:
-        #    self.macropad.midi.send(Start())
-        #    self.midi_start = False
-
-        #Send Midi Stop
-        #if self.midi_stop:
-        #    self.macropad.midi.send(Stop())
-        #    self.midi_stop = False
-
-        #Send Midi Clock
-        #while self.pending_midi_clock_ticks>0:
-        #    self.macropad.midi.send(TimingClock())
-        #    self.pending_midi_clock_ticks -= 1
-
         # Send Midi Notes
         for idx, note in enumerate(self.note_ons_out):
             if self.velocities_out[idx]:
