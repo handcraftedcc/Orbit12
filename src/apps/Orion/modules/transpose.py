@@ -17,23 +17,24 @@ class Transpose(Module):
     label = "Transpose"
     version = 1
     def __init__(self, module_helper, slot_id):
-        parms = []
-        super().__init__(module_helper, slot_id, parms)
+        self.note_relationship = NoteRelationshipArray()
+        self.transpose_amount = 0
+        self.scale_aware = True
 
+        super().__init__(module_helper, slot_id)
+
+    def create_main_parms(self):
+        parms = []
         # Amount
         self.amount_parm = Parms.Parm(name="amount", label="Amount", default=0, parm_type=Parms.IntParmType,
                                     increment=1, edit_callback_function=self.set_amount)
-        self.parms.append(self.amount_parm)
+        parms.append(self.amount_parm)
 
         # Scale Aware
         self.scale_aware_parm = Parms.Parm(name="scale_aware", label="Scale Aware", default=True, parm_type=Parms.BooleanParmType,
                                       edit_callback_function=self.set_scale_aware)
-        self.parms.append(self.scale_aware_parm)
-
-        self.note_relationship = NoteRelationshipArray()
-
-        self.transpose_amount = 0
-        self.scale_aware = True
+        parms.append(self.scale_aware_parm)
+        return parms
 
     def set_amount(self, value):
         self.transpose_amount = value

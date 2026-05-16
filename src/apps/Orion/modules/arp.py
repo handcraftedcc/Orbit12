@@ -1,4 +1,4 @@
-from ..core.state import POLYPHONY
+from ..core.constants import POLYPHONY
 from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks
@@ -16,9 +16,6 @@ class Arp(Module):
     version = 1
     def __init__(self, module_helper, slot_id):
         #TODO: Rewrite to new Note Array Format
-        parms = []
-        super().__init__(module_helper, slot_id, parms)
-
         self.module_helper = module_helper
         self.transport = self.module_helper.transport
 
@@ -52,33 +49,35 @@ class Arp(Module):
         self.last_midi_tick = self.transport.midi_tick
         self.was_transport_running = self.transport.running
 
-
-        # Setup Parms
-
-        # Rate
-        self.rate_parm = Parms.Parm(name="rate", label="Rate", default=8, parm_type=Parms.RateParmType,
-                                    edit_callback_function=self.set_rate)
-        self.parms.append(self.rate_parm)
-
-        # Mode
-        self.mode_parm = Parms.Parm(name="mode", label="Mode", default=0, parm_type=Parms.EnumParmType,
-                                    options=self.mode_list,edit_callback_function=self.set_mode)
-        self.parms.append(self.mode_parm)
-
-        # Gate
-        self.gate_parm = Parms.Parm(name="gate", label="Gate", default=100, parm_type=Parms.FloatParmType,
-                                    increment=5, edit_callback_function=self.set_gate)
-        self.parms.append(self.gate_parm)
-
-        # Retrigger Mode
-        self.retrigger_parm = Parms.Parm(name="retrigger_mode", label="Retrigger", default=0, parm_type=Parms.EnumParmType,
-                                    options = self.retrigger_mode_list, edit_callback_function=self.set_retrigger_mode)
-        self.parms.append(self.retrigger_parm)
+        super().__init__(module_helper, slot_id)
 
         # Init values
         self.rate = self.rate_parm.get_actual_value()
         self.mode = self.mode_parm.get_actual_value()
         self.gate = self.gate_parm.get_actual_value()
+
+    def create_main_parms(self):
+        parms = []
+        # Rate
+        self.rate_parm = Parms.Parm(name="rate", label="Rate", default=8, parm_type=Parms.RateParmType,
+                                    edit_callback_function=self.set_rate)
+        parms.append(self.rate_parm)
+
+        # Mode
+        self.mode_parm = Parms.Parm(name="mode", label="Mode", default=0, parm_type=Parms.EnumParmType,
+                                    options=self.mode_list,edit_callback_function=self.set_mode)
+        parms.append(self.mode_parm)
+
+        # Gate
+        self.gate_parm = Parms.Parm(name="gate", label="Gate", default=100, parm_type=Parms.FloatParmType,
+                                    increment=5, edit_callback_function=self.set_gate)
+        parms.append(self.gate_parm)
+
+        # Retrigger Mode
+        self.retrigger_parm = Parms.Parm(name="retrigger_mode", label="Retrigger", default=0, parm_type=Parms.EnumParmType,
+                                    options = self.retrigger_mode_list, edit_callback_function=self.set_retrigger_mode)
+        parms.append(self.retrigger_parm)
+        return parms
 
     def set_rate(self, value):
         self.rate = self.rate_parm.get_actual_value()
@@ -234,7 +233,6 @@ class Arp(Module):
     def stop(self):
         self.process_note_offs(force_all = True)
         self.held_notes.clear()
-
 
 
 

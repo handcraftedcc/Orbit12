@@ -14,29 +14,31 @@ class Drum(Input):
     name = "drum"
     label = "Drum"
     def __init__(self, module_helper, slot_id):
-        parms = []
+        self.layout = 0
+        self.velocity = 127
         super().__init__(module_helper, slot_id, include_musical_parms=False)
 
+        self.state.octave = 0
+        self.state.key_offset = 0
+
+    def create_main_parms(self):
+        parms = super().create_main_parms()
         layout_options = ("InOrder","4x4Left12", "4x4Right12", "4x4Bott3Row","4x4Bott3RowFli")
-        self.layout = 0
         # Layout Mode
         layout_mode_parm = Parms.Parm(name="layout", label="Layout", parm_type=Parms.EnumParmType, default=0, options=layout_options,
                                      edit_callback_function=self.set_layout)
-        self.parms.append(layout_mode_parm)
+        parms.append(layout_mode_parm)
 
         # Key Offset
         key_offset_parm = Parms.Parm(name="key_offset", label="Key Offset", parm_type=Parms.IntParmType, default=0,
                                      edit_callback_function=self.set_key_offset)
-        self.parms.append(key_offset_parm)
+        parms.append(key_offset_parm)
 
         # Velocity
         velocity_parm = Parms.Parm(name="velocity", label="Velocity", parm_type=Parms.IntParmType, default=127,
                                    minmax=[0, 127], edit_callback_function=self.set_velocity)
-        self.parms.append(velocity_parm)
-
-        self.velocity = 127
-        self.state.octave = 0
-        self.state.key_offset = 0
+        parms.append(velocity_parm)
+        return parms
 
     def set_layout(self, layout_id):
         self.layout = layout_id

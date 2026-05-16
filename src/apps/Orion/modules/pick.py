@@ -7,11 +7,15 @@ class Pick(Module):
     label = "Pick"
     version = 1
     def __init__(self, module_helper, slot_id):
-        parms = []
-        super().__init__(module_helper, slot_id, parms)
-
-        # Pick Mode
         self.pick_mode = 0
+        self.held_note = None
+        self.held_notes_in = NoteArray()
+
+        super().__init__(module_helper, slot_id)
+
+    def create_main_parms(self):
+        parms = []
+        # Pick Mode
         pick_mode_options = [
             "1st",
             "2nd",
@@ -22,11 +26,8 @@ class Pick(Module):
         ]
         self.mode_parm = Parms.Parm(name="pick_mode", label="Mode", default=0, parm_type=Parms.EnumParmType,
                                       options=pick_mode_options, edit_callback_function=self.set_pick_mode)
-        self.parms.append(self.mode_parm)
-
-
-        self.held_note = None
-        self.held_notes_in = NoteArray()
+        parms.append(self.mode_parm)
+        return parms
 
     def set_pick_mode(self, value):
         self.pick_mode = value
@@ -85,7 +86,6 @@ class Pick(Module):
         if old_note: note_offs.append_value(old_note)
 
         return note_ons, note_offs
-
 
 
 

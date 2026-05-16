@@ -23,24 +23,29 @@ class Transport(Module):
             self.swing = self.state.swing
             self.parms = []
 
-            print_ram_usage_parm = Parms.Parm("printRam", "Print Ram", Parms.ButtonParmType, None,
-                                              enter_callback_function=print_ram_usage)
-            self.parms.append(print_ram_usage_parm)
+            super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
 
-            transport_mode_options = ["Internal", "External"]
-            transport_mode_parm = Parms.Parm("mode", "Mode", Parms.EnumParmType, 0,
-                                          options=transport_mode_options, exit_callback_function=self.set_transport_mode)
-            self.parms.append(transport_mode_parm)
+    def create_main_parms(self):
+        parms = []
+        print_ram_usage_parm = Parms.Parm("printRam", "Print Ram", Parms.ButtonParmType, None,
+                                          enter_callback_function=print_ram_usage)
+        parms.append(print_ram_usage_parm)
 
-            bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, 120, minmax=[1,300],
-                                              edit_callback_function=self.set_bpm)
-            self.parms.append(bpm_parm)
+        transport_mode_options = ["Internal", "External"]
+        transport_mode_parm = Parms.Parm("mode", "Mode", Parms.EnumParmType, 0,
+                                         options=transport_mode_options, exit_callback_function=self.set_transport_mode)
+        parms.append(transport_mode_parm)
 
-            swing_parm = Parms.Parm("swing", "Swing", Parms.FloatParmType, 0, minmax = [-1,1],
-                                              edit_callback_function=self.set_bpm)
-            self.parms.append(swing_parm)
+        bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, 120, minmax=[1, 300],
+                              edit_callback_function=self.set_bpm)
+        parms.append(bpm_parm)
 
-            super().__init__(module_helper, slot_id, self.parms, include_default_parms=False)
+        swing_parm = Parms.Parm("swing", "Swing", Parms.FloatParmType, 0, minmax=[-1, 1],
+                                edit_callback_function=self.set_swing)
+        parms.append(swing_parm)
+
+        return parms
+
 
     def set_transport_mode(self, value):
         self.state.transport_mode = value

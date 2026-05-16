@@ -1,4 +1,5 @@
 from . import parms as Parms
+from .note_array import NoteOnArray,NoteOffArray
 
 class ModuleHelper: #Used to centralize and unify module object access
     def __init__(self, macropad, state, input_manager, output_manager, transport):
@@ -14,35 +15,79 @@ class Module:
     name = None
     label = None
     version = 1
-    def __init__(self, module_helper : ModuleHelper, slot_id, parms: list[Parms.Parm], include_default_parms = True):
-        self.parms = parms
+    def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True):
+        self.parms = []
         self.module_helper = module_helper
         self.state = module_helper.state
         self.ui_manager = module_helper.ui_manager
         self.slot_id = slot_id
+        self.operation_mode = 0
+        self.out_channel = 0
 
         # Add default parms each module will have
         if include_default_parms:
-            from ..modules._registry import (
-                AVAILABLE_MODULES,
-                AVAILABLE_MODULE_NAMES,
-                AVAILABLE_MODULE_LABELS,
-            )
+            self.parms.extend(self.create_top_parms())
+        self.parms.extend(self.create_main_parms())
+        if include_out_parms:
+            self.parms.extend(self.create_bottom_parms())
 
-            #swap_parm = Parms.Parm("swap","Swap",Parms.ButtonParmType,None)
-            #self.parms.append(swap_parm)
-            def switch_module(value):
-                module_key = AVAILABLE_MODULE_NAMES[value]
-                if module_key == self.name:
-                    return None
-                else:
-                    self.state.set_chain_module(self.slot_id, AVAILABLE_MODULES[module_key])
-                    self.module_helper.ui_manager.parameter_section.rebuild_parm_section()
-                    return module_key
-            current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
-            module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index, options=AVAILABLE_MODULE_LABELS,
-                                     exit_callback_function=switch_module)
-            self.parms.append(module_picker_parm)
+
+    ### Parm Creation ###
+
+    def create_top_parms(self):
+        from ..modules._registry import (
+            AVAILABLE_MODULES,
+            AVAILABLE_MODULE_NAMES,
+            AVAILABLE_MODULE_LABELS
+        )
+        parms = []
+
+        def switch_module(value):
+            module_key = AVAILABLE_MODULE_NAMES[value]
+            if module_key == self.name:
+                return None
+            else:
+                self.state.set_chain_module(self.slot_id, AVAILABLE_MODULES[module_key])
+                self.module_helper.ui_manager.parameter_section.rebuild_parm_section()
+                return module_key
+
+        current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
+        module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index,
+                                        options=AVAILABLE_MODULE_LABELS,
+                                        exit_callback_function=switch_module)
+        parms.append(module_picker_parm)
+        return parms
+
+    def create_main_parms(self):
+        parms = []
+        return parms
+
+    def create_bottom_parms(self):
+        parms = []
+        operation_options = [
+            "Next",
+            "Out & Next",
+            "Out & Skip",
+            "Skip"
+        ]
+        operation_mode_parm = Parms.Parm("operation_mode", "Op Mode:", Parms.EnumParmType, 0,
+                                        options=operation_options,
+                                        edit_callback_function=self.set_operation_mode)
+        parms.append(operation_mode_parm)
+        out_channel_parm = Parms.Parm("out_channel", "Out Ch:", Parms.IntParmType, 0,
+                                         edit_callback_function=self.set_out_channel)
+        parms.append(out_channel_parm)
+        return parms
+
+    def process_outs(self, note_ons, note_offs):
+        if self.operation_mode == 0:
+            return
+
+    def set_operation_mode(self, value):
+        self.operation_mode = value
+
+    def set_out_channel(self, value):
+        self.out_channel = value
 
     ### UI Utilities ###
 
@@ -61,21 +106,32 @@ class Module:
         self.parms[parm_id].value = parm_value
 
     def remove(self):
-        def remove(self):
-            for parm in self.parms:
-                parm.enter_callback_function = None
-                parm.edit_callback_function = None
-                parm.exit_callback_function = None
+        for parm in self.parms:
+            parm.enter_callback_function = None
+            parm.edit_callback_function = None
+            parm.exit_callback_function = None
 
-            self.parms = []
-            self.state = None
-            self.slot_id = None
-
+        self.parms = []
+        self.state = None
+        self.slot_id = None
 
     ### Process inputs ###
+    def process_super(self, note_ons, note_offs):
+        if self.operation_mode == 1:
+            note_ons, note_offs = self.process(note_ons, note_offs) # Out & Next
+            self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, channel = self.out_channel)
+            return note_ons, note_offs
+        if self.operation_mode == 2: # Out & Skip
+            note_ons_out, note_offs_out = self.process(note_ons, note_offs)
+            self.module_helper.output_manager.schedule_midi_notes(note_ons_out, note_offs_out, channel = self.out_channel)
+            return note_ons, note_offs
+        if self.operation_mode == 3: # Skip
+            return note_ons, note_offs
+        else: #Next/Default
+            return self.process(note_ons, note_offs)
+
     def process(self, note_ons, note_offs):
         return note_ons, note_offs
 
     def stop(self):
         pass
-

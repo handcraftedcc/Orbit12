@@ -39,33 +39,10 @@ class Chords(Input):
     name = "chords"
     label = "Chords"
     def __init__(self, module_helper, slot_id):
-        parms = []
-        super().__init__(module_helper, slot_id, include_musical_parms=True)
-
-        # Bass Mode
-        bass_modes = ("None", "Root", "Second", "Lowest", "Highest")
         self.bass_mode = 0
-        bass_mode_parm = Parms.Parm(name="bass", label="Bass", parm_type=Parms.EnumParmType, default=0,
-                                      options=bass_modes,
-                                      edit_callback_function=self.set_bass_mode)
-        self.parms.append(bass_mode_parm)
-
-        # Spread Mode
-        spread_modes = ("Tight", "Medium", "Wide")
         self.spread_mode = 0
-        spread_mode_parm = Parms.Parm(name="spread", label="Spread", parm_type=Parms.EnumParmType, default=0,
-                                      options=spread_modes,
-                                      edit_callback_function=self.set_spread_mode)
-        self.parms.append(spread_mode_parm)
-
-        # Borrow Scale
-        borrow_scale_options = ["AUTO"]
-        borrow_scale_options.extend(Music.SCALENAMES[1:])
         self.borrow_scale = 0
-        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="Borrow Scale", parm_type=Parms.EnumParmType, default=0,
-                                      options=borrow_scale_options,
-                                      edit_callback_function=self.set_borrow_scale)
-        self.parms.append(borrow_scale_parm)
+        super().__init__(module_helper, slot_id, include_musical_parms=True)
 
         self.color_pixels()
 
@@ -74,6 +51,31 @@ class Chords(Input):
         self.note_ons = NoteOnArray(length = 6)
         self.note_offs = NoteOffArray(length = 6)
         self.temp_chord = NoteArray(length = 6)
+
+    def create_main_parms(self):
+        parms = super().create_main_parms()
+        # Bass Mode
+        bass_modes = ("None", "Root", "Second", "Lowest", "Highest")
+        bass_mode_parm = Parms.Parm(name="bass", label="Bass", parm_type=Parms.EnumParmType, default=0,
+                                      options=bass_modes,
+                                      edit_callback_function=self.set_bass_mode)
+        parms.append(bass_mode_parm)
+
+        # Spread Mode
+        spread_modes = ("Tight", "Medium", "Wide")
+        spread_mode_parm = Parms.Parm(name="spread", label="Spread", parm_type=Parms.EnumParmType, default=0,
+                                      options=spread_modes,
+                                      edit_callback_function=self.set_spread_mode)
+        parms.append(spread_mode_parm)
+
+        # Borrow Scale
+        borrow_scale_options = ["AUTO"]
+        borrow_scale_options.extend(Music.SCALENAMES[1:])
+        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="Borrow Scale", parm_type=Parms.EnumParmType, default=0,
+                                      options=borrow_scale_options,
+                                      edit_callback_function=self.set_borrow_scale)
+        parms.append(borrow_scale_parm)
+        return parms
 
     def set_bass_mode(self, bass_mode):
         self.bass_mode = bass_mode

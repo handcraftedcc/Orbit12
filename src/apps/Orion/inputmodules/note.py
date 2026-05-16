@@ -9,7 +9,6 @@ class Note(Input):
     name = "note"
     label = "Note"
     def __init__(self, module_helper, slot_id):
-        parms = []
         super().__init__(module_helper, slot_id, include_musical_parms=True)
 
     def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):

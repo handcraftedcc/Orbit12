@@ -10,14 +10,26 @@ class Input(Module):
     name = "input"
     label = "Input"
     def __init__(self, module_helper, slot_id, include_musical_parms=True):
+
+        ## Init Attributes ##
+        self.note_ons_out = NoteOnArray()
+        self.note_offs_out = NoteOffArray()
+        self.include_musical_parms = include_musical_parms
+
+        self.velocity = 127
+
+        super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
+
+        ## Color Pixels ##
+        self.color_pixels()
+
+    def create_main_parms(self):
+        parms = []
         from ...inputmodules._registry import (
             AVAILABLE_MODULES,
             AVAILABLE_MODULE_NAMES,
             AVAILABLE_MODULE_LABELS,
         )
-
-        parms = []
-        super().__init__(module_helper, slot_id, parms, include_default_parms=False)
 
         def switch_module(value):
             module_key = AVAILABLE_MODULE_NAMES[value]
@@ -32,41 +44,34 @@ class Input(Module):
         module_picker_parm = Parms.Parm("module_picker", "MODE:", Parms.EnumParmType, current_module_index,
                                         options=AVAILABLE_MODULE_LABELS,
                                         exit_callback_function=switch_module)
-        self.parms.append(module_picker_parm)
+        parms.append(module_picker_parm)
 
-        if include_musical_parms:
+        if self.include_musical_parms:
             # Key
             key_parm = Parms.Parm(name="key", label="Key", parm_type=Parms.NoteParmType, default=self.state.key,
                                   edit_callback_function=self.set_key)
-            self.parms.append(key_parm)
+            parms.append(key_parm)
 
             #Scale
             scale_parm = Parms.Parm(name="scale", label="Scale", parm_type=Parms.EnumParmType, default=self.state.scale,
                                     options=Music.SCALENAMES, edit_callback_function=self.set_scale)
-            self.parms.append(scale_parm)
+            parms.append(scale_parm)
             # Octave
             octave_parm = Parms.Parm(name="octave", label="Octave", parm_type=Parms.IntParmType, default=0,
                                   edit_callback_function=self.set_octave)
-            self.parms.append(octave_parm)
+            parms.append(octave_parm)
 
             # Key Offset
             key_offset_parm = Parms.Parm(name="key_offset", label="Key Offset", parm_type=Parms.IntParmType, default=0,
                                      edit_callback_function=self.set_key_offset)
-            self.parms.append(key_offset_parm)
+            parms.append(key_offset_parm)
 
             # Velocity
             velocity_parm = Parms.Parm(name="velocity", label="Velocity", parm_type=Parms.IntParmType, default=127,
                                        minmax = [0,127], edit_callback_function=self.set_velocity)
-            self.parms.append(velocity_parm)
+            parms.append(velocity_parm)
 
-            self.velocity = 127
-
-        ## Init Attributes ##
-        self.note_ons_out = NoteOnArray()
-        self.note_offs_out = NoteOffArray()
-
-        ## Color Pixels ##
-        self.color_pixels()
+        return parms
 
     def set_key(self, key_id):
         self.state.key = key_id

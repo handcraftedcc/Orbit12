@@ -1,15 +1,9 @@
 from ._modules._empty import Empty as EmptyModule
+from .constants import TOTALSLOTCOUNT, MODULESLOTCOUNT, PARMSPERPAGE, POLYPHONY
 from .music import NOTES
 from .music import SCALENAMES as SCALES
 
 import gc
-
-TOTALSLOTCOUNT = 9
-MODULESLOTCOUNT = 6
-PARMSPERPAGE = 4
-
-POLYPHONY = 12
-
 
 class State:
     """ Handles general state of the App. See parameter list below """

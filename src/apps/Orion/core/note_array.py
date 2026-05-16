@@ -1,5 +1,5 @@
 # Utilities for Note Array Management
-from .state import POLYPHONY
+from .constants import POLYPHONY
 import random
 from array import array
 
@@ -277,5 +277,4 @@ class NoteRelationshipArray:
             else:
                 i += 1
         return self.return_array
-
 

@@ -5,15 +5,17 @@ class Output(Module):
     name = "output"
     label = "Output"
     def __init__(self, module_helper, slot_id, macropad = None):
-        parms = []
-        super().__init__(module_helper, slot_id, parms, include_default_parms=False)
+
+        super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
         self.macropad = self.state.macropad
         self.print_state = 0
 
+    def create_main_parms(self):
+        parms = []
         print_output_parm = Parms.Parm(name="print", label="Print", parm_type=Parms.BooleanParmType, default=0,
-                                  edit_callback_function=self.set_print)
-        self.parms.append(print_output_parm)
-
+                                       edit_callback_function=self.set_print)
+        parms.append(print_output_parm)
+        return parms
 
     def set_print(self, value):
         self.print_state = value

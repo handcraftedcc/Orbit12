@@ -261,16 +261,16 @@ class MidiCommander:
             ## Process input ##
             note_ons = self.note_ons
             note_offs = self.note_offs
-            note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs)
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process_super(note_ons, note_offs)
 
             ### Process transport ##
-            note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs)
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process_super(note_ons, note_offs)
 
             ## Process modules ##
             for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
-                note_ons, note_offs = self.state.chain_modules[slot].process(note_ons, note_offs)
+                note_ons, note_offs = self.state.chain_modules[slot].process_super(note_ons, note_offs)
             ## Process output ##
-            note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs)
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process_super(note_ons, note_offs)
 
             ### Output ###
             self.output_manager.process_midi_out()

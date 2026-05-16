@@ -1,7 +1,7 @@
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.timing_clock import TimingClock
-from .state import POLYPHONY
+from .constants import POLYPHONY
 from .note_array import NoteArray, NoteOnArray, NoteOffArray
 
 
@@ -16,7 +16,7 @@ class OutputManager:
         self.midi_start = False
         self.midi_stop = False
 
-    def schedule_midi_notes(self, note_ons, note_offs):
+    def schedule_midi_notes(self, note_ons, note_offs, channel = 0):
         self.held_notes.append_values(note_ons)
 
         for i in range(note_ons.length):
