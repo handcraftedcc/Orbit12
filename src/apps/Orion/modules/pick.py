@@ -38,7 +38,6 @@ class Pick(Module):
             note = note_offs.notes[i]
             self.held_notes_in.remove_value_first(note)
 
-        if note_ons.length>0 or note_offs.length>0: print("heldnotesin:",list(self.held_notes_in.notes))
         old_note = None
         if self.held_notes_in.length > 0:
             index = 0
@@ -62,22 +61,17 @@ class Pick(Module):
                     velocity = self.held_notes_in.velocities[index]
                 note_ons.clear()
                 note_ons.append_value(return_note, velocity=velocity)
-                print("self.held_note_in:",self.held_note)
                 if self.held_note: old_note = self.held_note
-                print("old_note:",old_note)
                 self.held_note = return_note
-                print("self.held_note_out:", self.held_note)
             else:
                 note_ons.clear()
         else:
             note_ons.clear()
 
         length = note_offs.length
-        if length>0: print("length:",length)
         for i in range(length):
             note = note_offs.notes[i]
             if self.held_note == note:
-                print("note_off:", note)
                 note_offs.clear()
                 note_offs.append_value(note)
                 self.held_note = None
