@@ -231,8 +231,8 @@ class Chords(Input):
                     note = chord.notes[j]
                     self.note_offs_out.append_value(note)
 
-        if note_ons.length > 0 or note_offs.length > 0:
-            print("Held Notes Relationship: ", self.held_note_relationship.in_array, self.held_note_relationship.out_array)
+        #if note_ons.length > 0 or note_offs.length > 0:
+            #print("Held Notes Relationship: ", self.held_note_relationship.in_array.notes, self.held_note_relationship.out_array.notes)
 
         return self.note_ons_out, self.note_offs_out
         

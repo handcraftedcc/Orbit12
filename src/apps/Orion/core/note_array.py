@@ -10,7 +10,7 @@ class NoteArray:
         self.notes = bytearray(length)
         if velocities: self.velocities = bytearray(length)
         else: self.velocities = None
-        if times: self.times = array('H',[0]*length)
+        if times: self.times = array('I',[0]*length)
         else: self.times = None
         self.length = 0
         self.max_length = length
@@ -43,19 +43,23 @@ class NoteArray:
         if self.length == 0:
             return None
         min_note = self.notes[0]
+        min_note_index = 0
         for i in range(1, self.length):
             if self.notes[i] < min_note:
                 min_note = self.notes[i]
-        return min_note
+                min_note_index = i
+        return min_note, min_note_index
 
     def get_max_note(self):
         if self.length == 0:
             return None
         max_note = self.notes[0]
+        max_note_index = 0
         for i in range(1, self.length):
             if self.notes[i] > max_note:
                 max_note = self.notes[i]
-        return max_note
+                max_note_index = i
+        return max_note, max_note_index
 
     ## Writing ##
 

@@ -1,6 +1,7 @@
 from ..core.module import Module
 from ..core import parms as Parms
 from ..core import music
+from ..core.note_array import NoteRelationshipArray,NoteOnArray,NoteOffArray
 
 def find_closest(values, target):
     def distance_from_target(index):
@@ -29,6 +30,8 @@ class Transpose(Module):
                                       edit_callback_function=self.set_scale_aware)
         self.parms.append(self.scale_aware_parm)
 
+        self.note_relationship = NoteRelationshipArray()
+
         self.transpose_amount = 0
         self.scale_aware = True
 
@@ -53,14 +56,19 @@ class Transpose(Module):
             note = note + self.transpose_amount
         return note
 
-    def process(self, note_ons, note_offs, velocities):
+    def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
         if self.scale_aware:
             scale = music.SCALES[self.module_helper.state.scale]
         else:
             scale = None
-        for idx, note in enumerate(note_ons):
-            note_ons[idx] = self.transpose(note, scale)
-        for idx, note in enumerate(note_offs):
-            note_offs[idx] = self.transpose(note, scale)
+        for i in range(note_ons.length):
+            note = note_ons.notes[i]
+            new_note = self.transpose(note, scale)
+            note_ons.notes[i] = new_note
+            self.note_relationship.add_note(note, new_note)
+        for i in range(note_offs.length):
+            note = note_offs.notes[i]
+            off_note = self.note_relationship.remove_note_single(note)
+            if off_note is not None: note_offs.notes[i] = off_note
 
-        return  note_ons, note_offs, velocities
+        return  note_ons, note_offs

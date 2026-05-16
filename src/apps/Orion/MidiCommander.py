@@ -190,7 +190,7 @@ class MidiCommander:
                     # Generate note ons from keys
                     for index in range(1, 13):
                         if pressed[index]:
-                            self.note_ons.append(index - 1)
+                            self.note_ons.append_value(index - 1)
                     if not self.transport.running and self.state.transport_mode == 0:
                         self.transport.clock_start()
 
@@ -252,7 +252,7 @@ class MidiCommander:
                 # Generate note offs from keys
                 for index in range(1, 13):
                     if released[index]:
-                        self.note_offs.append(index - 1)
+                        self.note_offs.append_value(index - 1)
                 for index in range(1, 13):
                     if released[index]:
                         self.ui_manager.neo_pixels.release_held_pixel(index-1)

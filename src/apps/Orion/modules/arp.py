@@ -1,4 +1,4 @@
-from state import POLYPHONY
+from ..core.state import POLYPHONY
 from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks
@@ -104,12 +104,12 @@ class Arp(Module):
         # RATE_VALUES are in 1/16-note units; 1/16 = 6 MIDI clock ticks
         return max(1, int(round(self.rate * 6)))
 
-    def update_note_register(self, note_ons, note_offs, velocities):
+    def update_note_register(self, note_ons, note_offs):
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             self.held_notes.append_value(note)
             if not self.note_register.contains(note):
-                self.note_register.append_append(note)
+                self.note_register.append_value(note)
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             if self.held_notes.contains(note):
@@ -144,7 +144,7 @@ class Arp(Module):
                 midi_tick = self.transport.midi_tick
                 self.note_register_position = int(midi_tick % (self.rate_to_midi_ticks()*register_note_count)/register_note_count)
             index = self.note_register_position % register_note_count
-            note = self.note_register[index]
+            note = self.note_register.notes[index]
             if self.note_register.velocities:
                 velocity = self.note_register.velocities[index]
             else:
@@ -175,7 +175,7 @@ class Arp(Module):
 
         for i in range(self.popped_ids.length-1, -1, -1):
             this_id = self.popped_ids.notes[i]
-            self.scheduled_offs.remove_value_first(this_id)
+            self.scheduled_offs.remove_index(this_id)
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()

@@ -75,11 +75,11 @@ class Drum(Input):
 
         for i in range(note_ons.length):
             pad_note = note_ons.notes[i]
-            self.note_ons_out.append(self.convert_note(pad_note, None, None), velocity = self.velocity)
+            self.note_ons_out.append_value(self.convert_note(pad_note, None, None), velocity = self.velocity)
 
         for i in range(note_offs.length):
             pad_note = note_offs.notes[i]
-            self.note_offs_out.append(self.convert_note(pad_note, None, None))
+            self.note_offs_out.append_value(self.convert_note(pad_note, None, None))
 
         return self.note_ons_out, self.note_offs_out
         
