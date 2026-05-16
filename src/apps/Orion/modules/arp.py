@@ -13,6 +13,7 @@ class Arp(Module):
     label = "Arp"
     version = 1
     def __init__(self, module_helper, slot_id):
+        #TODO: Rewrite to new Note Array Format
         parms = []
         super().__init__(module_helper, slot_id, parms)
 

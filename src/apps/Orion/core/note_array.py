@@ -16,6 +16,12 @@ class NoteArray:
         self.max_length = length
 
     ### Helper Functions ###
+    ## Reading ##
+    def get(self, index):
+        if index < 0 or index >= self.length:
+            return None
+        return self.notes[index]
+
     def contains(self, value):
         for i in range(self.length):
             if self.notes[i] == value:
@@ -33,11 +39,26 @@ class NoteArray:
                     return i
         return None
 
-    def get(self, index):
-        if index < 0 or index >= self.length:
+    def get_min_note(self):
+        if self.length == 0:
             return None
-        return self.notes[index]
-    
+        min_note = self.notes[0]
+        for i in range(1, self.length):
+            if self.notes[i] < min_note:
+                min_note = self.notes[i]
+        return min_note
+
+    def get_max_note(self):
+        if self.length == 0:
+            return None
+        max_note = self.notes[0]
+        for i in range(1, self.length):
+            if self.notes[i] > max_note:
+                max_note = self.notes[i]
+        return max_note
+
+    ## Writing ##
+
     def clear(self):
         self.length = 0
 
@@ -103,7 +124,7 @@ class NoteArray:
             rand = random.randint(0, i)
             self.swap_notes(rand, i)
             
-    def notes_remove_index(self, index: int):
+    def remove_index(self, index: int):
         if index < 0 or index >= self.length:
             return False
         for i in range(index, self.length-1):
@@ -113,40 +134,40 @@ class NoteArray:
         self.length = self.length - 1
         return True
 
-    def notes_remove_value_first(self, value, order=0):
+    def remove_value_first(self, value, order=0):
         if order == 1:
             i = self.length - 1
             while i >= 0:
                 if self.notes[i] == value:
-                    self.notes_remove_index(i)
+                    self.remove_index(i)
                     return i
                 i -= 1
         else:
             i = 0
             while i < self.length:
                 if self.notes[i] == value:
-                    self.notes_remove_index(i)
+                    self.remove_index(i)
                     return i
                 else:
                     i += 1
         return None
 
-    def notes_remove_value_all(self, value, order=0):
+    def remove_value_all(self, value, order=0):
         if order == 1:
             i = self.length - 1
             while i >= 0:
                 if self.notes[i] == value:
-                    self.notes_remove_index(i)
+                    self.remove_index(i)
                 i -= 1
         else:
             i = 0
             while i < self.length:
                 if self.notes[i] == value:
-                    self.notes_remove_index(i)
+                    self.remove_index(i)
                 else:
                     i += 1
 
-    def notes_append_value(self, value: int, velocity=127, time = 0):
+    def append_value(self, value: int, velocity=127, time = 0):
         if self.length >= self.max_length:
             return False
         self.notes[self.length] = value
@@ -155,31 +176,61 @@ class NoteArray:
         self.length += 1
         return True
 
-    def notes_append_value_sorted(self, value: int, velocity=127, time=0, dedup=False):
+    def append_values(self, note_array: "NoteArray"):
+        for idx in range(note_array.length):
+            note = note_array.notes[idx]
+
+            velocity = 127
+            if note_array.velocities is not None:
+                velocity = note_array.velocities[idx]
+
+            time = 0
+            if note_array.times is not None:
+                time = note_array.times[idx]
+
+            if not self.append_value(note, velocity, time):
+                return False
+
+        return True
+
+    def insert_value_at_index(self, value, index: int, velocity = 127, time = 0):
         if self.length >= self.max_length:
             return False
-        added = False
+
+        if index < 0 or index > self.length:
+            return False
+
         has_vel = self.velocities is not None
         has_times = self.times is not None
+
+        for i in range(self.length, index, -1):
+            self.notes[i] = self.notes[i - 1]
+            if has_vel:
+                self.velocities[i] = self.velocities[i - 1]
+            if has_times:
+                self.times[i] = self.times[i - 1]
+
+        self.notes[index] = value
+        if has_vel:
+            self.velocities[index] = velocity
+        if has_times:
+            self.times[index] = time
+
+        self.length += 1
+        return True
+
+    def append_value_sorted(self, value: int, velocity=127, time=0, dedup=False):
+        if self.length >= self.max_length:
+            return False
+
         for i in range(self.length):
             if value == self.notes[i] and dedup:
                 return False
+
             if value < self.notes[i]:
-                for j in range(self.length, i, -1):
-                    self.notes[j] = self.notes[j - 1]
-                    if has_vel: self.velocities[j] = self.velocities[j - 1]
-                    if has_times: self.times[j] = self.times[j - 1]
-                self.notes[i] = value
-                if has_vel: self.velocities[i] = velocity
-                if has_times: self.times[i] = time
-                added = True
-                break
-        if not added:
-            self.notes[self.length] = value
-            if has_vel: self.velocities[self.length] = velocity
-            if has_vel: self.times[self.length] = time
-        self.length += 1
-        return True
+                return self.insert_value_at_index(value, i, velocity, time)
+
+        return self.append_value(value, velocity, time)
 
 class NoteOnArray(NoteArray):
     def __init__(self, length = POLYPHONY):
@@ -199,27 +250,26 @@ class NoteRelationshipArray:
         if self.in_array.length >= self.in_array.max_length:
             return False
 
-        self.in_array.notes_append_value(in_note)
-        self.out_array.notes_append_value(out_note)
+        self.in_array.append_value(in_note)
+        self.out_array.append_value(out_note)
         return True
 
     def remove_note_single(self, in_note, first_in_first_out=True):
-        index = self.in_array.notes_remove_value_first(in_note,order= not first_in_first_out)
+        index = self.in_array.remove_value_first(in_note, order= not first_in_first_out)
         if index is None:
             return None
         out_note = self.out_array.notes[index]
-        self.out_array.notes_remove_index(index)
+        self.out_array.remove_index(index)
         return out_note
 
-
     def remove_note_all(self, in_note):
-        self.return_array.length = 0
+        self.return_array.clear()
         i = 0
         while i < self.in_array.length:
             if self.in_array.notes[i] == in_note:
-                self.return_array.notes_append_value(self.out_array.notes[i])
-                self.in_array.notes_remove_index(i)
-                self.out_array.notes_remove_index(i)
+                self.return_array.append_value(self.out_array.notes[i])
+                self.in_array.remove_index(i)
+                self.out_array.remove_index(i)
             else:
                 i += 1
         return self.return_array

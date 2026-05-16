@@ -73,8 +73,8 @@ class Module:
 
 
     ### Process inputs ###
-    def process(self, note_ons, note_offs, velocities):
-        return note_ons, note_offs, velocities
+    def process(self, note_ons, note_offs):
+        return note_ons, note_offs
 
     def stop(self):
         pass

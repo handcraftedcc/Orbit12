@@ -15,6 +15,7 @@ from .core import output
 from .core import parms as Parms
 from .core import music as Music
 from .core import module
+from .core.note_array import NoteArray, NoteOnArray, NoteOffArray
 
 from .inputmodules.note import Note as InputModule
 from .core._modules._empty import Empty as EmptyModule
@@ -58,8 +59,8 @@ class MidiCommander:
         self.last_gc_ms = ticks.ticks_ms()
         #self.ui_rebuild_pending = False
 
-        self.note_ons = []
-        self.note_offs = []
+        self.note_ons = NoteOnArray()
+        self.note_offs = NoteOffArray()
 
         #Init modules
         self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
@@ -260,17 +261,16 @@ class MidiCommander:
             ## Process input ##
             note_ons = self.note_ons
             note_offs = self.note_offs
-            velocities = []
-            note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs, velocities)
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process(note_ons, note_offs)
 
             ### Process transport ##
-            note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs, velocities)
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process(note_ons, note_offs)
 
             ## Process modules ##
             for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
-                note_ons, note_offs, velocities = self.state.chain_modules[slot].process(note_ons, note_offs, velocities)
+                note_ons, note_offs = self.state.chain_modules[slot].process(note_ons, note_offs)
             ## Process output ##
-            note_ons, note_offs, velocities = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs, velocities)
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process(note_ons, note_offs)
 
             ### Output ###
             self.output_manager.process_midi_out()

@@ -18,13 +18,13 @@ class Output(Module):
     def set_print(self, value):
         self.print_state = value
 
-    def process(self, note_ons, note_offs, velocities):
+    def process(self, note_ons, note_offs):
         #TODO: Move the specifics to the output.py and just have this module call those.
         #TODO: Also, need to handle note_offs if input module changed (keys shifted etc)
 
-        if note_ons or note_offs:
-            self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, velocities)
+        if note_ons.length>0 or note_offs.length>0:
+            self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs)
 
         if self.print_state == 1:
             print("Ons:", note_ons, "Offs:", note_offs)
-        return note_ons, note_offs, velocities
+        return note_ons, note_offs

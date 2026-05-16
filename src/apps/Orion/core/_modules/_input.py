@@ -2,6 +2,7 @@ from ..module import Module
 from .. import ui
 from .. import parms as Parms
 from .. import music as Music
+from ..note_array import NoteArray, NoteOnArray, NoteOffArray
 
 PADMAP = [9,10,11,6,7,8,3,4,5,0,1,2]
 
@@ -61,9 +62,8 @@ class Input(Module):
             self.velocity = 127
 
         ## Init Attributes ##
-        self.note_ons_out = []
-        self.note_offs_out = []
-        self.velocities_out = []
+        self.note_ons_out = NoteOnArray()
+        self.note_offs_out = NoteOffArray()
 
         ## Color Pixels ##
         self.color_pixels()
@@ -124,7 +124,7 @@ class Input(Module):
                 + (octave + Music.OCTAVEOFFSET) * 12
         )
 
-    def process(self, note_ons, note_offs, velocities):
-        return note_ons, note_offs, velocities
+    def process(self, note_ons, note_offs):
+        return note_ons, note_offs
 
         

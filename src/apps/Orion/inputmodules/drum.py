@@ -2,6 +2,7 @@ from ..core.module import Module
 from ..core import parms as Parms
 from ..core import ui
 from ..core._modules._input import Input, PADMAP
+from ..core.note_array import NoteOnArray, NoteOffArray
 
 from ..core import music as Music
 
@@ -68,17 +69,17 @@ class Drum(Input):
         return pad_note+Music.DRUMBASENOTE+self.state.key_offset
 
 
-    def process(self, note_ons, note_offs, velocities):
+    def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
-        self.velocities_out.clear()
 
-        for pad_note in note_ons:
-            self.note_ons_out.append(self.convert_note(pad_note, None, None))
-            self.velocities_out.append(self.velocity)
+        for i in range(note_ons.length):
+            pad_note = note_ons.notes[i]
+            self.note_ons_out.append(self.convert_note(pad_note, None, None), velocity = self.velocity)
 
-        for pad_note in note_offs:
+        for i in range(note_offs.length):
+            pad_note = note_offs.notes[i]
             self.note_offs_out.append(self.convert_note(pad_note, None, None))
 
-        return self.note_ons_out, self.note_offs_out, self.velocities_out
+        return self.note_ons_out, self.note_offs_out
         
