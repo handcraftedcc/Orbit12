@@ -1,7 +1,9 @@
+from state import POLYPHONY
 from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks
 import random
+from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
 
 def shuffle_in_place(values):
     for i in range(len(values) - 1, 0, -1):
@@ -22,14 +24,12 @@ class Arp(Module):
 
         # Setup Attribs
         self.rate = 1
-        self.note_register = []
-        self.note_register_velocities = []
+        self.note_register = NoteOnArray()
         self.note_register_position = 0
-        self.note_ons_out = []
-        self.note_offs_out = []
-        self.velocities_out = []
-        self.scheduled_offs = []
-        self.scheduled_offs_time = []
+        self.note_ons_out = NoteOnArray()
+        self.note_offs_out = NoteOffArray()
+        self.scheduled_offs = NoteArray(times = True)
+        self.popped_ids = NoteArray()
         self.mode = None
         self.mode_list = [
             "up",
@@ -47,7 +47,7 @@ class Arp(Module):
         self.random_seed = 0
         self.gate = 0
         self.arp_state = 0 #0 = Not active, 1 = Active -> When all notes are released we go empty
-        self.held_notes = []
+        self.held_notes = NoteArray()
 
         self.last_midi_tick = self.transport.midi_tick
         self.was_transport_running = self.transport.running
@@ -105,23 +105,24 @@ class Arp(Module):
         return max(1, int(round(self.rate * 6)))
 
     def update_note_register(self, note_ons, note_offs, velocities):
-        for note in note_ons:
-            self.held_notes.append(note)
-            if note not in self.note_register:
-                self.note_register.append(note)
-        for note in note_offs:
-            if note in self.held_notes:
-                self.held_notes.remove(note)
-            if note in self.note_register and note not in self.held_notes:
-                self.note_register.remove(note)
+        for i in range(note_ons.length):
+            note = note_ons.notes[i]
+            self.held_notes.append_value(note)
+            if not self.note_register.contains(note):
+                self.note_register.append_append(note)
+        for i in range(note_offs.length):
+            note = note_offs.notes[i]
+            if self.held_notes.contains(note):
+                self.held_notes.remove_value_first(note)
+            if self.note_register.contains(note) and not self.held_notes.contains(note):
+                self.note_register.remove_value_first(note)
         if self.mode == self.mode_list.index("up"):
-            self.note_register.sort()
+            self.note_register.sort_notes()
         elif self.mode == self.mode_list.index("down"):
-            self.note_register.sort()
-            self.note_register.reverse()
+            self.note_register.sort_notes()
+            self.note_register.reverse_notes()
         elif self.mode == self.mode_list.index("random"):
-            random.seed(self.random_seed)
-            shuffle_in_place(self.note_register)
+            self.note_register.randomize_notes(self.random_seed)
 
     def generate_notes(self):
         #Calculate timing
@@ -129,61 +130,68 @@ class Arp(Module):
         scheduled = ticks.ticks_add(self.gate, current)
 
         if self.mode == self.mode_list.index("repeat"):
-            for note in self.note_register:
-                self.note_ons_out.append(note)
-                self.velocities_out.append(127)
+            for i in range(self.note_register.length):
+                note = self.note_register.notes[i]
+                if self.note_register.velocities:
+                    velocity = self.note_register.velocities[i]
+                else:
+                    velocity = 127
+                self.note_ons_out.append_value(note,velocity=velocity)
+                self.scheduled_offs.append_value(note, time=scheduled)
         else:
-            register_note_count = len(self.note_register)
+            register_note_count = self.note_register.length
             if self.retrigger_mode == 2:
                 midi_tick = self.transport.midi_tick
                 self.note_register_position = int(midi_tick % (self.rate_to_midi_ticks()*register_note_count)/register_note_count)
-            note = self.note_register[self.note_register_position % register_note_count]
-            self.note_ons_out.append(note)
-            self.velocities_out.append(127)
+            index = self.note_register_position % register_note_count
+            note = self.note_register[index]
+            if self.note_register.velocities:
+                velocity = self.note_register.velocities[index]
+            else:
+                velocity = 127
+            self.note_ons_out.append_value(note, velocity=velocity)
+            self.scheduled_offs.append_value(note, time=scheduled)
             self.note_register_position = (self.note_register_position+1) % register_note_count
 
-        self.scheduled_offs.extend(self.note_ons_out)
-        scheduled_list = [scheduled]*len(self.note_ons_out)
-        self.scheduled_offs_time.extend(scheduled_list)
-
-        #print("Note Register", self.note_register)
+        #print("Note Register", self.note_register.notes)
         #print("Note Register Position", self.note_register_position)
 
     def process_note_offs(self, force_all = False):
+        #TODO: Maybe build a time removal thing into the note_array directly
         current = ticks.ticks_ms()
-        popped_ids = []
+        self.popped_ids.clear()
         if not force_all:
-            for idx, note_off in enumerate(self.scheduled_offs):
-                off_time = self.scheduled_offs_time[idx]
+            for i in range(self.scheduled_offs.length):
+                note_off = self.scheduled_offs.notes[i]
+                off_time = self.scheduled_offs.times[i]
                 if ticks.ticks_less(off_time, current):
-                    self.note_offs_out.append(note_off)
-                    popped_ids.append(idx)
+                    self.note_offs_out.append_value(note_off)
+                    self.popped_ids.append_value(i)
         else: #Send note offs for all
-            for idx, note_off in enumerate(self.scheduled_offs):
-                self.note_offs_out.append(note_off)
-                popped_ids.append(idx)
+            for i in range(self.scheduled_offs.length):
+                note_off = self.scheduled_offs.notes[i]
+                self.note_offs_out.append_value(note_off)
+                self.popped_ids.append_value(i)
 
-        for popped_id in reversed(popped_ids):
-            self.scheduled_offs.pop(popped_id)
-            self.scheduled_offs_time.pop(popped_id)
+        for i in range(self.popped_ids.length-1, -1, -1):
+            this_id = self.popped_ids.notes[i]
+            self.scheduled_offs.remove_value_first(this_id)
 
-    def process(self, note_ons, note_offs, velocities):
-        #TODO: Implement velocities in note_register and then be passed along
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
-        self.velocities_out.clear()
         running = self.transport.running
-        if note_ons or note_offs:
-            self.update_note_register(note_ons, note_offs, velocities)
+        if note_ons.length>0 or note_offs.length>0:
+            self.update_note_register(note_ons, note_offs)
 
-        if self.arp_state == 1 and not self.note_register: #All keys released
+        if self.arp_state == 1 and self.note_register.length<1: #All keys released
             self.arp_state = 0
             #print("All Keys Released")
             if self.retrigger_mode == 0:
                 self.note_register_position = 0
             self.update_random_seed()
 
-        if self.arp_state == 0 and self.note_register: #From no keys pressed -> keys pressed
+        if self.arp_state == 0 and self.note_register.length>0: #From no keys pressed -> keys pressed
             self.arp_state = 1
             self.last_midi_tick = self.transport.midi_tick
 
@@ -205,7 +213,7 @@ class Arp(Module):
                     self.note_register_position = 0
 
                 # emit immediately if notes are held
-                if self.note_register:
+                if self.note_register.length>0:
                     self.generate_notes()
 
             if now_tick > last_tick:
@@ -221,7 +229,7 @@ class Arp(Module):
 
         self.was_transport_running = running
 
-        return self.note_ons_out, self.note_offs_out, self.velocities_out
+        return self.note_ons_out, self.note_offs_out
 
     def stop(self):
         self.process_note_offs(force_all = True)
