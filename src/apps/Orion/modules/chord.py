@@ -17,9 +17,9 @@ class Chord(Module):
     version = 1
     def __init__(self, module_helper, slot_id):
         self.offsets = [0, 2, 4, 0, 0]  # or whatever defaults you want
-        self.note_relationship = NoteRelationshipArray(length=60)
-        self.note_ons_out = NoteOnArray(length=60)
-        self.note_offs_out = NoteOffArray(length=60)
+        self.note_relationship = NoteRelationshipArray(length=15)
+        self.note_ons_out = NoteOnArray(length=15)
+        self.note_offs_out = NoteOffArray(length=15)
         self.scale_aware = True
 
         super().__init__(module_helper, slot_id)
@@ -79,10 +79,13 @@ class Chord(Module):
             if note_ons.velocities is not None:
                 velocity = note_ons.velocities[i]
 
-            for offset in self.offsets:
-                new_note = self.transpose(offset, note, scale)
-                self.note_ons_out.append_value(new_note, velocity=velocity)
-                self.note_relationship.add_note(note, new_note)
+            voice_count = len(self.offsets)
+
+            if self.has_output_capacity(note_on_count=voice_count, relationship_count=voice_count):
+                for offset in self.offsets:
+                    new_note = self.transpose(offset, note, scale)
+                    self.note_ons_out.append_value(new_note, velocity=velocity)
+                    self.note_relationship.add_note(note, new_note)
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]

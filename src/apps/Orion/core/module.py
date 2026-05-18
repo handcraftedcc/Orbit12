@@ -15,7 +15,7 @@ class Module:
     name = None
     label = None
     version = 1
-    def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True):
+    def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True, include_note_out_arrays = True, include_relationship_array = False):
         self.parms = []
         self.module_helper = module_helper
         self.state = module_helper.state
@@ -114,6 +114,20 @@ class Module:
         self.parms = []
         self.state = None
         self.slot_id = None
+
+    def has_output_capacity(self, note_on_count=0, note_off_count=0, relationship_count=0):
+        if hasattr(self, "note_ons_out"):
+            if self.note_ons_out.length + note_on_count > self.note_ons_out.max_length:
+                return False
+
+        if hasattr(self, "note_offs_out"):
+            if self.note_offs_out.length + note_off_count > self.note_offs_out.max_length:
+                return False
+
+        if relationship_count and not self.held_note_relationship.can_add_count(relationship_count):
+            return False
+
+        return True
 
     ### Process inputs ###
     def process_super(self, note_ons, note_offs):

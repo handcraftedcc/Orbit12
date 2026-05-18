@@ -68,6 +68,18 @@ class Transpose(Module):
             note = note + self.semitones + self.octaves * 12
         return note
 
+    def has_output_capacity(self, note_on_count=0, note_off_count=0, relationship_count=0):
+        if self.note_ons_out.length + note_on_count > self.note_ons_out.max_length:
+            return False
+
+        if self.note_offs_out.length + note_off_count > self.note_offs_out.max_length:
+            return False
+
+        if relationship_count and not self.note_relationship.can_add_count(relationship_count):
+            return False
+
+        return True
+
     def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
@@ -85,8 +97,9 @@ class Transpose(Module):
             if note_ons.velocities is not None:
                 velocity = note_ons.velocities[i]
 
-            self.note_ons_out.append_value(new_note, velocity=velocity)
-            self.note_relationship.add_note(note, new_note)
+            if self.has_output_capacity(note_on_count=1, relationship_count=1):
+                self.note_ons_out.append_value(new_note, velocity=velocity)
+                self.note_relationship.add_note(note, new_note)
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]

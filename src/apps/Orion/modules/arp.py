@@ -15,7 +15,6 @@ class Arp(Module):
     label = "Arp"
     version = 1
     def __init__(self, module_helper, slot_id):
-        #TODO: Rewrite to new Note Array Format
         self.module_helper = module_helper
         self.transport = self.module_helper.transport
 
@@ -123,6 +122,14 @@ class Arp(Module):
         elif self.mode == self.mode_list.index("random"):
             self.note_register.randomize_notes(self.random_seed)
 
+    def has_output_capacity(self, note_on_count=0, note_off_count=0, scheduled_off_count=0, popped_id_count=0):
+        return (
+                self.note_ons_out.length + note_on_count <= self.note_ons_out.max_length
+                and self.note_offs_out.length + note_off_count <= self.note_offs_out.max_length
+                and self.scheduled_offs.length + scheduled_off_count <= self.scheduled_offs.max_length
+                and self.popped_ids.length + popped_id_count <= self.popped_ids.max_length
+        )
+
     def generate_notes(self):
         #Calculate timing
         current = self.transport.now
@@ -148,8 +155,9 @@ class Arp(Module):
                 velocity = self.note_register.velocities[index]
             else:
                 velocity = 127
-            self.note_ons_out.append_value(note, velocity=velocity)
-            self.scheduled_offs.append_value(note, time=scheduled)
+            if self.has_output_capacity(note_on_count=1, scheduled_off_count=1):
+                self.note_ons_out.append_value(note, velocity=velocity)
+                self.scheduled_offs.append_value(note, time=scheduled)
             self.note_register_position = (self.note_register_position+1) % register_note_count
 
         #print("Note Register", self.note_register.notes)

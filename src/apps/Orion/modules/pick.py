@@ -44,6 +44,15 @@ class Pick(Module):
     def set_octaves(self, value):
         self.octaves = value
 
+    def has_output_capacity(self, note_on_count=0, note_off_count=0):
+        if self.note_ons_out.length + note_on_count > self.note_ons_out.max_length:
+            return False
+
+        if self.note_offs_out.length + note_off_count > self.note_offs_out.max_length:
+            return False
+
+        return True
+
     def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
         self.held_notes_in.append_values(note_ons)
         self.note_ons_out.clear()
@@ -71,6 +80,7 @@ class Pick(Module):
             return_note = self.held_notes_in.notes[index] + self.octaves*12
             if return_note != self.held_note: #New note detected
                 velocity = 127
+                if self.has_output_capacity(note_on_count=1:
                 if self.held_notes_in.velocities is not None:
                     velocity = self.held_notes_in.velocities[index]
                 pass
