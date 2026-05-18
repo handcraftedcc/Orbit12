@@ -1,5 +1,5 @@
 from . import parms as Parms
-from .note_array import NoteOnArray,NoteOffArray
+from .note_array import NoteOnArray,NoteOffArray,NoteRelationshipArray
 
 class ModuleHelper: #Used to centralize and unify module object access
     def __init__(self, macropad, state, input_manager, output_manager, transport):
@@ -30,6 +30,13 @@ class Module:
         self.parms.extend(self.create_main_parms())
         if include_out_parms:
             self.parms.extend(self.create_bottom_parms())
+        if include_note_out_arrays:
+            self.note_ons_out = NoteOnArray()
+            self.note_offs_out = NoteOffArray()
+
+        if include_relationship_array:
+            self.held_note_relationship = NoteRelationshipArray()
+
 
 
     ### Parm Creation ###

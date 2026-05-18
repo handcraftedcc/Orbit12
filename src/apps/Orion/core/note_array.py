@@ -316,6 +316,9 @@ class NoteRelationshipArray:
         self.out_array.append_value(out_note)
         return True
 
+    def can_add_count(self, count=1):
+        return self.in_array.length + count <= self.in_array.max_length and self.out_array.length + count <= self.out_array.max_length
+
     def remove_note_single(self, in_note, first_in_first_out=True):
         index = self.in_array.remove_value_first(in_note, order= not first_in_first_out)
         if index is None:
