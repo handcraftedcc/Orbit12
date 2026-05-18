@@ -37,9 +37,13 @@ class OutputManager:
                 self.held_notes.remove_value_first(note, channel=channel)
 
             if not self.note_offs_out.contains(note, channel=channel) and not self.held_notes.contains(note,channel=channel):
-                self.note_offs_out.append_value(note, channel = channel)
+                if self.note_offs_out.length < self.note_offs_out.max_length:
+                    self.note_offs_out.append_value(note, channel = channel)
+                else: # Fallback
+                    self.macropad.midi.send(self.macropad.NoteOff(note, 0), channel=channel)
 
-        #print("held notes: ", self.held_notes)
+
+                    #print("held notes: ", self.held_notes)
 
     def schedule_midi_clock(self): #send immediately
         self.macropad.midi.send(TimingClock())

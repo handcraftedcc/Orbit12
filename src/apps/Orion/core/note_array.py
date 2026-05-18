@@ -308,13 +308,29 @@ class NoteRelationshipArray:
         self.out_array = NoteArray(length)
         self.return_array = NoteArray(length)
 
+    def has_in_note(self, in_note):
+        for i in range(self.in_array.length):
+            note = self.in_array.notes[i]
+            if in_note == note:
+                return True,i
+        return False,None
+
+    def has_out_note(self, out_note):
+        for i in range(self.out_array.length):
+            note = self.out_array.notes[i]
+            if out_note == note:
+                return True,i
+        return False,None
+
     def add_note(self, in_note, out_note):
         if self.in_array.length >= self.in_array.max_length:
             return False
-
         self.in_array.append_value(in_note)
         self.out_array.append_value(out_note)
         return True
+
+    def replace_note_in_index(self, in_note, index):
+        self.in_array.notes[index] = in_note
 
     def remove_note_single(self, in_note, first_in_first_out=True):
         index = self.in_array.remove_value_first(in_note, order= not first_in_first_out)

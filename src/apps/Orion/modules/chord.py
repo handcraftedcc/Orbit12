@@ -16,10 +16,10 @@ class Chord(Module):
     label = "Chord"
     version = 1
     def __init__(self, module_helper, slot_id):
-        self.offsets = [0, 2, 4, 0, 0]  # or whatever defaults you want
-        self.note_relationship = NoteRelationshipArray(length=60)
-        self.note_ons_out = NoteOnArray(length=60)
-        self.note_offs_out = NoteOffArray(length=60)
+        self.offsets = [0,2,4,0,0]
+        self.note_relationship = NoteRelationshipArray()
+        self.note_ons_out = NoteOnArray()
+        self.note_offs_out = NoteOffArray()
         self.scale_aware = True
 
         super().__init__(module_helper, slot_id)
@@ -72,6 +72,11 @@ class Chord(Module):
         else:
             scale = None
 
+        for i in range(note_offs.length):
+            note = note_offs.notes[i]
+            off_notes = self.note_relationship.remove_note_all(note)
+            self.note_offs_out.append_values(off_notes)
+
         for i in range(note_ons.length):
             note = note_ons.notes[i]
 
@@ -79,14 +84,28 @@ class Chord(Module):
             if note_ons.velocities is not None:
                 velocity = note_ons.velocities[i]
 
-            for offset in self.offsets:
+            for idx,offset in enumerate(self.offsets):
+                if offset in self.offsets[:idx]:
+                        continue #skip duplicate notes
                 new_note = self.transpose(offset, note, scale)
-                self.note_ons_out.append_value(new_note, velocity=velocity)
-                self.note_relationship.add_note(note, new_note)
+                append = False
+                if self.note_relationship.in_array.length < self.note_relationship.in_array.max_length:
+                    append = True
+                    print("small enough")
+                elif (self.note_relationship.in_array.length == self.note_relationship.in_array.max_length and
+                    self.note_relationship.out_array.length < self.note_relationship.out_array.max_length):
+                    ("make room")
+                    off_note = self.note_relationship.remove_note_single(self.note_relationship.in_array.notes[0])
+                    self.note_offs_out.append_value(off_note)
+                    append = True
 
-        for i in range(note_offs.length):
-            note = note_offs.notes[i]
-            off_notes = self.note_relationship.remove_note_all(note)
-            self.note_offs_out.append_values(off_notes)
+                if append:
+                        has_out_note,out_note_id = self.note_relationship.has_out_note(new_note)
+                        if has_out_note:
+                            self.note_offs_out.append_value(new_note, velocity=velocity)
+                            self.note_relationship.replace_note_in_index(new_note, out_note_id)
+                        self.note_ons_out.append_value(new_note, velocity=velocity)
+                        self.note_relationship.add_note(note, new_note)
+
 
         return self.note_ons_out, self.note_offs_out

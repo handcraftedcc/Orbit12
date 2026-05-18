@@ -195,6 +195,26 @@ class Chords(Input):
         self.note_ons.clear()
         self.note_offs.clear()
 
+        ## Handle Note Offs##
+        for i in range(note_offs.length):
+            pad_note = note_offs.notes[i]
+            pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
+            if pad_note < 6:  # -> Root Note
+                self.note_offs.append_value(pad_note)
+            else:  # -> Modifier
+                pad_note -= 6
+                if self.held_modifiers.contains(pad_note):
+                    self.held_modifiers.remove_value_first(pad_note)
+
+        for i in range(self.note_offs.length):
+            pad_note = self.note_offs.notes[i]
+            chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
+            print(list(chord.notes))
+            if chord.length > 0:
+                for j in range(chord.length):
+                    note = chord.notes[j]
+                    self.note_offs_out.append_value(note)
+
         ## Process input notes and split them into notes and modifiers
         for i in range(note_ons.length):
             pad_note = note_ons.notes[i]
@@ -206,32 +226,19 @@ class Chords(Input):
                 if not self.held_modifiers.contains(pad_note):
                     self.held_modifiers.append_value(pad_note)
 
-        for i in range(note_offs.length):
-            pad_note = note_offs.notes[i]
-            pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
-            if pad_note < 6:  # -> Root Note
-                self.note_offs.append_value(pad_note)
-            else:  # -> Modifier
-                pad_note -= 6
-                if self.held_modifiers.contains(pad_note):
-                    self.held_modifiers.remove_value_first(pad_note)
-
-        ## Now create the chords ##
+        ## Create and export chords ##
         for i in range(self.note_ons.length):
             pad_note = self.note_ons.notes[i]
             self.build_chord(pad_note)
             for j in range(self.temp_chord.length):
                 chord_note = self.temp_chord.notes[j]
-                self.held_note_relationship.add_note(pad_note,chord_note)
-                self.note_ons_out.append_value(chord_note,velocity=self.velocity)
-
-        for i in range(self.note_offs.length):
-            pad_note = self.note_offs.notes[i]
-            chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
-            if chord.length > 0:
-                for j in range(chord.length):
-                    note = chord.notes[j]
-                    self.note_offs_out.append_value(note)
+                if self.held_note_relationship.in_array.length < self.held_note_relationship.in_array.max_length:
+                    has_out_note, out_note_id = self.held_note_relationship.has_out_note(chord_note)
+                    if has_out_note:
+                        self.note_offs_out.append_value(chord_note, self.velocity)
+                        self.held_note_relationship.replace_note_in_index(pad_note, out_note_id)
+                    self.held_note_relationship.add_note(pad_note,chord_note)
+                    self.note_ons_out.append_value(chord_note,velocity=self.velocity)
 
         #if note_ons.length > 0 or note_offs.length > 0:
             #print("Held Notes Relationship: ", self.held_note_relationship.in_array.notes, self.held_note_relationship.out_array.notes)
