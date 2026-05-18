@@ -65,7 +65,7 @@ class Transpose(Module):
             note = scale[new_index]
             note = note + (octave+octave_shift+self.octaves)*12
         else:
-            note = note + self.semitones
+            note = note + self.semitones + self.octaves * 12
         return note
 
     def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):

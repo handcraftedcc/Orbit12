@@ -126,7 +126,7 @@ class Arp(Module):
     def generate_notes(self):
         #Calculate timing
         current = ticks.ticks_ms()
-        scheduled = ticks.ticks_add(self.gate, current)
+        scheduled = ticks.ticks_add(current, self.gate)
 
         if self.mode == self.mode_list.index("repeat"):
             for i in range(self.note_register.length):

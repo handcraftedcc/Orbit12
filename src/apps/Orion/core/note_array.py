@@ -6,12 +6,14 @@ from array import array
 ### Main Class ###
 
 class NoteArray:
-    def __init__(self, length = POLYPHONY, velocities = False, times = False):
+    def __init__(self, length = POLYPHONY, velocities = False, times = False, channels = None):
         self.notes = bytearray(length)
         if velocities: self.velocities = bytearray(length)
         else: self.velocities = None
         if times: self.times = array('I',[0]*length)
         else: self.times = None
+        if channels: self.channels = bytearray(length)
+        else: self.channels = None
         self.length = 0
         self.max_length = length
 
@@ -22,21 +24,35 @@ class NoteArray:
             return None
         return self.notes[index]
 
-    def contains(self, value):
+    def contains(self, value, channel=None):
         for i in range(self.length):
-            if self.notes[i] == value:
+            if self.notes[i] != value:
+                continue
+            if channel is None:
+                return True
+            if self.channels is not None and self.channels[i] == channel:
                 return True
         return False
 
-    def index_of(self, value, order=0):
+    def index_of(self, value, order=0, channel=None):
+        def matches(i):
+            if self.notes[i] != value:
+                return False
+
+            if channel is None:
+                return True
+
+            return self.channels is not None and self.channels[i] == channel
+
         if order == 0:
             for i in range(0, self.length):
-                if self.notes[i] == value:
+                if matches(i):
                     return i
         else:
-            for i in range(self.length - 1,-1,-1):
-                if self.notes[i] == value:
+            for i in range(self.length - 1, -1, -1):
+                if matches(i):
                     return i
+
         return None
 
     def get_min_note(self):
@@ -82,24 +98,33 @@ class NoteArray:
                 if note_array.times is not None:
                     self.times[i] = note_array.times[i]
                 else:
-                    self.times[i] = 127
+                    self.times[i] = 0
+            if self.channels is not None:
+                if note_array.channels is not None:
+                    self.channels[i] = note_array.channels[i]
+                else:
+                    self.channels[i] = 0
 
     def sort_notes(self):
         for i in range(1, self.length):
             key = self.notes[i]
             has_vel = self.velocities is not None
             has_times = self.times is not None
+            has_channels = self.channels is not None
             if has_vel: vel = self.velocities[i]
             if has_times: time = self.times[i]
+            if has_channels: channel = self.channels[i]
             j = i - 1
             while j >= 0 and self.notes[j] > key:
                 self.notes[j + 1] = self.notes[j]
                 if has_vel: self.velocities[j + 1] = self.velocities[j]
                 if has_times: self.times[j + 1] = self.times[j]
+                if has_channels: self.channels[j + 1] = self.channels[j]
                 j -= 1
             self.notes[j + 1] = key
             if has_vel: self.velocities[j+1] = vel
             if has_times: self.times[j + 1] = time
+            if has_channels: self.channels[j + 1] = channel
             
     def swap_notes(self, index_1: int, index_2: int):
         note = self.notes[index_1]
@@ -113,6 +138,10 @@ class NoteArray:
             vel = self.times[index_1]
             self.times[index_1] = self.times[index_2]
             self.times[index_2] = vel
+        if self.channels is not None:
+            channel = self.channels[index_1]
+            self.channels[index_1] = self.channels[index_2]
+            self.channels[index_2] = channel
             
     def reverse_notes(self):
         left = 0
@@ -135,48 +164,68 @@ class NoteArray:
             self.notes[i] = self.notes[i + 1]
             if self.velocities is not None: self.velocities[i] = self.velocities[i + 1]
             if self.times is not None: self.times[i] = self.times[i + 1]
+            if self.channels is not None: self.channels[i] = self.channels[i + 1]
         self.length = self.length - 1
         return True
 
-    def remove_value_first(self, value, order=0):
+    def remove_value_first(self, value, order=0, channel=None):
+        def matches(i):
+            if self.notes[i] != value:
+                return False
+
+            if channel is None:
+                return True
+
+            return self.channels is not None and self.channels[i] == channel
+
         if order == 1:
             i = self.length - 1
             while i >= 0:
-                if self.notes[i] == value:
+                if matches(i):
                     self.remove_index(i)
                     return i
                 i -= 1
         else:
             i = 0
             while i < self.length:
-                if self.notes[i] == value:
+                if matches(i):
                     self.remove_index(i)
                     return i
-                else:
-                    i += 1
+                i += 1
+
         return None
 
-    def remove_value_all(self, value, order=0):
+    def remove_value_all(self, value, order=0, channel=None):
+        def matches(i):
+            if self.notes[i] != value:
+                return False
+
+            if channel is None:
+                return True
+
+            return self.channels is not None and self.channels[i] == channel
+
         if order == 1:
             i = self.length - 1
             while i >= 0:
-                if self.notes[i] == value:
+                if matches(i):
                     self.remove_index(i)
                 i -= 1
         else:
             i = 0
             while i < self.length:
-                if self.notes[i] == value:
+                if matches(i):
                     self.remove_index(i)
                 else:
                     i += 1
 
-    def append_value(self, value: int, velocity=127, time = 0):
+    def append_value(self, value: int, velocity=127, time = 0, channel = 0):
         if self.length >= self.max_length:
             return False
         self.notes[self.length] = value
         if self.velocities is not None: self.velocities[self.length] = velocity
         if self.times is not None: self.times[self.length] = time
+        if self.channels is not None: self.channels[self.length] = channel
         self.length += 1
         return True
 
@@ -192,12 +241,16 @@ class NoteArray:
             if note_array.times is not None:
                 time = note_array.times[idx]
 
-            if not self.append_value(note, velocity, time):
+            channel = 0
+            if note_array.channels is not None:
+                channel = note_array.channels[idx]
+
+            if not self.append_value(note, velocity, time, channel):
                 return False
 
         return True
 
-    def insert_value_at_index(self, value, index: int, velocity = 127, time = 0):
+    def insert_value_at_index(self, value, index: int, velocity = 127, time = 0, channel = 0):
         if self.length >= self.max_length:
             return False
 
@@ -206,6 +259,7 @@ class NoteArray:
 
         has_vel = self.velocities is not None
         has_times = self.times is not None
+        has_channels = self.channels is not None
 
         for i in range(self.length, index, -1):
             self.notes[i] = self.notes[i - 1]
@@ -213,17 +267,21 @@ class NoteArray:
                 self.velocities[i] = self.velocities[i - 1]
             if has_times:
                 self.times[i] = self.times[i - 1]
+            if has_channels:
+                self.channels[i] = self.channels[i - 1]
 
         self.notes[index] = value
         if has_vel:
             self.velocities[index] = velocity
         if has_times:
             self.times[index] = time
+        if has_channels:
+            self.channels[index] = channel
 
         self.length += 1
         return True
 
-    def append_value_sorted(self, value: int, velocity=127, time=0, dedup=False):
+    def append_value_sorted(self, value: int, velocity=127, time=0, channel = 0, dedup=False):
         if self.length >= self.max_length:
             return False
 
@@ -232,17 +290,17 @@ class NoteArray:
                 return False
 
             if value < self.notes[i]:
-                return self.insert_value_at_index(value, i, velocity, time)
+                return self.insert_value_at_index(value, i, velocity, time, channel)
 
-        return self.append_value(value, velocity, time)
+        return self.append_value(value, velocity, time, channel)
 
 class NoteOnArray(NoteArray):
-    def __init__(self, length = POLYPHONY):
-        super().__init__(length, velocities = True)
+    def __init__(self, length = POLYPHONY, channels = False):
+        super().__init__(length, velocities = True, channels= channels)
 
 class NoteOffArray(NoteArray):
-    def __init__(self, length = POLYPHONY):
-        super().__init__(length)
+    def __init__(self, length = POLYPHONY, channels = False):
+        super().__init__(length, channels = channels)
 
 class NoteRelationshipArray:
     def __init__(self, length = POLYPHONY):

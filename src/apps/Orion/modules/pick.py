@@ -10,6 +10,10 @@ class Pick(Module):
         self.pick_mode = 0
         self.held_note = None
         self.held_notes_in = NoteArray()
+        self.note_ons_out = NoteArray()
+        self.note_offs_out = NoteArray()
+        self.octaves = 0
+        self.held_note_octave = 0
 
         super().__init__(module_helper, slot_id)
 
@@ -27,13 +31,23 @@ class Pick(Module):
         self.mode_parm = Parms.Parm(name="pick_mode", label="Mode", default=0, parm_type=Parms.EnumParmType,
                                       options=pick_mode_options, edit_callback_function=self.set_pick_mode)
         parms.append(self.mode_parm)
+
+        self.octaves_parm = Parms.Parm(name="octaves", label="Octaves", default=0, parm_type=Parms.IntParmType,
+                                      increment=1, edit_callback_function=self.set_octaves)
+        parms.append(self.octaves_parm)
+
         return parms
 
     def set_pick_mode(self, value):
         self.pick_mode = value
 
+    def set_octaves(self, value):
+        self.octaves = value
+
     def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
         self.held_notes_in.append_values(note_ons)
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             self.held_notes_in.remove_value_first(note)
@@ -54,32 +68,34 @@ class Pick(Module):
             if self.pick_mode == 5:
                 return_note, index = self.held_notes_in.get_max_note()
 
-            return_note = self.held_notes_in.notes[index]
+            return_note = self.held_notes_in.notes[index] + self.octaves*12
             if return_note != self.held_note: #New note detected
                 velocity = 127
                 if self.held_notes_in.velocities is not None:
                     velocity = self.held_notes_in.velocities[index]
-                note_ons.clear()
-                note_ons.append_value(return_note, velocity=velocity)
+                pass
+                self.note_ons_out.append_value(return_note, velocity=velocity)
                 if self.held_note: old_note = self.held_note
                 self.held_note = return_note
+                self.held_note_octave = self.octaves
             else:
-                note_ons.clear()
+                pass
         else:
-            note_ons.clear()
+            pass
 
         length = note_offs.length
         for i in range(length):
             note = note_offs.notes[i]
-            if self.held_note == note:
-                note_offs.clear()
-                note_offs.append_value(note)
+            if self.held_note - self.held_note_octave*12 == note:
+                self.note_offs_out.clear()
+                self.note_offs_out.append_value(note + self.held_note_octave*12)
                 self.held_note = None
+                self.held_note_octave = None
                 break
 
-        if old_note: note_offs.append_value(old_note)
+        if old_note: self.note_offs_out.append_value(old_note)
 
-        return note_ons, note_offs
+        return self.note_ons_out, self.note_offs_out
 
 
 
