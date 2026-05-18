@@ -85,8 +85,9 @@ class Transpose(Module):
             if note_ons.velocities is not None:
                 velocity = note_ons.velocities[i]
 
-            self.note_ons_out.append_value(new_note, velocity=velocity)
-            self.note_relationship.add_note(note, new_note)
+            if self.note_ons_out.length < self.note_ons_out.max_length and self.note_relationship.can_add():
+                self.note_ons_out.append_value(new_note, velocity=velocity)
+                self.note_relationship.add_note(note, new_note)
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]

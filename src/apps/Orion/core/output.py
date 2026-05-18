@@ -16,28 +16,41 @@ class OutputManager:
         self.midi_start = False
         self.midi_stop = False
 
-    def schedule_midi_notes(self, note_ons, note_offs, channel = 0):
+    def schedule_midi_notes(self, note_ons, note_offs, channel=0):
+        if channel is None:
+            channel = 0
 
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = self.note_ons_out.velocities[i]
-            if channel is None: channel = 0
-            self.held_notes.append_value(note, velocity=velocity, channel=channel)
-            if not self.note_ons_out.contains(note, channel=channel):
-                velocity = 127
-                if note_ons.velocities is not None:
-                    velocity = note_ons.velocities[i]
-                self.note_ons_out.append_value(note, velocity=velocity, channel = channel)
 
+            velocity = 127
+            if note_ons.velocities is not None:
+                velocity = note_ons.velocities[i]
+
+            can_hold = self.held_notes.length < self.held_notes.max_length
+            can_queue_on = self.note_ons_out.length < self.note_ons_out.max_length
+
+            if not self.held_notes.contains(note, channel=channel) and can_hold and can_queue_on:
+                self.held_notes.append_value(note, velocity=velocity, channel=channel)
+                self.note_ons_out.append_value(note, velocity=velocity, channel=channel)
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]
-            if channel is None: channel = 0
-            if self.held_notes.contains(note, channel=channel):
-                self.held_notes.remove_value_first(note, channel=channel)
 
-            if not self.note_offs_out.contains(note, channel=channel) and not self.held_notes.contains(note,channel=channel):
-                self.note_offs_out.append_value(note, channel = channel)
+
+            removed = self.held_notes.remove_value_first(note, channel=channel)
+            if removed is not None: # Que full - send immediately
+                if self.note_offs_out.length >= self.note_offs_out.max_length:
+                    if not self.note_offs_out.contains(note, channel=channel):
+                        self.note_offs_out.append_value(note, channel=channel)
+                else:
+                    velocity = 0
+                    if note_offs.velocities is not None:
+                        velocity = note_offs.velocities[i]
+                    channel = 0
+                    if note_offs.channels is not None:
+                        channel = note_offs.channels[i]
+                    self.macropad.midi.send(self.macropad.NoteOff(note, velocity), channel=channel)  # send midi note_on
 
         #print("held notes: ", self.held_notes)
 

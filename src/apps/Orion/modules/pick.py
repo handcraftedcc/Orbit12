@@ -9,9 +9,9 @@ class Pick(Module):
     def __init__(self, module_helper, slot_id):
         self.pick_mode = 0
         self.held_note = None
-        self.held_notes_in = NoteArray()
-        self.note_ons_out = NoteArray()
-        self.note_offs_out = NoteArray()
+        self.held_notes_in = NoteOnArray()
+        self.note_ons_out = NoteOnArray()
+        self.note_offs_out = NoteOffArray()
         self.octaves = 0
         self.held_note_octave = 0
 
@@ -45,12 +45,28 @@ class Pick(Module):
         self.octaves = value
 
     def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
-        self.held_notes_in.append_values(note_ons)
-        self.note_ons_out.clear()
-        self.note_offs_out.clear()
+        #Dedup and guard against overflow
+
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             self.held_notes_in.remove_value_first(note)
+
+        for i in range(note_ons.length):
+            note = note_ons.notes[i]
+
+            if self.held_notes_in.contains(note):
+                continue
+
+            if self.held_notes_in.length >= self.held_notes_in.max_length:
+                break
+
+            velocity = 127
+            if note_ons.velocities is not None:
+                velocity = note_ons.velocities[i]
+
+            self.held_notes_in.append_value(note, velocity=velocity)
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
 
         old_note = None
         if self.held_notes_in.length > 0:
@@ -86,7 +102,7 @@ class Pick(Module):
         length = note_offs.length
         for i in range(length):
             note = note_offs.notes[i]
-            if self.held_note - self.held_note_octave*12 == note:
+            if self.held_note is not None and self.held_note - self.held_note_octave * 12 == note:
                 self.note_offs_out.clear()
                 self.note_offs_out.append_value(note + self.held_note_octave*12)
                 self.held_note = None

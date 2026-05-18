@@ -135,8 +135,9 @@ class Arp(Module):
                     velocity = self.note_register.velocities[i]
                 else:
                     velocity = 127
-                self.note_ons_out.append_value(note,velocity=velocity)
-                self.scheduled_offs.append_value(note, time=scheduled)
+                if self.note_ons_out.length < self.note_ons_out.max_length and self.scheduled_offs.length < self.scheduled_offs.max_length:
+                    self.note_ons_out.append_value(note,velocity=velocity)
+                    self.scheduled_offs.append_value(note, time=scheduled)
         else:
             register_note_count = self.note_register.length
             if self.retrigger_mode == 2:
@@ -148,8 +149,9 @@ class Arp(Module):
                 velocity = self.note_register.velocities[index]
             else:
                 velocity = 127
-            self.note_ons_out.append_value(note, velocity=velocity)
-            self.scheduled_offs.append_value(note, time=scheduled)
+            if self.note_ons_out.length < self.note_ons_out.max_length and self.scheduled_offs.length < self.scheduled_offs.max_length:
+                self.note_ons_out.append_value(note, velocity=velocity)
+                self.scheduled_offs.append_value(note, time=scheduled)
             self.note_register_position = (self.note_register_position+1) % register_note_count
 
         #print("Note Register", self.note_register.notes)
