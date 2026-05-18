@@ -47,6 +47,7 @@ class Arp(Module):
         self.held_notes = NoteArray()
 
         self.last_midi_tick = self.transport.midi_tick
+        self.last_grid_bin = -1
         self.was_transport_running = self.transport.running
 
         super().__init__(module_helper, slot_id)
@@ -192,38 +193,32 @@ class Arp(Module):
 
         if self.arp_state == 0 and self.note_register.length>0: #From no keys pressed -> keys pressed
             self.arp_state = 1
-            self.last_midi_tick = self.transport.midi_tick
 
-        if self.arp_state == 1 and self.transport.running:
+        if running and not self.was_transport_running:
+            self.last_grid_bin = -1
+            if self.retrigger_mode == 0:
+                self.note_register_position = 0
+
+        if self.transport.running:
             interval = self.rate_to_midi_ticks()  # e.g. 6 for 1/16
-            last_tick = self.last_midi_tick
-            now_tick = self.transport.midi_tick
-            if now_tick < last_tick: #On transport reset
-                self.last_midi_tick = now_tick
-                last_tick = now_tick
+            current_bin = self.transport.midi_tick // interval
 
-            # detect transport start edge
-            if running and not self.was_transport_running:
-                # re-anchor arp timing to new transport tick origin
-                self.last_midi_tick = self.transport.midi_tick
+            if current_bin < self.last_grid_bin:
+                self.last_grid_bin = -1
 
-                # restart pattern position on transport start
-                if self.retrigger_mode == 0:
-                    self.note_register_position = 0
+            if current_bin != self.last_grid_bin:
+                previous_grid_bin = self.last_grid_bin
+                self.last_grid_bin = current_bin
 
-                # emit immediately if notes are held
-                if self.note_register.length>0:
-                    self.generate_notes()
+                if self.arp_state == 1:
+                    if previous_grid_bin < 0:
+                        triggers = 1
+                    else:
+                        triggers = current_bin - previous_grid_bin
 
-            if now_tick > last_tick:
-                prev_bin = last_tick // interval
-                curr_bin = now_tick // interval
-                triggers = curr_bin - prev_bin  # how many grid steps crossed
+                    for _ in range(triggers):
+                        self.generate_notes()
 
-                for _ in range(triggers):
-                    self.generate_notes()
-
-                self.last_midi_tick = now_tick
         self.process_note_offs()
 
         self.was_transport_running = running
@@ -233,7 +228,6 @@ class Arp(Module):
     def stop(self):
         self.process_note_offs(force_all = True)
         self.held_notes.clear()
-
 
 
 
