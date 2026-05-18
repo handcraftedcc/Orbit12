@@ -21,6 +21,7 @@ class Transport:
 		self.tick_interval_ms_i = 0
 		self.tick_interval_err = 0
 		self.update_bpm(self.bpm)
+		self.now = ticks.ticks_ms()
 
 		self.running = 0
 
@@ -31,7 +32,7 @@ class Transport:
 		self.tick_interval_err = 0.0
 
 	def update(self):
-		current = ticks.ticks_ms()
+		self.now = ticks.ticks_ms()
 		stepped = False
 
 		if self.state.transport_mode == 1:
@@ -55,7 +56,7 @@ class Transport:
 					pass
 
 		elif self.running == 1:
-			while ticks.ticks_less(self.midi_tick_scheduled, current):
+			while ticks.ticks_less(self.midi_tick_scheduled, self.now):
 				self.schedule_next_tick()
 				self.midi_tick += 1
 				self.output_manager.schedule_midi_clock()
@@ -72,10 +73,10 @@ class Transport:
 		self.midi_tick_scheduled = ticks.ticks_add(self.midi_tick_scheduled, interval)
 
 	def reset(self):
-		now = ticks.ticks_ms()
+		self.now = ticks.ticks_ms()
 		self.midi_tick = 0
 		self.tick_interval_err = 0.0
-		self.midi_tick_scheduled = now
+		self.midi_tick_scheduled = self.now
 		self.output_manager.pending_midi_clock_ticks = 0
 
 	def clock_start(self, send_out = True):

@@ -125,7 +125,7 @@ class Arp(Module):
 
     def generate_notes(self):
         #Calculate timing
-        current = ticks.ticks_ms()
+        current = self.transport.now
         scheduled = ticks.ticks_add(current, self.gate)
 
         if self.mode == self.mode_list.index("repeat"):
@@ -157,7 +157,7 @@ class Arp(Module):
 
     def process_note_offs(self, force_all = False):
         #TODO: Maybe build a time removal thing into the note_array directly
-        current = ticks.ticks_ms()
+        current = self.transport.now
         self.popped_ids.clear()
         if not force_all:
             for i in range(self.scheduled_offs.length):
