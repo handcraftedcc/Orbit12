@@ -209,7 +209,6 @@ class Chords(Input):
         for i in range(self.note_offs.length):
             pad_note = self.note_offs.notes[i]
             chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
-            print(list(chord.notes))
             if chord.length > 0:
                 for j in range(chord.length):
                     note = chord.notes[j]

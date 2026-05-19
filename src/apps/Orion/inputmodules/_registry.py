@@ -4,8 +4,8 @@ from .drum import Drum
 
 AVAILABLE_MODULES = {
     "note": Note,
-    "drum": Drum,
     "chords": Chords,
+    "drum": Drum,
 }
 
 AVAILABLE_MODULE_NAMES = list(AVAILABLE_MODULES.keys())

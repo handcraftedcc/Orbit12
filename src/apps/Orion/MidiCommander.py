@@ -76,6 +76,10 @@ class MidiCommander:
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
 
+        # Update Pixels
+        self.state.chain_modules[0].color_pixels()
+        self.ui_manager.neo_pixels.paint_pixels()
+
         #gc.disable()
 
     def add_to_ui_queue(self, callback):
@@ -115,6 +119,59 @@ class MidiCommander:
                 gc.collect()
                 self.last_gc_ms = now
 
+    def move_active_chain_element(self, delta):
+        self.state.move_active_chain_elem(delta)
+        self.state.active_parm = -1
+        self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
+        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+
+    def move_active_parm_element(self, delta):
+        current_page = self.state.active_parm_page
+        self.state.move_active_parm_elem(delta)
+        if self.state.active_parm < 0:
+            self.add_to_ui_queue(self.ui_manager.chain.highlight_chain)
+            self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
+        else:
+            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+        if current_page != self.state.active_parm_page:
+            self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+
+    def enter_parm_edit(self):
+        if self.state.active_parm == -1: #Check if on chain selection -> Switch back to chain selection
+            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+            self.state.active_ui_section = state.UISection.CHAIN
+        else:  # Go into parm edit
+            self.state.active_ui_section = state.UISection.PARMEDIT
+            active_parm = self.state.get_active_module_parm()
+            enter_result = active_parm.enter()
+            if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
+                self.state.active_ui_section = state.UISection.PARMSELECTION
+
+            self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
+            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm_value)
+
+    def exit_parm_edit(self):
+        """Apply current parm setting and go back to parm selection mode"""
+        active_parm = self.state.get_active_module_parm()
+        active_parm.exit()
+        self.state.active_ui_section = state.UISection.PARMSELECTION
+
+        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_value_highlight)
+        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+
+    def edit_parm(self, delta):
+        new_value, new_display_value = self.state.get_active_module_parm().edit(delta)
+        self.ui_manager.parameter_section.update_parm_value(new_display_value)
+
+    def enter_parm_selection(self):
+        """Switch state to active module"""
+        self.state.active_ui_section = state.UISection.PARMSELECTION
+        self.state.active_parm = 0
+        self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
+        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+
     def run(self):
         while True:
             #current = ticks.ticks_ms()
@@ -130,27 +187,15 @@ class MidiCommander:
             if knob_delta!=0:
                 # Active section: Chain #
                 if self.state.active_ui_section == state.UISection.CHAIN:
-                        self.state.move_active_chain_elem(knob_delta)
-                        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+                    self.move_active_chain_element(knob_delta)
 
                 # Active section: Parm Selection #
                 elif self.state.active_ui_section == state.UISection.PARMSELECTION:
-                    current_page = self.state.active_parm_page
-                    self.state.move_active_parm_elem(knob_delta)
-                    if self.state.active_parm < 0:
-                        self.add_to_ui_queue(self.ui_manager.chain.highlight_chain)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
-                    else:
-                        self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
-                    if current_page != self.state.active_parm_page:
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+                    self.move_active_parm_element(knob_delta)
 
                 # Active Section: Parm Edit #
                 elif self.state.active_ui_section == state.UISection.PARMEDIT:
-                    new_value, new_display_value = self.state.get_active_module_parm().edit(knob_delta)
-                    self.ui_manager.parameter_section.update_parm_value(new_display_value)
+                    self.edit_parm(knob_delta)
 
 
             ## Process encoder button press ##
@@ -158,8 +203,7 @@ class MidiCommander:
             if pressed[0]:
                 self.input_manager.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
                 pressed [0] = 0
-
-
+                self.ui_manager.neo_pixels.set_nav_state_colors()
 
             ## Process midi key press ##
             # -> if knob down then use it as function - if not emit notes
@@ -169,18 +213,71 @@ class MidiCommander:
                     self.input_manager.encoder_press_consumed = 1
                     if pressed[11]:
                         self.transport.clock_start()
-                    elif pressed[10]:
+                    if pressed[10]:
                         self.transport.clock_stop()
-                    elif pressed[2]:
-                        self.state.octave+=1
-                    elif pressed[5]:
-                        self.state.octave-=1
-                    elif pressed[4]:
-                        self.state.key_offset-=1
-                        self.state.chain_modules[0].color_pixels()
-                    elif pressed[6]:
-                        self.state.key_offset+=1
-                        self.state.chain_modules[0].color_pixels()
+
+                    if pressed[1]: # Switch Nav State
+                        self.state.nav_keys_state = (self.state.nav_keys_state+1) % 2
+                        self.ui_manager.neo_pixels.set_nav_state_colors(update=True)
+
+                    if pressed[3]: # Switch between Nav and Modify State
+                        if self.state.active_ui_section == state.UISection.PARMSELECTION:
+                            self.enter_parm_edit()
+                        elif self.state.active_ui_section == state.UISection.PARMEDIT:
+                            self.exit_parm_edit()
+
+                    if self.state.nav_keys_state == 0: #Nav Notes
+                        if pressed[2]:
+                            self.state.octave+=1
+                        if pressed[5]:
+                            self.state.octave-=1
+                        if pressed[4]:
+                            self.state.key_offset -= 1
+                        if pressed[6]:
+                            self.state.key_offset += 1
+
+                    if self.state.nav_keys_state == 1: #Nav Parms
+                        # Active section: Chain #
+                        if self.state.active_ui_section == state.UISection.CHAIN:
+                            if pressed[2]: #UP
+                                self.state.active_ui_section = state.UISection.PARMSELECTION
+                                self.move_active_parm_element(-1)
+                            if pressed[5]: #DOWN
+                                self.state.active_ui_section = state.UISection.PARMSELECTION
+                                self.move_active_parm_element(1)
+                            if pressed[4]: #LEFT
+                                self.move_active_chain_element(-1)
+                            if pressed[6]: #RIGHT
+                                self.move_active_chain_element(1)
+
+                        # Active section: Parm Selection #
+                        elif self.state.active_ui_section == state.UISection.PARMSELECTION:
+                            if pressed[2]:  # UP
+                                self.move_active_parm_element(-1)
+                            if pressed[5]:  # DOWN
+                                self.move_active_parm_element(1)
+                            if pressed[4]:  # LEFT
+                                self.state.active_ui_section = state.UISection.CHAIN
+                                self.state.active_parm = -1
+                                self.ui_manager.parameter_section.clear_parm_highlights()
+                                self.move_active_chain_element(-1)
+                            if pressed[6]:  # RIGHT
+                                self.state.active_ui_section = state.UISection.CHAIN
+                                self.state.active_parm = -1
+                                self.ui_manager.parameter_section.clear_parm_highlights()
+                                self.move_active_chain_element(1)
+
+                        # Active Section: Parm Edit #
+                        elif self.state.active_ui_section == state.UISection.PARMEDIT:
+                            if pressed[2]:  # UP
+                                self.edit_parm(1)
+                            if pressed[5]:  # DOWN
+                                self.edit_parm(-1)
+                            if pressed[4]:  # LEFT
+                                self.edit_parm(-1)
+                            if pressed[6]:  # RIGHT
+                                self.edit_parm(1)
+
 
                 else: #knob is not held -> simple button press
                     # Generate note ons from keys
@@ -194,9 +291,6 @@ class MidiCommander:
                     if pressed[index]:
                         self.ui_manager.neo_pixels.set_held_pixel(index-1)
 
-
-
-
             ## Process encoder button release ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if released[0]:
@@ -207,38 +301,21 @@ class MidiCommander:
                     # Active section: Chain #
                     if self.state.active_ui_section == state.UISection.CHAIN:
                             #Switch state to active module
-                            self.state.active_ui_section = state.UISection.PARMSELECTION
-                            self.state.active_parm = 0
-                            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
-                            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+                            self.enter_parm_selection()
 
                     # Active section: Parm Selection #
                     elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                         #Check if on chain selection -> Switch back to chain selection
-                        if self.state.active_parm == -1:
-                            self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
-                            self.state.active_ui_section = state.UISection.CHAIN
-                        else: #Go into parm edit
-                            self.state.active_ui_section = state.UISection.PARMEDIT
-                            active_parm = self.state.get_active_module_parm()
-                            enter_result = active_parm.enter()
-                            if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
-                                self.state.active_ui_section = state.UISection.PARMSELECTION
-
-                            self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_highlights)
-                            self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm_value)
+                        self.enter_parm_edit()
 
                     # Active section: Parm Edit #
                     elif self.state.active_ui_section == state.UISection.PARMEDIT:
-                        #Apply current parm setting and go back to parm selection mode
-                        active_parm = self.state.get_active_module_parm()
-                        active_parm.exit()
-                        self.state.active_ui_section = state.UISection.PARMSELECTION
-
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.clear_parm_value_highlight)
-                        self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
+                        # Apply current parm setting and go back to parm selection mode
+                        self.exit_parm_edit()
 
                 released[0] = 0 # Clear knob release bit
+                self.ui_manager.neo_pixels.exit_nav_state_colors()
+                self.state.chain_modules[0].color_pixels()
 
             ## Process midi key release ##
             # -> if knob down then use it as function - if not emit notes

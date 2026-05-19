@@ -35,6 +35,7 @@ class State:
         self.input_manager = None
         self.macropad = macropad
         self.module_helper = None
+        self.nav_keys_state = 0 # 0 is notes, 1 is parms
 
     def update_parm_count(self):
         self.parm_count = len(self.chain_modules[self.active_chain].get_parms())

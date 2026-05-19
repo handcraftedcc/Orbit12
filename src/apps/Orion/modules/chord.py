@@ -40,6 +40,17 @@ class Chord(Module):
             self.offset_parms.append(offset_parm)
 
         parms.extend(self.offset_parms)
+
+        scale_aware_parm = Parms.Parm(
+            name="scale_aware",
+            label="Scale Aware",
+            default=True,
+            parm_type=Parms.BooleanParmType,
+            edit_callback_function=self.set_scale_aware,
+        )
+
+        parms.append(scale_aware_parm)
+
         return parms
 
     def set_offset(self, index, value):
@@ -102,10 +113,10 @@ class Chord(Module):
                 if append:
                         has_out_note,out_note_id = self.note_relationship.has_out_note(new_note)
                         if has_out_note:
-                            self.note_offs_out.append_value(new_note, velocity=velocity)
-                            self.note_relationship.replace_note_in_index(new_note, out_note_id)
-                        self.note_ons_out.append_value(new_note, velocity=velocity)
-                        self.note_relationship.add_note(note, new_note)
+                            self.note_relationship.replace_note_in_index(note, out_note_id)
+                        else:
+                            self.note_ons_out.append_value(new_note, velocity=velocity)
+                            self.note_relationship.add_note(note, new_note)
 
 
         return self.note_ons_out, self.note_offs_out

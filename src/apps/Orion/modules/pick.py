@@ -86,6 +86,10 @@ class Pick(Module):
         length = note_offs.length
         for i in range(length):
             note = note_offs.notes[i]
+
+            if self.held_note is None:
+                break
+
             if self.held_note - self.held_note_octave*12 == note:
                 self.note_offs_out.clear()
                 self.note_offs_out.append_value(note + self.held_note_octave*12)
