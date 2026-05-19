@@ -3,15 +3,6 @@ from ..core import parms as Parms
 from ..core import music
 from ..core.note_array import NoteRelationshipArray,NoteOnArray,NoteOffArray
 
-def find_closest(values, target):
-    def distance_from_target(index):
-        return abs(values[index] - target)
-
-    index = min(range(len(values)), key=distance_from_target)
-    value = values[index]
-
-    return value, index
-
 class Transpose(Module):
     name = "transpose"
     label = "Transpose"
@@ -53,21 +44,6 @@ class Transpose(Module):
     def set_scale_aware(self, value):
         self.scale_aware = value
 
-    def transpose(self, note, scale):
-        if self.scale_aware:
-            normalized_note = note % 12
-            octave = note // 12
-            closest_note,closest_index = find_closest(scale,normalized_note)
-            new_index = closest_index+self.semitones
-            scale_notes = len(scale)
-            octave_shift = new_index // scale_notes
-            new_index = new_index - octave_shift * scale_notes
-            note = scale[new_index]
-            note = note + (octave+octave_shift+self.octaves)*12
-        else:
-            note = note + self.semitones + self.octaves * 12
-        return note
-
     def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
@@ -79,7 +55,7 @@ class Transpose(Module):
 
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            new_note = self.transpose(note, scale)
+            new_note = music.transpose(note, self.semitones, self.octaves, self.scale_aware, self.state.key, scale)
 
             velocity = 127
             if note_ons.velocities is not None:

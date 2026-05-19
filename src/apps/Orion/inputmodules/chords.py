@@ -108,11 +108,30 @@ class Chords(Input):
         # Build chord tones
         root_pad_note = pad_note + self.state.key_offset
         root_pad_octave = root_pad_note // scale_notes
+
+        #Check Pentatonic State
+        pentatonic_state = [False, False]
+
+        if (self.state.scale == Music.SCALENAMES.index("MPEN") or
+                self.state.scale == Music.SCALENAMES.index("SPEN")):
+            pentatonic_state[0] = True
+
+        if self.state.scale == Music.SCALENAMES.index("mPEN"):
+            pentatonic_state[1] = True
+
         #TODO: Extract octave and add to final octave as currently the keys just wrap in same octave
         root_degree = root_pad_note % scale_notes
-        #TODO: Add offsets for pentatonic scales - 2,3 for MPEN, 1,3 for mPEN and 2,3 for SPEN
-        note2_degree = root_degree+2
-        note3_degree = root_degree+4
+        if pentatonic_state[0]:
+            print("MPEN")
+            note2_degree = root_degree + 1
+            note3_degree = root_degree + 3
+        elif pentatonic_state[1]:
+            print("mPEN")
+            note2_degree = root_degree + 2
+            note3_degree = root_degree + 3
+        else:
+            note2_degree = root_degree+2
+            note3_degree = root_degree+4
 
         seventh_degree = None
         add9_degree = None
@@ -125,14 +144,21 @@ class Chords(Input):
             note2_degree -= 1
             #print("sus")
 
+
+
         if self.held_modifiers.contains(ModifierMap.SEV):
-            #TODO: Add override for pentatonic (+4 instead of +6)
-            seventh_degree = root_degree + 6
+            if any(pentatonic_state):
+                print("pent7")
+                seventh_degree = root_degree + 4
+            else:
+                seventh_degree = root_degree + 6
             #print("seventh")
 
         if self.held_modifiers.contains(ModifierMap.ADD9):
-            # TODO: Add override for pentatonic (+4 instead of +8)
-            add9_degree = root_degree + 8
+            if any(pentatonic_state):
+                add9_degree = root_degree + 6
+            else:
+                add9_degree = root_degree + 8
             #print("add9")
 
         # Add notes to one array

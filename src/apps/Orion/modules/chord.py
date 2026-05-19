@@ -59,21 +59,6 @@ class Chord(Module):
     def set_scale_aware(self, value):
         self.scale_aware = value
 
-    def transpose(self, semitones, note, scale):
-        if self.scale_aware:
-            normalized_note = note % 12
-            octave = note // 12
-            closest_note,closest_index = find_closest(scale,normalized_note)
-            new_index = closest_index+semitones
-            scale_notes = len(scale)
-            octave_shift = new_index // scale_notes
-            new_index = new_index - octave_shift * scale_notes
-            note = scale[new_index]
-            note = note + (octave+octave_shift)*12
-        else:
-            note = note + semitones
-        return note
-
     def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
@@ -98,14 +83,12 @@ class Chord(Module):
             for idx,offset in enumerate(self.offsets):
                 if offset in self.offsets[:idx]:
                         continue #skip duplicate notes
-                new_note = self.transpose(offset, note, scale)
+                new_note = music.transpose(note, offset, 0, self.scale_aware, self.state.key, scale)
                 append = False
                 if self.note_relationship.in_array.length < self.note_relationship.in_array.max_length:
                     append = True
-                    print("small enough")
                 elif (self.note_relationship.in_array.length == self.note_relationship.in_array.max_length and
                     self.note_relationship.out_array.length < self.note_relationship.out_array.max_length):
-                    ("make room")
                     off_note = self.note_relationship.remove_note_single(self.note_relationship.in_array.notes[0])
                     self.note_offs_out.append_value(off_note)
                     append = True

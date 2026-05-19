@@ -1,3 +1,5 @@
+### CONSTANTS ###
+
 OCTAVEOFFSET = 4 #C3
 DRUMBASENOTE = 36
 
@@ -64,6 +66,9 @@ SCALES = [
     [0, 2, 3, 5, 6, 8, 9, 11],        # Diminished (Whole-Half)
 ]
 
+
+PENTATONIC_IDS = [SCALENAMES.index("MPEN"),SCALENAMES.index("mPEN"),SCALENAMES.index("SPEN")]
+
 AUTOBORROWRELATIONSHIP = {
     0: 0,   # CHR   -> CHR
 
@@ -102,3 +107,31 @@ def note_num_to_name(note_num):
 
 RATE_LABELS= ["1/1", "1/1T", "1/2", "1/2T", "1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T"]
 RATE_VALUES = [16, 16 * (2/3), 8, 8 * (2/3), 4, 4 * (2/3), 2, 2 * (2/3), 1, 1 * (2/3), 0.5, 0.5 * (2/3)]
+
+### HELPER FUNCTIONS ###
+
+def find_closest(values, target):
+    def distance_from_target(index):
+        return abs(values[index] - target)
+
+    index = min(range(len(values)), key=distance_from_target)
+    value = values[index]
+
+    return value, index
+
+## FUNCTIONS ##
+
+def transpose(note, semitones, octaves = 0, scale_aware = True, root = 0, scale = SCALES[1]):
+    if scale_aware:
+        normalized_note = (note - root + 12) % 12
+        octave = (note - root) // 12
+        closest_note, closest_index = find_closest(scale, normalized_note)
+        new_index = closest_index + semitones
+        scale_notes = len(scale)
+        octave_shift = new_index // scale_notes
+        new_index = new_index - octave_shift * scale_notes
+        note = scale[new_index]
+        note = note + (octave + octave_shift + octaves) * 12 + root
+    else:
+        note = note + semitones + octaves * 12
+    return note
