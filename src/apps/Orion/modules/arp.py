@@ -107,9 +107,11 @@ class Arp(Module):
     def update_note_register(self, note_ons, note_offs):
         for i in range(note_ons.length):
             note = note_ons.notes[i]
+            velocity = 127
+            if note_ons.velocities is not None: velocity = note_ons.velocities[i]
             self.held_notes.append_value(note)
             if not self.note_register.contains(note):
-                self.note_register.append_value(note)
+                self.note_register.append_value(note, velocity=velocity)
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             if self.held_notes.contains(note):

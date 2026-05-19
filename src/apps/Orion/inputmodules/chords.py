@@ -233,11 +233,13 @@ class Chords(Input):
                 chord_note = self.temp_chord.notes[j]
                 if self.held_note_relationship.in_array.length < self.held_note_relationship.in_array.max_length:
                     has_out_note, out_note_id = self.held_note_relationship.has_out_note(chord_note)
+
                     if has_out_note:
-                        self.note_offs_out.append_value(chord_note, self.velocity)
                         self.held_note_relationship.replace_note_in_index(pad_note, out_note_id)
-                    self.held_note_relationship.add_note(pad_note,chord_note)
-                    self.note_ons_out.append_value(chord_note,velocity=self.velocity)
+
+                    elif self.held_note_relationship.in_array.length < self.held_note_relationship.in_array.max_length:
+                        self.held_note_relationship.add_note(pad_note, chord_note)
+                        self.note_ons_out.append_value(chord_note, velocity=self.velocity)
 
         #if note_ons.length > 0 or note_offs.length > 0:
             #print("Held Notes Relationship: ", self.held_note_relationship.in_array.notes, self.held_note_relationship.out_array.notes)
