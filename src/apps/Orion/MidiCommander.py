@@ -136,10 +136,6 @@ class MidiCommander:
             #current = ticks.ticks_ms()
             self.note_ons.clear()
             self.note_offs.clear()
-            
-            ### Update transport
-            midi_tick = self.transport.update(max_ticks=1)
-            self.output_manager.process_midi_out()
 
             ### Get input
             pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
@@ -273,18 +269,23 @@ class MidiCommander:
                     if released[index]:
                         self.ui_manager.neo_pixels.release_held_pixel(index-1)
 
+            ### Update transport
+            midi_tick = self.transport.update(max_ticks=1)
+            #self.output_manager.process_midi_out()
+
             self.process_chain(self.note_ons, self.note_offs)
 
             ### Output ###
             self.output_manager.process_midi_out()
+            self.output_manager.process_midi_clock_out()
 
             catchup_ticks = 0
             while self.transport.update(max_ticks=1):
                 self.note_ons.clear()
                 self.note_offs.clear()
-                self.output_manager.process_midi_out()
                 self.process_chain(self.note_ons, self.note_offs)
                 self.output_manager.process_midi_out()
+                self.output_manager.process_midi_clock_out()
                 catchup_ticks += 1
                 if catchup_ticks >= 8:
                     break

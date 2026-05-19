@@ -15,6 +15,7 @@ class OutputManager:
         self.held_notes = NoteArray(length = POLYPHONY*2, channels = True)
         self.midi_start = False
         self.midi_stop = False
+        self.pending_midi_clock_ticks = 0
 
     def schedule_midi_notes(self, note_ons, note_offs, channel = 0):
 
@@ -45,8 +46,13 @@ class OutputManager:
 
                     #print("held notes: ", self.held_notes)
 
-    def schedule_midi_clock(self): #send immediately
-        self.macropad.midi.send(TimingClock())
+    def schedule_midi_clock(self):
+        self.pending_midi_clock_ticks += 1
+
+    def process_midi_clock_out(self):
+        while self.pending_midi_clock_ticks > 0:
+            self.macropad.midi.send(TimingClock())
+            self.pending_midi_clock_ticks -= 1
 
     def schedule_midi_start(self): #send immediately
         self.macropad.midi.send([Start(),TimingClock()])
