@@ -31,7 +31,7 @@ class Transport:
 		self.tick_interval_ms_i = int(self.tick_interval_ms_f)
 		self.tick_interval_err = 0.0
 
-	def update(self, max_ticks = None):
+	def update(self):
 		self.now = ticks.ticks_ms()
 		steps = 0
 
@@ -46,8 +46,7 @@ class Transport:
 					#if self.running == 0:
 					#	self.clock_start()
 					steps += 1
-					if max_ticks is not None and steps >= max_ticks:
-						break
+					break
 				elif isinstance(msg, Start):
 					self.clock_start(send_out = False)
 				elif isinstance(msg, Stop):
@@ -58,13 +57,11 @@ class Transport:
 					pass
 
 		elif self.running == 1:
-			while ticks.ticks_less(self.midi_tick_scheduled, self.now):
+			if ticks.ticks_less(self.midi_tick_scheduled, self.now):
 				self.schedule_next_tick()
 				self.midi_tick += 1
 				self.output_manager.schedule_midi_clock()
 				steps += 1
-				if max_ticks is not None and steps >= max_ticks:
-					break
 
 		return steps
 

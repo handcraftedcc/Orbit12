@@ -21,15 +21,19 @@ class OutputManager:
 
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = self.note_ons_out.velocities[i]
-            if channel is None: channel = 0
-            self.held_notes.append_value(note, velocity=velocity, channel=channel)
-            if not self.note_ons_out.contains(note, channel=channel):
-                velocity = 127
-                if note_ons.velocities is not None:
-                    velocity = note_ons.velocities[i]
-                self.note_ons_out.append_value(note, velocity=velocity, channel = channel)
 
+            velocity = 127
+            if note_ons.velocities is not None:
+                velocity = note_ons.velocities[i]
+
+            if channel is None:
+                channel = 0
+
+            if not self.held_notes.contains(note, channel=channel):
+                self.held_notes.append_value(note, velocity=velocity, channel=channel)
+
+            if not self.note_ons_out.contains(note, channel=channel):
+                self.note_ons_out.append_value(note, velocity=velocity, channel=channel)
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]

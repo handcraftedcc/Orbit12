@@ -115,22 +115,6 @@ class MidiCommander:
                 gc.collect()
                 self.last_gc_ms = now
 
-    def process_chain(self, note_ons, note_offs):
-        ### Process slots ###
-        ## Process input ##
-        note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process_super(note_ons, note_offs)
-
-        ### Process transport ##
-        note_ons, note_offs = self.state.chain_modules[state.ChainElements.TRANSPORT].process_super(note_ons, note_offs)
-
-        ## Process modules ##
-        for slot in range(state.ChainElements.SLOT1,state.ChainElements.SLOT6+1):
-            note_ons, note_offs = self.state.chain_modules[slot].process_super(note_ons, note_offs)
-        ## Process output ##
-        note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process_super(note_ons, note_offs)
-
-        return note_ons, note_offs
-
     def run(self):
         while True:
             #current = ticks.ticks_ms()
@@ -270,25 +254,21 @@ class MidiCommander:
                         self.ui_manager.neo_pixels.release_held_pixel(index-1)
 
             ### Update transport
-            midi_tick = self.transport.update(max_ticks=1)
-            #self.output_manager.process_midi_out()
+            midi_tick = self.transport.update()
 
-            self.process_chain(self.note_ons, self.note_offs)
+            ### Process slots ###
+            ## Process input ##
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.IN].process_super(self.note_ons, self.note_offs)
+
+            ## Process modules ##
+            for slot in range(state.ChainElements.SLOT1, state.ChainElements.SLOT6 + 1):
+                note_ons, note_offs = self.state.chain_modules[slot].process_super(note_ons, note_offs)
+            ## Process output ##
+            note_ons, note_offs = self.state.chain_modules[state.ChainElements.OUT].process_super(note_ons, note_offs)
 
             ### Output ###
             self.output_manager.process_midi_out()
             self.output_manager.process_midi_clock_out()
-
-            catchup_ticks = 0
-            while self.transport.update(max_ticks=1):
-                self.note_ons.clear()
-                self.note_offs.clear()
-                self.process_chain(self.note_ons, self.note_offs)
-                self.output_manager.process_midi_out()
-                self.output_manager.process_midi_clock_out()
-                catchup_ticks += 1
-                if catchup_ticks >= 8:
-                    break
 
             self.maybe_gc()
 
