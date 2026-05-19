@@ -74,7 +74,7 @@ class Module:
                                         options=operation_options,
                                         edit_callback_function=self.set_operation_mode)
         parms.append(operation_mode_parm)
-        out_channel_parm = Parms.Parm("out_channel", "Out Ch:", Parms.IntParmType, 0,
+        out_channel_parm = Parms.Parm("out_channel", "Out Ch:", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
                                          edit_callback_function=self.set_out_channel)
         parms.append(out_channel_parm)
         return parms
@@ -87,7 +87,7 @@ class Module:
         self.operation_mode = value
 
     def set_out_channel(self, value):
-        self.out_channel = value
+        self.out_channel = value-1
 
     ### UI Utilities ###
 
