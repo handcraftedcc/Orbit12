@@ -108,6 +108,82 @@ def note_num_to_name(note_num):
 RATE_LABELS= ["1/1", "1/1T", "1/2", "1/2T", "1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T"]
 RATE_VALUES = [16, 16 * (2/3), 8, 8 * (2/3), 4, 4 * (2/3), 2, 2 * (2/3), 1, 1 * (2/3), 0.5, 0.5 * (2/3)]
 
+def text_to_bit_pattern(patterns_text):
+    patterns_bit = []
+    patterns_len = []
+
+    for text in patterns_text:
+        pattern = 0
+
+        for i, char in enumerate(text):
+            if char == "X":
+                pattern |= 1 << i
+            elif char != "O":
+                raise ValueError("Pattern can only contain X or O")
+
+        patterns_bit.append(pattern)
+        patterns_len.append(len(text))
+
+    return patterns_bit, patterns_len
+
+#Arp patterns
+
+def get_pattern_step(pattern_bit, pattern_len, step):
+    step = step % pattern_len
+    return (pattern_bit >> step) & 1
+
+patterns_text = [
+    # 3
+    "XOO",
+    "XOX",
+
+    # 4
+    "XOOO",
+    "XOOX",
+    "XOXX",
+
+    # 5
+    "XOOOX",
+    "XOOXO",
+    "XOXOX",
+    "XOOXX",
+    "XOXXX",
+
+    # 6
+    "XOOOXO",
+    "XOOXOX",
+    "XOXXOO",
+    "XOOXXX",
+
+    # 7
+    "XOOOXOX",
+    "XOOXOOX",
+    "XOOXXOX",
+    "XOXOXXO",
+
+    # 8
+    "XOOOXOOX",
+    "XOOXOXOO",
+    "XOXXOOXO",
+
+    # 9
+    "XOOOXOOXO",
+    "XOOXOOXXO",
+    "XOXOOXOOX",
+
+    # 10
+    "XOOOXOOXOX",
+    "XOOXOOXXOX",
+    "XOXXOOXOOX",
+
+    # 12
+    "XOOOXOOXOOXO",
+    "XOOXOOXOXXOO",
+]
+
+patterns_bit, patterns_len = text_to_bit_pattern(patterns_text)
+
+
 ### HELPER FUNCTIONS ###
 
 def find_closest(values, target):

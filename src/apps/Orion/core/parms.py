@@ -132,6 +132,11 @@ class FloatParmType(ParmType):
 class PercentParmType(ParmType):
     value_type = ValueType.FLOAT
 
+    @classmethod
+    def get_display_value(cls, parm):
+        parm.display_value = str(round(parm.value * 100)) + "%"
+        return parm.display_value
+
 class StringParmType(ParmType):
     value_type = ValueType.STRING
 

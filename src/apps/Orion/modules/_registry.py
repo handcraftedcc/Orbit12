@@ -1,3 +1,4 @@
+from .randomize import Randomize
 from ..core._modules._empty import Empty
 from .arp import Arp
 from .transpose import Transpose
@@ -9,7 +10,8 @@ AVAILABLE_MODULES = {
     "arp": Arp,
     "transpose": Transpose,
     "pick": Pick,
-    "chord": Chord
+    "chord": Chord,
+    "randomize": Randomize,
 }
 
 AVAILABLE_MODULE_NAMES = list(AVAILABLE_MODULES.keys())
