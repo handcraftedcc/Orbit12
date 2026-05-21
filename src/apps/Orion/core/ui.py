@@ -219,6 +219,8 @@ class ParameterSection(Section):
         self.parm_count = 4
         self.parm_labels = []
         self.parm_values = []
+        self.pending_parm_value = None
+        self.pending_parm_id = None
         
         for i in range(PARMSPERPAGE):
             ypos = 15+11*i
@@ -258,10 +260,28 @@ class ParameterSection(Section):
         label.text = labeltext
         value.text = str(new_value)
 
-    def update_parm_value(self, new_value):
-        parm_id = self.state.active_parm % PARMSPERPAGE
+    def queue_parm_value_update(self, new_value):
+        self.pending_parm_value = new_value
+        self.pending_parm_id = self.state.active_parm % PARMSPERPAGE
+
+    def flush_parm_value_update(self):
+        if self.pending_parm_value is None:
+            return
+
+        new_value = self.pending_parm_value
+        parm_id = self.pending_parm_id
+        self.pending_parm_value = None
+        self.pending_parm_id = None
+        self.update_parm_value(new_value, parm_id)
+
+    def update_parm_value(self, new_value, parm_id=None):
+        if parm_id is None:
+            parm_id = self.state.active_parm % PARMSPERPAGE
         value = self.parm_values[parm_id]
-        value.text = str(new_value)
+        new_text = str(new_value)
+        if value.text == new_text:
+            return
+        value.text = new_text
         if parm_id == self.highlighted:
             value.clear_accent_ranges()
             value.add_accent_range(0, len(value.text), 2, 3)
@@ -325,7 +345,6 @@ class ParameterSection(Section):
 
 
         
-
 
 
 

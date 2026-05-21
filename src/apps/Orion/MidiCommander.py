@@ -87,7 +87,7 @@ class MidiCommander:
             self.ui_queue.append(callback)
         #self.ui_rebuild_pending = True
 
-    def can_do_ui_work(self, min_slack_ms=6):
+    def can_do_ui_work(self, min_slack_ms=12):
         #if self.state.transport_mode == 1:
         #    return self.output_manager.pending_midi_clock_ticks == 0
         if self.transport.running:
@@ -163,7 +163,8 @@ class MidiCommander:
 
     def edit_parm(self, delta):
         new_value, new_display_value = self.state.get_active_module_parm().edit(delta)
-        self.ui_manager.parameter_section.update_parm_value(new_display_value)
+        self.ui_manager.parameter_section.queue_parm_value_update(new_display_value)
+        self.add_to_ui_queue(self.ui_manager.parameter_section.flush_parm_value_update)
 
     def enter_parm_selection(self):
         """Switch state to active module"""
