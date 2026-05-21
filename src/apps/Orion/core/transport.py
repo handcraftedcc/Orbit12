@@ -42,9 +42,9 @@ class Transport:
 				if msg is None:
 					break
 				elif isinstance(msg, TimingClock):
+					if self.running == 0:
+						self.clock_start(send_out = False)
 					self.midi_tick += 1
-					#if self.running == 0:
-					#	self.clock_start()
 					steps += 1
 					break
 				elif isinstance(msg, Start):

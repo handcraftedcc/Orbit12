@@ -88,8 +88,8 @@ class MidiCommander:
         #self.ui_rebuild_pending = True
 
     def can_do_ui_work(self, min_slack_ms=12):
-        #if self.state.transport_mode == 1:
-        #    return self.output_manager.pending_midi_clock_ticks == 0
+        if self.state.transport_mode == 1:
+            return self.output_manager.pending_midi_clock_ticks == 0
         if self.transport.running:
             now = ticks.ticks_ms()
             ms_to_next = ticks.ticks_diff(self.transport.midi_tick_scheduled, now)
