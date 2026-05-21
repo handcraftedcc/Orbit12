@@ -86,11 +86,6 @@ class Arp(Module):
                                     increment=5, edit_callback_function=self.set_gate)
         parms.append(self.gate_parm)
 
-        # Gate Randomize
-        self.gate_random_parm = Parms.Parm(name="gate_random", label="Gate Rand", default=0, parm_type=Parms.IntParmType,
-                                    increment=5, edit_callback_function=self.set_gate_random)
-        parms.append(self.gate_random_parm)
-
         # Pattern
         self.pattern_parm = Parms.Parm(name="pattern", label="Pattern", default=self.selected_pattern,
                                            parm_type=Parms.EnumParmType, options=music.patterns_text,
@@ -101,22 +96,30 @@ class Arp(Module):
                                        parm_type=Parms.IntParmType, edit_callback_function=self.set_pattern_shift)
         parms.append(self.pattern_shift_parm)
 
-        # Retrigger Mode
-        self.retrigger_parm = Parms.Parm(name="retrigger_mode", label="Retrigger", default=0, parm_type=Parms.EnumParmType,
-                                    options = self.retrigger_mode_list, edit_callback_function=self.set_retrigger_mode)
-        parms.append(self.retrigger_parm)
-
-        # Random Pattern Length
-        self.random_seed_parm = Parms.Parm(name="rand_seed", label="Rand Seed", default=0,
-                                                     parm_type=Parms.IntParmType,
-                                                     minmax = (0, 10000), edit_callback_function=self.set_random_seed_user)
-        parms.append(self.random_seed_parm)
+        # Gate Randomize
+        self.gate_random_parm = Parms.Parm(name="gate_random", label="Rand Gate", default=0,
+                                           parm_type=Parms.IntParmType,
+                                           increment=5, edit_callback_function=self.set_gate_random)
+        parms.append(self.gate_random_parm)
 
         # Random Pattern Length
         self.random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="Rand Patt Len", default=0,
                                                     parm_type=Parms.IntParmType,minmax = (0,128),
                                                     edit_callback_function=self.set_random_pattern_length)
         parms.append(self.random_pattern_length_parm)
+
+        # Random Seed
+        self.random_seed_parm = Parms.Parm(name="rand_seed", label="Rand Seed", default=0,
+                                           parm_type=Parms.IntParmType,
+                                           minmax=(0, 10000), edit_callback_function=self.set_random_seed_user)
+        parms.append(self.random_seed_parm)
+
+        # Retrigger Mode
+        self.retrigger_parm = Parms.Parm(name="retrigger_mode", label="Retrigger", default=0,
+                                         parm_type=Parms.EnumParmType,
+                                         options=self.retrigger_mode_list,
+                                         edit_callback_function=self.set_retrigger_mode)
+        parms.append(self.retrigger_parm)
 
         return parms
 
