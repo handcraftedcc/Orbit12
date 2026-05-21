@@ -350,7 +350,7 @@ class MidiCommander:
             self.maybe_gc()
 
             ### Update UI & screen ###
-            if self.ui_queue and self.can_do_ui_work(min_slack_ms=8):
+            if self.ui_queue and self.can_do_ui_work(min_slack_ms=13):
                 callback = self.ui_queue.pop(0)
                 current = ticks.ticks_ms()
                 callback()
