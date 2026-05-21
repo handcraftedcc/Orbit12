@@ -132,53 +132,52 @@ def get_pattern_step(pattern_bit, pattern_len, step):
     step = step % pattern_len
     return (pattern_bit >> step) & 1
 
+def get_pattern_empty_steps(pattern_bit, pattern_len):
+    empty_steps = 0
+
+    for step in range(pattern_len):
+        if ((pattern_bit >> step) & 1) == 0:
+            empty_steps += 1
+
+    return empty_steps
+
 patterns_text = [
+    # 2
+    "XX",
+    "XO",
+
     # 3
+    "XXO",
     "XOO",
-    "XOX",
 
     # 4
+    "XXXO",
+    "XXOO",
     "XOOO",
-    "XOOX",
-    "XOXX",
 
     # 5
-    "XOOOX",
-    "XOOXO",
+    "XXXXO",
+    "XXXOO",
+    "XXOOO",
     "XOXOX",
-    "XOOXX",
-    "XOXXX",
+    "XOXOO",
 
     # 6
-    "XOOOXO",
-    "XOOXOX",
-    "XOXXOO",
-    "XOOXXX",
-
-    # 7
-    "XOOOXOX",
-    "XOOXOOX",
-    "XOOXXOX",
-    "XOXOXXO",
+    "XXXXXO",
+    "XXXXOO",
+    "XXXOOO",
+    "XXOXOX",
+    "XOXOOX",
 
     # 8
-    "XOOOXOOX",
+    "XXXXXXXO",
+    "XXXXXXOO",
+    "XXXXXOOO",
+    "XXXXOOOO",
+    "XXXOOOOO",
+    "XOXXXXOX",
     "XOOXOXOO",
     "XOXXOOXO",
-
-    # 9
-    "XOOOXOOXO",
-    "XOOXOOXXO",
-    "XOXOOXOOX",
-
-    # 10
-    "XOOOXOOXOX",
-    "XOOXOOXXOX",
-    "XOXXOOXOOX",
-
-    # 12
-    "XOOOXOOXOOXO",
-    "XOOXOOXOXXOO",
 ]
 
 patterns_bit, patterns_len = text_to_bit_pattern(patterns_text)

@@ -2,27 +2,7 @@ from ..core.module import Module
 from ..core import parms as Parms
 from ..core import music
 from ..core.note_array import NoteRelationshipArray,NoteOnArray,NoteOffArray
-
-def hash_u32(value):
-    value = (value ^ 61) ^ (value >> 16)
-    value = value + (value << 3)
-    value = value ^ (value >> 4)
-    value = value * 0x27D4EB2D
-    value = value ^ (value >> 15)
-    return value & 0xFFFFFFFF
-
-def random_float(seed):
-    return hash_u32(seed) / 0x100000000
-
-def random_int(seed, max_value, mode):
-    max_value = int(max_value)
-    if mode == 0:
-        low = min(0, max_value)
-        high = max(0, max_value)
-    else:
-        low = min(-max_value, max_value)
-        high = max(-max_value, max_value)
-    return low + (hash_u32(seed) % (high - low + 1))
+from ..core import utils
 
 class Randomize(Module):
     name = "randomize"
@@ -185,25 +165,25 @@ class Randomize(Module):
             # Calc Note
             note_offset = 0
             if self.note_range != 0 and self.note_chance != 0:
-                note_chance = random_float(self.random_seed_base + self.random_seed_user + i + 100)
+                note_chance = utils.random_float(self.random_seed_base + self.random_seed_user + i + 100)
                 if note_chance < self.note_chance:
-                    note_offset = random_int(self.random_seed_base + self.random_seed_user + i + 200,
+                    note_offset = utils.random_int(self.random_seed_base + self.random_seed_user + i + 200,
                                              self.note_range, self.note_mode)*self.note_increment
 
             # Calc Octave
             octave_offset = 0
             if self.octave_range != 0 and self.octave_chance != 0:
-                octave_chance = random_float(self.random_seed_base + self.random_seed_user + i + 300)
+                octave_chance = utils.random_float(self.random_seed_base + self.random_seed_user + i + 300)
                 if octave_chance < self.octave_chance:
-                    octave_offset = random_int(self.random_seed_base + self.random_seed_user + i + 400,
+                    octave_offset = utils.random_int(self.random_seed_base + self.random_seed_user + i + 400,
                                                self.octave_range, self.octave_mode)
 
             # Calc Velocity
             velocity_offset = 0
             if self.velocity_range != 0 and self.velocity_chance != 0:
-                velocity_chance = random_float(self.random_seed_base + self.random_seed_user + i + 500)
+                velocity_chance = utils.random_float(self.random_seed_base + self.random_seed_user + i + 500)
                 if velocity_chance < self.velocity_chance:
-                    velocity_offset = random_int(self.random_seed_base + self.random_seed_user + i + 600,
+                    velocity_offset = utils.random_int(self.random_seed_base + self.random_seed_user + i + 600,
                                                  self.velocity_range, self.velocity_mode)
 
             note = note_ons.notes[i]
