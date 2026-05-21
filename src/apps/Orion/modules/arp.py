@@ -7,10 +7,19 @@ import random
 from ..core import utils
 from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
 
-def shuffle_in_place(values):
-    for i in range(len(values) - 1, 0, -1):
-        j = random.randint(0, i)
-        values[i], values[j] = values[j], values[i]
+MODE_LIST = [
+    "up",
+    "down",
+    "random",
+    "inOrder",
+    "repeat",
+]
+
+MODE_UP = MODE_LIST.index("up")
+MODE_DOWN = MODE_LIST.index("down")
+MODE_RANDOM = MODE_LIST.index("random")
+MODE_INORDER = MODE_LIST.index("inOrder")
+MODE_REPEAT = MODE_LIST.index("repeat")
 
 class Arp(Module):
     name = "arp"
@@ -30,13 +39,6 @@ class Arp(Module):
         self.scheduled_offs = NoteArray(times = True)
         self.popped_ids = NoteArray()
         self.mode = None
-        self.mode_list = [
-            "up",
-            "down",
-            "random",
-            "inOrder",
-            "repeat",
-        ]
         self.retrigger_mode = 0
         self.retrigger_mode_list = [
             "Retrigger",
@@ -46,7 +48,6 @@ class Arp(Module):
         self.gate = 0
         self.gate_random = 0
         self.arp_state = 0 #0 = Not active, 1 = Active -> When all notes are released we go empty
-        self.random_seed_register = 0
         self.random_seed_user = 0
         self.random_pattern_length = 0
         self.selected_pattern = 0
@@ -77,7 +78,7 @@ class Arp(Module):
 
         # Mode
         self.mode_parm = Parms.Parm(name="mode", label="Mode", default=0, parm_type=Parms.EnumParmType,
-                                    options=self.mode_list,edit_callback_function=self.set_mode)
+                                    options=MODE_LIST,edit_callback_function=self.set_mode)
         parms.append(self.mode_parm)
 
         # Gate
@@ -157,10 +158,6 @@ class Arp(Module):
         self.random_pattern_length = value
         return self.random_pattern_length
 
-    def update_random_seed_register(self):
-        self.random_seed_register += 1
-        return self.random_seed_register
-
     def rate_to_midi_ticks(self):
         # RATE_VALUES are in 1/16-note units; 1/16 = 6 MIDI clock ticks
         return max(1, int(round(self.rate * 6)))
@@ -179,13 +176,11 @@ class Arp(Module):
                 self.held_notes.remove_value_first(note)
             if self.note_register.contains(note) and not self.held_notes.contains(note):
                 self.note_register.remove_value_first(note)
-        if self.mode == self.mode_list.index("up"):
+        if self.mode == MODE_UP or self.mode == MODE_RANDOM:
             self.note_register.sort_notes()
-        elif self.mode == self.mode_list.index("down"):
+        elif self.mode == MODE_DOWN:
             self.note_register.sort_notes()
             self.note_register.reverse_notes()
-        elif self.mode == self.mode_list.index("random"):
-            self.note_register.randomize_notes(self.random_seed_register+self.random_seed_user)
 
     def generate_notes(self):
         #Calculate timing
@@ -206,7 +201,7 @@ class Arp(Module):
         if check_pattern == 0: #If pattern is 0 on this step, don't emit notes
             return
 
-        if self.mode == self.mode_list.index("repeat"): #Repeat mode
+        if self.mode == MODE_REPEAT: #Repeat mode
             for i in range(self.note_register.length):
                 note = self.note_register.notes[i]
                 if self.note_register.velocities:
@@ -244,7 +239,10 @@ class Arp(Module):
 
                 self.note_register_position = active_steps_past
 
-            index = self.note_register_position % register_note_count
+            if self.mode == MODE_RANDOM:
+                index = utils.random_int(rand_seed_time_temp + self.random_seed_user, register_note_count-1, 0)
+            else:
+                index = self.note_register_position % register_note_count
             note = self.note_register.notes[index]
             if self.note_register.velocities:
                 velocity = self.note_register.velocities[index]
@@ -292,7 +290,6 @@ class Arp(Module):
             if self.retrigger_mode == 0:
                 self.note_register_position = 0
                 self.active_pattern_step = 0
-            self.update_random_seed_register()
 
         if self.arp_state == 0 and self.note_register.length>0: #From no keys pressed -> keys pressed
             self.arp_state = 1
