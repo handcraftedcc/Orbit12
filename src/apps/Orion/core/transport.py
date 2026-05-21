@@ -7,6 +7,10 @@ from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.midi_continue import Continue
 
+MAX_SWING = 0.6
+SWING_TICKS_PER_HALF = 6
+SWING_TICKS_PER_PAIR = SWING_TICKS_PER_HALF * 2
+
 class Transport:
 	def __init__(self, state,output_manager, macropad):
 		self.output_manager = output_manager
@@ -31,6 +35,19 @@ class Transport:
 		self.tick_interval_ms_i = int(self.tick_interval_ms_f)
 		self.tick_interval_err = 0.0
 
+	def update_swing(self, value):
+		self.swing = max(0.0, min(1, value))
+		self.state.swing = self.swing
+
+	def next_tick_swing_factor(self):
+		if self.swing == 0:
+			return 1.0
+		next_tick = self.midi_tick + 1
+		tick_in_pair = next_tick % SWING_TICKS_PER_PAIR
+		if tick_in_pair > 0 and tick_in_pair <= SWING_TICKS_PER_HALF:
+			return 1.0 + self.swing*MAX_SWING
+		return 1.0 - self.swing*MAX_SWING
+
 	def update(self):
 		self.now = ticks.ticks_ms()
 		steps = 0
@@ -48,7 +65,8 @@ class Transport:
 					steps += 1
 					break
 				elif isinstance(msg, Start):
-					self.clock_start(send_out = False)
+					self.reset()
+					self.running = 0
 				elif isinstance(msg, Stop):
 					self.clock_stop(send_out = False)
 				elif isinstance(msg, Continue):
@@ -66,8 +84,9 @@ class Transport:
 		return steps
 
 	def schedule_next_tick(self):
-		interval = self.tick_interval_ms_i
-		self.tick_interval_err += self.tick_interval_ms_f - self.tick_interval_ms_i
+		tick_interval = self.tick_interval_ms_f * self.next_tick_swing_factor()
+		interval = int(tick_interval)
+		self.tick_interval_err += tick_interval - interval
 		if self.tick_interval_err >= 1.0:
 			interval += 1
 			self.tick_interval_err -= 1.0

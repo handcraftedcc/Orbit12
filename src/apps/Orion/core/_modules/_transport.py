@@ -20,7 +20,6 @@ class Transport(Module):
             self.transport = self.module_helper.transport
             self.transport_mode = self.state.transport_mode
             self.bpm = self.state.bpm
-            self.swing = self.state.swing
             self.parms = []
 
             super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
@@ -40,7 +39,8 @@ class Transport(Module):
                               edit_callback_function=self.set_bpm)
         parms.append(bpm_parm)
 
-        swing_parm = Parms.Parm("swing", "Swing", Parms.FloatParmType, 0, minmax=[-1, 1],
+        swing_parm = Parms.Parm("swing", "Swing", Parms.PercentParmType, self.state.swing, minmax=(0, 1),
+                                increment=0.05,
                                 edit_callback_function=self.set_swing)
         parms.append(swing_parm)
 
@@ -57,4 +57,5 @@ class Transport(Module):
         self.transport.update_bpm(value)
 
     def set_swing(self, value):
-        self.swing = value
+        self.transport.update_swing(value)
+        return self.transport.swing

@@ -16,7 +16,7 @@ class State:
 
         # Timing State
         self.bpm = 120
-        self.swing = 0
+        self.swing = 0.0
         self.timing_step = TimingSteps.One16th
         self.transport_mode = 0
 
