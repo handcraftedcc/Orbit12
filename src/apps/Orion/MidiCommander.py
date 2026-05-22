@@ -57,6 +57,8 @@ class MidiCommander:
         self.screen_update_needed = False
         self.ui_queue = []
         self.last_gc_ms = ticks.ticks_ms()
+        self.knob_hold_down_start = None
+        self.chain_swap_mode = 0 #0 = False, 1 = is pending, 2 = active
         #self.ui_rebuild_pending = False
 
         self.note_ons = NoteOnArray()
@@ -120,11 +122,21 @@ class MidiCommander:
                 self.last_gc_ms = now
 
     def move_active_chain_element(self, delta):
-        self.state.move_active_chain_elem(delta)
-        self.state.active_parm = -1
+        if self.chain_swap_mode == 2:
+            active_element = self.state.active_chain
+            direction = 1
+            if delta < 0:
+                direction = -1
+            for i in range(delta):
+                self.state.swap_modules(active_element, active_element+direction)
+                active_element = active_element+direction
+        else:
+            self.state.move_active_chain_elem(delta)
+            self.state.active_parm = -1
+            self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
-        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+
 
     def move_active_parm_element(self, delta):
         current_page = self.state.active_parm_page
@@ -173,6 +185,18 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
         self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
 
+    def enable_chain_swap_mode(self):
+        self.state.active_chain_mode = state.ChainModes.SWAP
+        self.ui_manager.chain.rebuild_chain_section()
+
+    def disable_chain_swap_mode(self):
+        self.state.active_chain_mode = state.ChainModes.SELECT
+        self.ui_manager.chain.rebuild_chain_section()
+        self.knob_hold_down_start = None
+        self.chain_swap_mode = 0
+
+
+
     def run(self):
         while True:
             #current = ticks.ticks_ms()
@@ -202,14 +226,23 @@ class MidiCommander:
             ## Process encoder button press ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if pressed[0]:
+                self.knob_hold_down_start = ticks.ticks_ms()
                 self.input_manager.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
                 pressed [0] = 0
                 self.ui_manager.neo_pixels.set_nav_state_colors()
+
+            ## Chain swap mode ##
+            if self.knob_hold_down_start:
+                if ticks.ticks_diff(ticks.ticks_ms(),self.knob_hold_down_start) >= 1000:
+                    self.chain_swap_mode = 1
+                    self.enable_chain_swap_mode()
 
             ## Process midi key press ##
             # -> if knob down then use it as function - if not emit notes
             if any(pressed):
                 self.input_manager.encoder_press_consumed = 1
+                if self.chain_swap_mode == 1: # Cancel Pending
+                    self.disable_chain_swap_mode()
                 if downstate[0]==1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
                     if pressed[11]:
@@ -295,6 +328,8 @@ class MidiCommander:
             ## Process encoder button release ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if released[0]:
+                if self.chain_swap_mode == 1 and self.input_manager.encoder_press_consumed == 0:
+                    self.chain_swap_mode = 2 # Swap mode now actually active
                 if self.input_manager.encoder_press_consumed == 1: #Was consumed by a key press
                     self.input_manager.encoder_press_consumed = None
                     self.output_manager.all_notes_off()

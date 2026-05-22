@@ -5,7 +5,7 @@ import displayio
 import terminalio
 import vectorio
 from adafruit_display_text.bitmap_label import Label
-from .state import State
+from .state import State, ChainModes
 from .state import PARMSPERPAGE
 
 DISPLAYRES = (128,64)
@@ -195,7 +195,11 @@ class Chain(Section):
     def rebuild_chain_section(self):
         for idx, _ in enumerate(self.temp_items):
             if idx == self.state.active_chain:
-                self.temp_items[idx] = "[" + self.items[idx] + "]"
+                if self.state.active_chain_mode == ChainModes.SWAP:
+                    self.temp_items[idx] = "<" + self.items[idx] + ">"
+                else:
+                    self.temp_items[idx] = "[" + self.items[idx] + "]"
+
             else:
                 self.temp_items[idx] = self.items[idx]
         self.chain_label.text="-".join(self.temp_items)

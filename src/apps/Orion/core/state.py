@@ -24,6 +24,7 @@ class State:
         self.chain_modules = []
         self.active_ui_section = UISection.CHAIN
         self.active_chain = ChainElements.IN
+        self.active_chain_mode = ChainModes.SELECT
 
         # Parm State
         self.active_parm = -1 #-1 would be on the chain, 0 would be parameter 0 etc
@@ -74,6 +75,11 @@ class State:
         for module in self.chain_modules:
             module.stop()
 
+    def swap_modules(self, slot_id1, slot_id2):
+        self.chain_modules[slot_id1], self.chain_modules[slot_id2] = self.chain_modules[slot_id2], self.chain_modules[
+            slot_id1]
+        self.chain_modules[slot_id1].slot_id = slot_id1
+        self.chain_modules[slot_id2].slot_id = slot_id2
 
 class UISection:
     CHAIN = 0
@@ -90,6 +96,10 @@ class ChainElements:
     SLOT5 = 6
     SLOT6 = 7
     OUT = 8
+
+class ChainModes:
+    SELECT = 0
+    SWAP = 1
 
 class TimingSteps:
     One16th = 0
