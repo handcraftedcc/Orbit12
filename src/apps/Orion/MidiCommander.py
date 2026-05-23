@@ -125,7 +125,6 @@ class MidiCommander:
                 self.last_gc_ms = now
 
     def move_active_chain_element(self, delta):
-        print("mode", self.chain_swap_mode)
         if self.chain_swap_mode == 2: #Swap instead of move active
             if self.state.active_chain < SWAP_CHAIN_MIN:
                 self.disable_chain_swap_mode()
@@ -133,7 +132,6 @@ class MidiCommander:
             if self.state.active_chain > SWAP_CHAIN_MAX:
                 self.disable_chain_swap_mode()
                 return
-            print("swapping")
             active_element = self.state.active_chain
             direction = 1
             if delta < 0:
@@ -209,11 +207,11 @@ class MidiCommander:
             self.disable_chain_swap_mode()
             return
         self.state.active_chain_mode = state.ChainModes.SWAP
-        self.ui_manager.chain.rebuild_chain_section()
+        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
 
     def disable_chain_swap_mode(self):
         self.state.active_chain_mode = state.ChainModes.SELECT
-        self.ui_manager.chain.rebuild_chain_section()
+        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.knob_hold_down_start = None
         self.chain_swap_mode = 0
 
@@ -433,9 +431,6 @@ class MidiCommander:
 
             # mark refresh, but don't flush display immediately
             self.screen_update_needed = True
-
-            #diff = ticks.ticks_diff(ticks.ticks_ms(), current)
-            #if diff > 3: print(diff)
 
             if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work():
                 self.ui_manager.screen.update()
