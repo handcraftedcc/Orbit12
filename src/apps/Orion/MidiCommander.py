@@ -92,7 +92,7 @@ class MidiCommander:
             self.ui_queue.append(callback)
         #self.ui_rebuild_pending = True
 
-    def can_do_ui_work(self, min_slack_ms=12):
+    def can_do_ui_work(self, min_slack_ms=10):
         if self.state.transport_mode == 1:
             return self.output_manager.pending_midi_clock_ticks == 0
         if self.transport.running:
@@ -116,7 +116,7 @@ class MidiCommander:
             ms_to_next = ticks.ticks_diff(self.transport.midi_tick_scheduled, now)
             safe = (
                     self.output_manager.pending_midi_clock_ticks == 0
-                    and ms_to_next >= 15
+                    and ms_to_next >= 12
                     and not self.ui_queue
                     and ticks.ticks_diff(now, self.last_gc_ms) > 300
             )
@@ -423,7 +423,7 @@ class MidiCommander:
             self.maybe_gc()
 
             ### Update UI & screen ###
-            if self.ui_queue and self.can_do_ui_work(min_slack_ms=13):
+            if self.ui_queue and self.can_do_ui_work(min_slack_ms=16):
                 callback = self.ui_queue.pop(0)
                 current = ticks.ticks_ms()
                 callback()

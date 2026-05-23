@@ -1,3 +1,4 @@
+from . import state
 from . import parms as Parms
 from .note_array import NoteOnArray,NoteOffArray
 
@@ -15,7 +16,7 @@ class Module:
     name = None
     label = None
     version = 1
-    def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True):
+    def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
         self.parms = []
         self.module_helper = module_helper
         self.state = module_helper.state
@@ -23,13 +24,17 @@ class Module:
         self.slot_id = slot_id
         self.operation_mode = 0
         self.out_channel = 0
+        self.source_mode = 0
 
         # Add default parms each module will have
         if include_default_parms:
             self.parms.extend(self.create_top_parms())
         self.parms.extend(self.create_main_parms())
+        if include_source_parms:
+            self.parms.extend(self.create_source_parms())
         if include_out_parms:
-            self.parms.extend(self.create_bottom_parms())
+            self.parms.extend(self.create_out_parms())
+
 
 
     ### Parm Creation ###
@@ -62,7 +67,7 @@ class Module:
         parms = []
         return parms
 
-    def create_bottom_parms(self):
+    def create_out_parms(self):
         parms = []
         operation_options = [
             "Next",
@@ -79,6 +84,23 @@ class Module:
         parms.append(out_channel_parm)
         return parms
 
+    def create_source_parms(self):
+        parms = []
+        source_options = [
+            "Previous",
+            "Input",
+            "Slot1",
+            "Slot2",
+            "Slot3",
+            "Slot4",
+            "Slot5",
+        ]
+        source_mode_parm = Parms.Parm("source_mode", "Source:", Parms.EnumParmType, 0,
+                                        options=source_options,
+                                        edit_callback_function=self.set_source_mode)
+        parms.append(source_mode_parm)
+        return parms
+
     def process_outs(self, note_ons, note_offs):
         if self.operation_mode == 0:
             return
@@ -89,6 +111,9 @@ class Module:
     def set_out_channel(self, value):
         self.out_channel = value-1
 
+    def set_source_mode(self, value):
+        self.source_mode = value
+
     ### UI Utilities ###
 
     def get_parms(self):
@@ -97,6 +122,12 @@ class Module:
     def get_parm(self, parm_id):
         if 0 <= parm_id < len(self.parms):
             return self.parms[parm_id]
+        return None
+
+    def get_parm_by_name(self, name):
+        for parm in self.parms:
+            if parm.name == name:
+                return parm
         return None
     
     def get_parm_value(self, parm_id):
@@ -117,6 +148,16 @@ class Module:
 
     ### Process inputs ###
     def process_super(self, note_ons, note_offs):
+        if self.source_mode != 0 and self.source_mode < self.slot_id:
+            source = None
+            if self.source_mode == 1:
+                source = self.state.chain_modules[state.ChainElements.IN]
+            else:
+                source = self.state.chain_modules[self.source_mode]
+            print("source", source)
+            note_ons,note_offs = source.note_ons_out,source.note_offs_out
+
+
         if self.operation_mode == 1:
             note_ons, note_offs = self.process(note_ons, note_offs) # Out & Next
             self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, channel = self.out_channel)

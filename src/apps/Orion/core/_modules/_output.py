@@ -6,7 +6,7 @@ class Output(Module):
     label = "Output"
     def __init__(self, module_helper, slot_id, macropad = None):
         self.out_ch = 0
-        super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
+        super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
         self.macropad = self.state.macropad
         self.print_state = 0
 

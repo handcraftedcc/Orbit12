@@ -75,13 +75,15 @@ class OutputManager:
 
         self.held_notes.clear()
 
-        if send_cc:
-            for channel in range(16):
-                self.macropad.midi.send(ControlChange(123, 0), channel=channel)
+        #if send_cc:
+        #    for channel in range(16):
+        #        self.macropad.midi.send(ControlChange(123, 0), channel=channel)
 
     def panic(self):
-        self.all_notes_off(send_cc=True)
-        self.process_midi_out()
+        for channel in range(16):
+            for note in range(127):
+                self.macropad.midi.send(self.macropad.NoteOff(note, 0), channel=channel)
+                self.process_midi_out()
 
     def process_midi_out(self):
         # Send Midi Notes

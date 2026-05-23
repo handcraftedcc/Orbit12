@@ -13,4 +13,4 @@ class Empty(Module.Module):
     label = "Empty"
     version = 1
     def __init__(self, module_helper, slot_id):
-        super().__init__(module_helper, slot_id, include_default_parms=True, include_out_parms=False)
+        super().__init__(module_helper, slot_id, include_default_parms=True, include_out_parms=False, include_source_parms=False)

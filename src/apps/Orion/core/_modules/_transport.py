@@ -22,7 +22,7 @@ class Transport(Module):
             self.bpm = self.state.bpm
             self.parms = []
 
-            super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
+            super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
 
     def create_main_parms(self):
         parms = []

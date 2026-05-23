@@ -18,7 +18,11 @@ class Input(Module):
 
         self.velocity = 127
 
-        super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False)
+        self.parms = []
+        super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=True, include_source_parms=False)
+
+        operation_mode_parm = self.get_parm_by_name("operation_mode")
+        operation_mode_parm.options = operation_mode_parm.options[:-2]
 
         ## Color Pixels ##
         self.color_pixels()
