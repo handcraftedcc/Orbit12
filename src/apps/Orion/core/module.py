@@ -61,7 +61,7 @@ class Module:
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
-        module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index,
+        module_picker_parm = Parms.Parm("module_picker", "||MDLE||", Parms.EnumParmType, current_module_index,
                                         options=AVAILABLE_MODULE_LABELS,
                                         exit_callback_function=switch_module)
         parms.append(module_picker_parm)
