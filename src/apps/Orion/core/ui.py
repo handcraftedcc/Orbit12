@@ -4,6 +4,7 @@ from adafruit_macropad import MacroPad
 import displayio
 import terminalio
 import vectorio
+from adafruit_bitmap_font import bitmap_font
 from adafruit_display_text.bitmap_label import Label
 from .state import State, ChainModes
 from .state import PARMSPERPAGE
@@ -59,8 +60,10 @@ class UIManager:
         self.parm_spacing = 2
         self.chain_parm_sep_spacing = 4
 
-        self.chain = Chain(self.state, self.palette, self.margin, self.main_group)
-        self.parameter_section = ParameterSection(self.state, self.palette, self.margin, self.main_group)
+        self.font = bitmap_font.load_font("fonts/RolandLCD5x5.bdf")
+
+        self.chain = Chain(self.state, self.palette, self.margin, self.main_group, self.font)
+        self.parameter_section = ParameterSection(self.state, self.palette, self.margin, self.main_group, self.font)
 
         self.screen = Screen(self.macropad,self.main_group)
 
@@ -163,14 +166,15 @@ class Section:
         pass
 
 class Chain(Section):
-    def __init__(self,state,palette,margin,main_group):
+    def __init__(self,state,palette,margin,main_group, font):
         super().__init__(state)
         
         self.items = ["I", "T", "1", "2", "3", "4", "5", "6", "O"]
+        self.font = font
         self.temp_items = self.items.copy()
         self.text = "-".join(self.items)
         self.chain_label = Label(
-            terminalio.FONT,
+            self.font,
             text=self.text,
             color=0xFFFFFF,
             color_palette=palette,
@@ -212,10 +216,11 @@ class Chain(Section):
         self.chain_label.clear_accent_ranges()
 
 class ParameterSection(Section):
-    def __init__(self,state,palette,margin,main_group):
+    def __init__(self,state,palette,margin,main_group, font):
         super().__init__(state)
         self.palette = palette
         self.margin = margin
+        self.font = font
         self.highlighted = None
         self.active = None
         self.pages = 1
@@ -229,12 +234,12 @@ class ParameterSection(Section):
         for i in range(PARMSPERPAGE):
             ypos = 15+11*i
             labeltext = "LABEL" + str(i)
-            parm_label = Label(terminalio.FONT, color_palette=palette, text=labeltext)
+            parm_label = Label(self.font, color_palette=palette, text=labeltext)
             parm_label.anchor_point = (0, 0)
             parm_label.anchored_position = (margin, ypos)
             self.parm_labels.append(parm_label)
             valuetext = str(5)
-            parm_value = Label(terminalio.FONT, color_palette=self.palette, text=valuetext)
+            parm_value = Label(self.font, color_palette=self.palette, text=valuetext)
             parm_value.anchor_point = (1, 0)
             parm_value.anchored_position = (DISPLAYRES[0]-margin, ypos)
             self.parm_values.append(parm_value)
