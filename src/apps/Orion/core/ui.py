@@ -7,7 +7,7 @@ import vectorio
 from adafruit_bitmap_font import bitmap_font
 from adafruit_display_text.bitmap_label import Label
 from .state import State, ChainModes
-from .state import PARMSPERPAGE
+from .constants import PARMSPERPAGE
 
 DISPLAYRES = (128,64)
 
@@ -57,10 +57,11 @@ class UIManager:
         self.palette[3] = 0xFFFFFF # 3 = selected background (white)
 
         self.margin = 3
-        self.parm_spacing = 2
-        self.chain_parm_sep_spacing = 4
+        self.parm_spacing = 1
+        self.chain_parm_sep_spacing = 3
 
         self.font = bitmap_font.load_font("fonts/RolandLCD5x5.bdf")
+        #self.font = bitmap_font.load_font("fonts/4x6.bdf")
 
         self.chain = Chain(self.state, self.palette, self.margin, self.main_group, self.font)
         self.parameter_section = ParameterSection(self.state, self.palette, self.margin, self.main_group, self.font)
@@ -190,7 +191,7 @@ class Chain(Section):
         line.fill(1)
         tile = displayio.TileGrid(line, pixel_shader=palette)
         tile.x = margin
-        tile.y = margin + 10
+        tile.y = margin + 5
 
         self.group.append(tile)
 
@@ -232,7 +233,7 @@ class ParameterSection(Section):
         self.pending_parm_id = None
         
         for i in range(PARMSPERPAGE):
-            ypos = 15+11*i
+            ypos = 12+8*i
             labeltext = "LABEL" + str(i)
             parm_label = Label(self.font, color_palette=palette, text=labeltext)
             parm_label.anchor_point = (0, 0)
