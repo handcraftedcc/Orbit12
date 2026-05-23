@@ -132,4 +132,8 @@ class Input(Module):
     def process(self, note_ons, note_offs):
         return note_ons, note_offs
 
+    def stop(self):
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+
         

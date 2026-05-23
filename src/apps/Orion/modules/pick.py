@@ -101,5 +101,12 @@ class Pick(Module):
 
         return self.note_ons_out, self.note_offs_out
 
+    def stop(self):
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+        self.held_notes_in.clear()
+        self.held_note = None
+        self.held_note_octave = 0
+
 
 

@@ -34,6 +34,7 @@ class State:
         # Others
         self.ui_manager = None
         self.input_manager = None
+        self.output_manager = None
         self.macropad = macropad
         self.module_helper = None
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
@@ -74,12 +75,14 @@ class State:
     def stop_all_modules(self):
         for module in self.chain_modules:
             module.stop()
+        self.output_manager.all_notes_off()
 
     def swap_modules(self, slot_id1, slot_id2):
         self.chain_modules[slot_id1], self.chain_modules[slot_id2] = self.chain_modules[slot_id2], self.chain_modules[
             slot_id1]
         self.chain_modules[slot_id1].slot_id = slot_id1
         self.chain_modules[slot_id2].slot_id = slot_id2
+        print("swapped", slot_id1, slot_id2)
 
 class UISection:
     CHAIN = 0

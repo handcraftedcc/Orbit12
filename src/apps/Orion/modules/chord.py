@@ -103,3 +103,12 @@ class Chord(Module):
 
 
         return self.note_ons_out, self.note_offs_out
+
+    def stop(self):
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+
+    def stop(self):
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+        self.note_relationship.clear()

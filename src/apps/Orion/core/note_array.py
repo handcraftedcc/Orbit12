@@ -352,3 +352,8 @@ class NoteRelationshipArray:
                 i += 1
         return self.return_array
 
+    def clear(self):
+        self.in_array.clear()
+        self.out_array.clear()
+        self.return_array.clear()
+

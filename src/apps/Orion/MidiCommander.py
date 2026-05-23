@@ -23,6 +23,8 @@ from .core._modules._transport import Transport as TransportModule
 from .core._modules._output import Output as OutputModule
 
 SCREENREFRESHRATE = 4
+SWAP_CHAIN_MIN = state.ChainElements.SLOT1
+SWAP_CHAIN_MAX = state.ChainElements.SLOT6
 
 class MidiCommander:
     def __init__(self):
@@ -50,6 +52,7 @@ class MidiCommander:
         # Pass objects to state (Have to do after because of circular dependency)
         self.state.input = self.input_manager
         self.state.module_helper = self.module_helper
+        self.state.output_manager = self.output_manager
 
         # Init items that get used each loop
         self.run_tick = 0
@@ -122,21 +125,34 @@ class MidiCommander:
                 self.last_gc_ms = now
 
     def move_active_chain_element(self, delta):
-        if self.chain_swap_mode == 2:
+        print("mode", self.chain_swap_mode)
+        if self.chain_swap_mode == 2: #Swap instead of move active
+            if self.state.active_chain < SWAP_CHAIN_MIN:
+                self.disable_chain_swap_mode()
+                return
+            if self.state.active_chain > SWAP_CHAIN_MAX:
+                self.disable_chain_swap_mode()
+                return
+            print("swapping")
             active_element = self.state.active_chain
             direction = 1
             if delta < 0:
                 direction = -1
-            for i in range(delta):
-                self.state.swap_modules(active_element, active_element+direction)
+            for i in range(abs(delta)):
+                if direction == 1 and active_element >= SWAP_CHAIN_MAX:
+                    break
+                elif direction == -1 and active_element <= SWAP_CHAIN_MIN:
+                    break
+                self.state.swap_modules(active_element, active_element + direction)
                 active_element = active_element+direction
+                self.state.move_active_chain_elem(direction)
+            self.state.stop_all_modules()
         else:
             self.state.move_active_chain_elem(delta)
             self.state.active_parm = -1
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.chain.clear_chain_highlights)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
-
 
     def move_active_parm_element(self, delta):
         current_page = self.state.active_parm_page
@@ -186,6 +202,12 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.parameter_section.highlight_parm)
 
     def enable_chain_swap_mode(self):
+        if self.state.active_chain < SWAP_CHAIN_MIN:
+            self.disable_chain_swap_mode()
+            return
+        if self.state.active_chain > SWAP_CHAIN_MAX:
+            self.disable_chain_swap_mode()
+            return
         self.state.active_chain_mode = state.ChainModes.SWAP
         self.ui_manager.chain.rebuild_chain_section()
 
@@ -194,8 +216,6 @@ class MidiCommander:
         self.ui_manager.chain.rebuild_chain_section()
         self.knob_hold_down_start = None
         self.chain_swap_mode = 0
-
-
 
     def run(self):
         while True:
@@ -231,9 +251,10 @@ class MidiCommander:
                 pressed [0] = 0
                 self.ui_manager.neo_pixels.set_nav_state_colors()
 
-            ## Chain swap mode ##
-            if self.knob_hold_down_start:
-                if ticks.ticks_diff(ticks.ticks_ms(),self.knob_hold_down_start) >= 1000:
+            ## Chain swap mode - timer ##
+            if (self.state.active_ui_section == state.UISection.CHAIN and 
+                    self.knob_hold_down_start and self.chain_swap_mode == 0 and downstate[0]):
+                if ticks.ticks_diff(ticks.ticks_ms(), self.knob_hold_down_start) >= 1000:
                     self.chain_swap_mode = 1
                     self.enable_chain_swap_mode()
 
@@ -255,7 +276,11 @@ class MidiCommander:
                         self.ui_manager.neo_pixels.set_nav_state_colors(update=True)
 
                     if pressed[3]: # Switch between Nav and Modify State
-                        if self.state.active_ui_section == state.UISection.PARMSELECTION:
+                        if self.state.active_ui_section == state.UISection.CHAIN:
+                            if self.state.active_chain_mode == state.ChainModes.SWAP:
+                                self.disable_chain_swap_mode()
+                            self.enter_parm_selection()
+                        elif self.state.active_ui_section == state.UISection.PARMSELECTION:
                             self.enter_parm_edit()
                         elif self.state.active_ui_section == state.UISection.PARMEDIT:
                             self.exit_parm_edit()
@@ -274,9 +299,13 @@ class MidiCommander:
                         # Active section: Chain #
                         if self.state.active_ui_section == state.UISection.CHAIN:
                             if pressed[2]: #UP
+                                if self.state.active_chain_mode == state.ChainModes.SWAP:
+                                    self.disable_chain_swap_mode()
                                 self.state.active_ui_section = state.UISection.PARMSELECTION
                                 self.move_active_parm_element(-1)
                             if pressed[5]: #DOWN
+                                if self.state.active_chain_mode == state.ChainModes.SWAP:
+                                    self.disable_chain_swap_mode()
                                 self.state.active_ui_section = state.UISection.PARMSELECTION
                                 self.move_active_parm_element(1)
                             if pressed[4]: #LEFT
@@ -328,14 +357,24 @@ class MidiCommander:
             ## Process encoder button release ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
             if released[0]:
-                if self.chain_swap_mode == 1 and self.input_manager.encoder_press_consumed == 0:
-                    self.chain_swap_mode = 2 # Swap mode now actually active
                 if self.input_manager.encoder_press_consumed == 1: #Was consumed by a key press
                     self.input_manager.encoder_press_consumed = None
                     self.output_manager.all_notes_off()
+                    if self.chain_swap_mode == 1:
+                        self.disable_chain_swap_mode()
                 else: # Was not consumed -> knob action
+
                     # Active section: Chain #
                     if self.state.active_ui_section == state.UISection.CHAIN:
+                        #Swap mode#
+                        if self.chain_swap_mode == 1:
+                            self.enable_chain_swap_mode()
+                            self.chain_swap_mode = 2
+                        elif self.chain_swap_mode == 2:
+                            self.disable_chain_swap_mode()
+                        else: #Disable timer etc
+                            self.chain_swap_mode = 0
+                            self.knob_hold_down_start = None
                             #Switch state to active module
                             self.enter_parm_selection()
 

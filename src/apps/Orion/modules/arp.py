@@ -330,8 +330,17 @@ class Arp(Module):
         return self.note_ons_out, self.note_offs_out
 
     def stop(self):
-        self.process_note_offs(force_all = True)
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+        self.scheduled_offs.clear()
+        self.popped_ids.clear()
+        self.note_register.clear()
         self.held_notes.clear()
+        self.arp_state = 0
+        self.note_register_position = 0
+        self.active_pattern_step = 0
+        self.last_grid_bin = -1
+        self.was_transport_running = False
 
 
 

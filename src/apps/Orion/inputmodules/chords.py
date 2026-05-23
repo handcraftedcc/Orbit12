@@ -271,4 +271,12 @@ class Chords(Input):
             #print("Held Notes Relationship: ", self.held_note_relationship.in_array.notes, self.held_note_relationship.out_array.notes)
 
         return self.note_ons_out, self.note_offs_out
-        
+
+    def stop(self):
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+        self.held_modifiers.clear()
+        self.held_note_relationship.clear()
+        self.note_ons.clear()
+        self.note_offs.clear()
+        self.temp_chord.clear()

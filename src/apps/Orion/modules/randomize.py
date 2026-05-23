@@ -195,3 +195,8 @@ class Randomize(Module):
                 self.note_offs_out.append_value(off_note)
 
         return self.note_ons_out, self.note_offs_out
+
+    def stop(self):
+        self.note_ons_out.clear()
+        self.note_offs_out.clear()
+        self.note_relationship.clear()
