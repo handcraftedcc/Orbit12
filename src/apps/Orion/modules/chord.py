@@ -107,8 +107,10 @@ class Chord(Module):
     def stop(self):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
-
-    def stop(self):
-        self.note_ons_out.clear()
-        self.note_offs_out.clear()
         self.note_relationship.clear()
+
+    def remove(self):
+        super().remove()
+        self.note_relationship = None
+        self.offset_parms = None
+        self.offsets = None

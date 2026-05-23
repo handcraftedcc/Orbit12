@@ -108,3 +108,6 @@ class Pick(Module):
         self.held_note = None
         self.held_note_octave = 0
 
+    def remove(self):
+        super().remove()
+        self.held_notes_in = None

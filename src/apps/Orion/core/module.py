@@ -56,8 +56,11 @@ class Module:
             if module_key == self.name:
                 return None
             else:
-                self.state.set_chain_module(self.slot_id, AVAILABLE_MODULES[module_key])
-                self.module_helper.ui_manager.parameter_section.rebuild_parm_section()
+                state_ref = self.state
+                slot_id = self.slot_id
+                ui_manager = self.module_helper.ui_manager
+                state_ref.set_chain_module(slot_id, AVAILABLE_MODULES[module_key])
+                ui_manager.parameter_section.rebuild_parm_section()
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
@@ -141,12 +144,20 @@ class Module:
         self.parms[parm_id].value = parm_value
 
     def remove(self):
-        for parm in self.parms:
+        if self.note_ons_out is not None or self.note_offs_out is not None:
+            self.stop()
+
+        for parm in self.parms or []:
             parm.enter_callback_function = None
             parm.edit_callback_function = None
             parm.exit_callback_function = None
+            parm.options = None
 
         self.parms = []
+        self.note_ons_out = None
+        self.note_offs_out = None
+        self.ui_manager = None
+        self.module_helper = None
         self.state = None
         self.slot_id = None
 

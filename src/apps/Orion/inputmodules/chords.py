@@ -280,3 +280,11 @@ class Chords(Input):
         self.note_ons.clear()
         self.note_offs.clear()
         self.temp_chord.clear()
+
+    def remove(self):
+        super().remove()
+        self.held_modifiers = None
+        self.held_note_relationship = None
+        self.note_ons = None
+        self.note_offs = None
+        self.temp_chord = None
