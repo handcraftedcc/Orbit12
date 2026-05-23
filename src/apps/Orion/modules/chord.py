@@ -13,7 +13,7 @@ def find_closest(values, target):
 
 class Chord(Module):
     name = "chord"
-    label = "Chord"
+    label = "CHRD"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.offsets = [0,2,4,0,0]
@@ -31,7 +31,7 @@ class Chord(Module):
         for i in range(5):
             offset_parm = Parms.Parm(
                 name="offset" + str(i+1),
-                label="Offset " + str(i+1),
+                label="OFS " + str(i+1),
                 default=self.offsets[i],
                 parm_type=Parms.IntParmType,
                 increment=1,
@@ -43,7 +43,7 @@ class Chord(Module):
 
         scale_aware_parm = Parms.Parm(
             name="scale_aware",
-            label="Scale Aware",
+            label="SCL AWR",
             default=True,
             parm_type=Parms.BooleanParmType,
             edit_callback_function=self.set_scale_aware,

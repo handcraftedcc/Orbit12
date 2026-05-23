@@ -18,15 +18,15 @@ SCALENAMES = [
     "MIX",
     "AEO",
     "LOC",
-    "MPEN",
-    "mPEN",
+    "MAJP",
+    "MINP",
     "SPEN",
     "BLU",
-    "m6",
-    "M7b",
+    "MIN6",
+    "M7B",
     "WT",
-    "DIMh",
-    "DIMw"
+    "DIMH",
+    "DIMW"
     ]
 
 SCALES = [
@@ -67,7 +67,7 @@ SCALES = [
 ]
 
 
-PENTATONIC_IDS = [SCALENAMES.index("MPEN"),SCALENAMES.index("mPEN"),SCALENAMES.index("SPEN")]
+PENTATONIC_IDS = [SCALENAMES.index("MAJP"), SCALENAMES.index("MINP"), SCALENAMES.index("SPEN")]
 
 AUTOBORROWRELATIONSHIP = {
     0: 0,   # CHR   -> CHR

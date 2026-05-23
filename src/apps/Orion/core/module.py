@@ -25,6 +25,10 @@ class Module:
         self.operation_mode = 0
         self.out_channel = 0
         self.source_mode = 0
+        if not hasattr(self,"note_ons_out"):
+            self.note_ons_out = None
+        if not hasattr(self,"note_offs_out"):
+            self.note_offs_out = None
 
         # Add default parms each module will have
         if include_default_parms:
@@ -70,16 +74,16 @@ class Module:
     def create_out_parms(self):
         parms = []
         operation_options = [
-            "Next",
-            "Out & Next",
-            "Out & Skip",
-            "Skip"
+            "NEXT",
+            "OUT+N",
+            "OUT+S",
+            "SKIP"
         ]
-        operation_mode_parm = Parms.Parm("operation_mode", "Op Mode:", Parms.EnumParmType, 0,
+        operation_mode_parm = Parms.Parm("operation_mode", "OP", Parms.EnumParmType, 0,
                                         options=operation_options,
                                         edit_callback_function=self.set_operation_mode)
         parms.append(operation_mode_parm)
-        out_channel_parm = Parms.Parm("out_channel", "Out Ch:", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
+        out_channel_parm = Parms.Parm("out_channel", "OUT CH", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
                                          edit_callback_function=self.set_out_channel)
         parms.append(out_channel_parm)
         return parms
@@ -87,15 +91,15 @@ class Module:
     def create_source_parms(self):
         parms = []
         source_options = [
-            "Previous",
-            "Input",
-            "Slot1",
-            "Slot2",
-            "Slot3",
-            "Slot4",
-            "Slot5",
+            "PREV",
+            "IN",
+            "S1",
+            "S2",
+            "S3",
+            "S4",
+            "S5",
         ]
-        source_mode_parm = Parms.Parm("source_mode", "Source:", Parms.EnumParmType, 0,
+        source_mode_parm = Parms.Parm("source_mode", "SRC", Parms.EnumParmType, 0,
                                         options=source_options,
                                         edit_callback_function=self.set_source_mode)
         parms.append(source_mode_parm)
@@ -155,7 +159,8 @@ class Module:
             else:
                 source = self.state.chain_modules[self.source_mode]
             print("source", source)
-            note_ons,note_offs = source.note_ons_out,source.note_offs_out
+            if hasattr(source,"note_ons_out") and hasattr(source,"note_offs_out"):
+                note_ons,note_offs = source.note_ons_out,source.note_offs_out
 
 
         if self.operation_mode == 1:
@@ -172,7 +177,9 @@ class Module:
             return self.process(note_ons, note_offs)
 
     def process(self, note_ons, note_offs):
-        return note_ons, note_offs
+        self.note_ons_out = note_ons
+        self.note_offs_out = note_offs
+        return self.note_ons_out, self.note_offs_out
 
     def stop(self):
         pass

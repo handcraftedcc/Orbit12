@@ -4,7 +4,7 @@ from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
 
 class Pick(Module):
     name = "pick"
-    label = "Pick"
+    label = "PICK"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.pick_mode = 0
@@ -21,18 +21,18 @@ class Pick(Module):
         parms = []
         # Pick Mode
         pick_mode_options = [
-            "1st",
-            "2nd",
-            "3rd",
-            "Last",
-            "Lowest",
-            "Highest"
+            "1ST",
+            "2ND",
+            "3RD",
+            "LAST",
+            "LOW",
+            "HIGH"
         ]
-        self.mode_parm = Parms.Parm(name="pick_mode", label="Mode", default=0, parm_type=Parms.EnumParmType,
+        self.mode_parm = Parms.Parm(name="pick_mode", label="MDE", default=0, parm_type=Parms.EnumParmType,
                                       options=pick_mode_options, edit_callback_function=self.set_pick_mode)
         parms.append(self.mode_parm)
 
-        self.octaves_parm = Parms.Parm(name="octaves", label="Octaves", default=0, parm_type=Parms.IntParmType,
+        self.octaves_parm = Parms.Parm(name="octaves", label="OCT", default=0, parm_type=Parms.IntParmType,
                                       increment=1, edit_callback_function=self.set_octaves)
         parms.append(self.octaves_parm)
 
@@ -107,6 +107,4 @@ class Pick(Module):
         self.held_notes_in.clear()
         self.held_note = None
         self.held_note_octave = 0
-
-
 

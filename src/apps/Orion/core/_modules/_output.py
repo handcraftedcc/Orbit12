@@ -3,7 +3,7 @@ from .. import parms as Parms
 
 class Output(Module):
     name = "output"
-    label = "Output"
+    label = "OUT"
     def __init__(self, module_helper, slot_id, macropad = None):
         self.out_ch = 0
         super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
@@ -13,10 +13,10 @@ class Output(Module):
 
     def create_main_parms(self):
         parms = []
-        print_output_parm = Parms.Parm(name="print", label="Print", parm_type=Parms.BooleanParmType, default=0,
+        print_output_parm = Parms.Parm(name="print", label="PRNT", parm_type=Parms.BooleanParmType, default=0,
                                        edit_callback_function=self.set_print)
         parms.append(print_output_parm)
-        out_ch_parm = Parms.Parm(name="out_ch", label="Out Ch", parm_type=Parms.IntParmType, default=self.out_ch+1, minmax = (1,16),
+        out_ch_parm = Parms.Parm(name="out_ch", label="OUT CH", parm_type=Parms.IntParmType, default=self.out_ch+1, minmax = (1,16),
                                        edit_callback_function=self.set_out_ch)
         parms.append(out_ch_parm)
         return parms

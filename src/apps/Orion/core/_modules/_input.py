@@ -8,7 +8,7 @@ PADMAP = [9,10,11,6,7,8,3,4,5,0,1,2]
 
 class Input(Module):
     name = "input"
-    label = "Input"
+    label = "IN"
     def __init__(self, module_helper, slot_id, include_musical_parms=True):
 
         ## Init Attributes ##
@@ -45,33 +45,33 @@ class Input(Module):
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
-        module_picker_parm = Parms.Parm("module_picker", "MODE:", Parms.EnumParmType, current_module_index,
+        module_picker_parm = Parms.Parm("module_picker", "MODULE:", Parms.EnumParmType, current_module_index,
                                         options=AVAILABLE_MODULE_LABELS,
                                         exit_callback_function=switch_module)
         parms.append(module_picker_parm)
 
         if self.include_musical_parms:
             # Key
-            key_parm = Parms.Parm(name="key", label="Key", parm_type=Parms.NoteParmType, default=self.state.key,
+            key_parm = Parms.Parm(name="key", label="KEY", parm_type=Parms.NoteParmType, default=self.state.key,
                                   edit_callback_function=self.set_key)
             parms.append(key_parm)
 
             #Scale
-            scale_parm = Parms.Parm(name="scale", label="Scale", parm_type=Parms.EnumParmType, default=self.state.scale,
+            scale_parm = Parms.Parm(name="scale", label="SCL", parm_type=Parms.EnumParmType, default=self.state.scale,
                                     options=Music.SCALENAMES, edit_callback_function=self.set_scale)
             parms.append(scale_parm)
             # Octave
-            octave_parm = Parms.Parm(name="octave", label="Octave", parm_type=Parms.IntParmType, default=0,
+            octave_parm = Parms.Parm(name="octave", label="OCT", parm_type=Parms.IntParmType, default=0,
                                   edit_callback_function=self.set_octave)
             parms.append(octave_parm)
 
             # Key Offset
-            key_offset_parm = Parms.Parm(name="key_offset", label="Key Offset", parm_type=Parms.IntParmType, default=0,
+            key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=0,
                                      edit_callback_function=self.set_key_offset)
             parms.append(key_offset_parm)
 
             # Velocity
-            velocity_parm = Parms.Parm(name="velocity", label="Velocity", parm_type=Parms.IntParmType, default=127,
+            velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=127,
                                        minmax = [0,127], edit_callback_function=self.set_velocity)
             parms.append(velocity_parm)
 

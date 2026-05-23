@@ -12,7 +12,7 @@ FOURBYFOURBOTTOM3ROWSMAPPINGFLIPPED = [0,4,8,1,5,9,2,6,10,3,7,11]
 
 class Drum(Input):
     name = "drum"
-    label = "Drum"
+    label = "DRUM"
     def __init__(self, module_helper, slot_id):
         self.layout = 0
         self.velocity = 127
@@ -23,19 +23,19 @@ class Drum(Input):
 
     def create_main_parms(self):
         parms = super().create_main_parms()
-        layout_options = ("InOrder","4x4Left12", "4x4Right12", "4x4Bott3Row","4x4Bott3RowFli")
+        layout_options = ("ORD","L12", "R12", "B3R","B3F")
         # Layout Mode
-        layout_mode_parm = Parms.Parm(name="layout", label="Layout", parm_type=Parms.EnumParmType, default=0, options=layout_options,
+        layout_mode_parm = Parms.Parm(name="layout", label="LAY", parm_type=Parms.EnumParmType, default=0, options=layout_options,
                                      edit_callback_function=self.set_layout)
         parms.append(layout_mode_parm)
 
         # Key Offset
-        key_offset_parm = Parms.Parm(name="key_offset", label="Key Offset", parm_type=Parms.IntParmType, default=0,
+        key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=0,
                                      edit_callback_function=self.set_key_offset)
         parms.append(key_offset_parm)
 
         # Velocity
-        velocity_parm = Parms.Parm(name="velocity", label="Velocity", parm_type=Parms.IntParmType, default=127,
+        velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=127,
                                    minmax=[0, 127], edit_callback_function=self.set_velocity)
         parms.append(velocity_parm)
         return parms

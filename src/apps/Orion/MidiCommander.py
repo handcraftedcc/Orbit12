@@ -429,8 +429,8 @@ class MidiCommander:
                 callback()
                 difference = ticks.ticks_diff(ticks.ticks_ms(), current)
 
-            # mark refresh, but don't flush display immediately
-            self.screen_update_needed = True
+                # mark refresh, but don't flush display immediately
+                self.screen_update_needed = True
 
             if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work():
                 self.ui_manager.screen.update()

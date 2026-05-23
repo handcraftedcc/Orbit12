@@ -228,7 +228,7 @@ class ParameterSection(Section):
         
         for i in range(PARMSPERPAGE):
             ypos = 15+11*i
-            labeltext = "label" + str(i)
+            labeltext = "LABEL" + str(i)
             parm_label = Label(terminalio.FONT, color_palette=palette, text=labeltext)
             parm_label.anchor_point = (0, 0)
             parm_label.anchored_position = (margin, ypos)
@@ -349,6 +349,5 @@ class ParameterSection(Section):
 
 
         
-
 
 

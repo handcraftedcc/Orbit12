@@ -117,9 +117,9 @@ class BooleanParmType(ParmType):
     @classmethod
     def get_display_value(cls, parm):
         if parm.value == 0:
-            parm.display_value = "False"
+            parm.display_value = "OFF"
         else:
-            parm.display_value = "True"
+            parm.display_value = "ON"
         return parm.display_value
 
     @classmethod
@@ -194,7 +194,7 @@ class RateParmType(ParmType):
         # Rates and bars
         if parm.include_bars and parm.include_rates:
             if parm.value < cls.bar_count:
-                label = str(16-parm.value) + "bars"
+                label = str(16-parm.value) + "BAR"
             else:
                 label = cls.rates_labels[parm.value-cls.bar_count]
 
@@ -255,5 +255,4 @@ class NoteParmType(ParmType):
             label = cls.notes[note_num]
 
         return label
-
 

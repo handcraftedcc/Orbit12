@@ -37,7 +37,7 @@ class BassModes:
 
 class Chords(Input):
     name = "chords"
-    label = "Chords"
+    label = "CHRD"
     def __init__(self, module_helper, slot_id):
         self.bass_mode = 0
         self.spread_mode = 0
@@ -55,15 +55,15 @@ class Chords(Input):
     def create_main_parms(self):
         parms = super().create_main_parms()
         # Bass Mode
-        bass_modes = ("None", "Root", "Second", "Lowest", "Highest")
-        bass_mode_parm = Parms.Parm(name="bass", label="Bass", parm_type=Parms.EnumParmType, default=0,
+        bass_modes = ("NONE", "ROOT", "2ND", "LOW", "HIGH")
+        bass_mode_parm = Parms.Parm(name="bass", label="BASS", parm_type=Parms.EnumParmType, default=0,
                                       options=bass_modes,
                                       edit_callback_function=self.set_bass_mode)
         parms.append(bass_mode_parm)
 
         # Spread Mode
-        spread_modes = ("Tight", "Medium", "Wide")
-        spread_mode_parm = Parms.Parm(name="spread", label="Spread", parm_type=Parms.EnumParmType, default=0,
+        spread_modes = ("TIGHT", "MED", "WIDE")
+        spread_mode_parm = Parms.Parm(name="spread", label="SPRD", parm_type=Parms.EnumParmType, default=0,
                                       options=spread_modes,
                                       edit_callback_function=self.set_spread_mode)
         parms.append(spread_mode_parm)
@@ -71,7 +71,7 @@ class Chords(Input):
         # Borrow Scale
         borrow_scale_options = ["AUTO"]
         borrow_scale_options.extend(Music.SCALENAMES[1:])
-        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="Borrow Scale", parm_type=Parms.EnumParmType, default=0,
+        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRW SCL", parm_type=Parms.EnumParmType, default=0,
                                       options=borrow_scale_options,
                                       edit_callback_function=self.set_borrow_scale)
         parms.append(borrow_scale_parm)
@@ -112,21 +112,21 @@ class Chords(Input):
         #Check Pentatonic State
         pentatonic_state = [False, False]
 
-        if (self.state.scale == Music.SCALENAMES.index("MPEN") or
+        if (self.state.scale == Music.SCALENAMES.index("MAJP") or
                 self.state.scale == Music.SCALENAMES.index("SPEN")):
             pentatonic_state[0] = True
 
-        if self.state.scale == Music.SCALENAMES.index("mPEN"):
+        if self.state.scale == Music.SCALENAMES.index("MINP"):
             pentatonic_state[1] = True
 
         #TODO: Extract octave and add to final octave as currently the keys just wrap in same octave
         root_degree = root_pad_note % scale_notes
         if pentatonic_state[0]:
-            print("MPEN")
+            #print("MAJP")
             note2_degree = root_degree + 1
             note3_degree = root_degree + 3
         elif pentatonic_state[1]:
-            print("mPEN")
+            #print("MINP")
             note2_degree = root_degree + 2
             note3_degree = root_degree + 3
         else:
@@ -148,7 +148,7 @@ class Chords(Input):
 
         if self.held_modifiers.contains(ModifierMap.SEV):
             if any(pentatonic_state):
-                print("pent7")
+                #print("pent7")
                 seventh_degree = root_degree + 4
             else:
                 seventh_degree = root_degree + 6
