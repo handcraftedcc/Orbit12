@@ -40,8 +40,11 @@ class Input(Module):
             if module_key == self.name:
                 return None
             else:
-                self.state.set_chain_module(self.slot_id, AVAILABLE_MODULES[module_key])
-                self.module_helper.ui_manager.parameter_section.rebuild_parm_section()
+                state_ref = self.state
+                slot_id = self.slot_id
+                ui_manager = self.module_helper.ui_manager
+                state_ref.set_chain_module(slot_id, AVAILABLE_MODULES[module_key])
+                ui_manager.parameter_section.rebuild_parm_section()
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)

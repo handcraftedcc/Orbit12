@@ -52,9 +52,15 @@ class State:
         self.active_parm_page = page_index = max(0, self.active_parm) // PARMSPERPAGE
 
     def set_chain_module(self, slot_id, module_class):
+        old_module = self.chain_modules[slot_id]
+
+        if old_module is not None:
+            old_module.remove()
+
         self.chain_modules[slot_id]=module_class(self.module_helper, slot_id)
         self.update_parm_count()
         self.active_parm=0
+        gc.collect()
 
     def reset_chain_module(self, slot_id):
         old_module = self.chain_modules[slot_id]
@@ -65,6 +71,7 @@ class State:
         self.chain_modules[slot_id] = EmptyModule(self.module_helper, slot_id)
         self.update_parm_count()
         self.active_parm=0
+        gc.collect()
 
     def get_active_chain_module(self):
         return self.chain_modules[self.active_chain]

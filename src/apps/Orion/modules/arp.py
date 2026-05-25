@@ -342,4 +342,12 @@ class Arp(Module):
         self.last_grid_bin = -1
         self.was_transport_running = False
 
+    def remove(self):
+        super().remove()
+        self.transport = None
+        self.note_register = None
+        self.scheduled_offs = None
+        self.popped_ids = None
+        self.held_notes = None
+        self.retrigger_mode_list = None
 

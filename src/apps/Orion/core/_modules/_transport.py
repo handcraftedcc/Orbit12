@@ -59,3 +59,7 @@ class Transport(Module):
     def set_swing(self, value):
         self.transport.update_swing(value)
         return self.transport.swing
+
+    def remove(self):
+        super().remove()
+        self.transport = None

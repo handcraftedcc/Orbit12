@@ -200,3 +200,7 @@ class Randomize(Module):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         self.note_relationship.clear()
+
+    def remove(self):
+        super().remove()
+        self.note_relationship = None

@@ -35,3 +35,7 @@ class Output(Module):
             if note_ons.length>0 or note_offs.length>0:
                 print("Ons:", list(note_ons.notes), "Offs:", list(note_offs.notes))
         return note_ons, note_offs
+
+    def remove(self):
+        super().remove()
+        self.macropad = None
