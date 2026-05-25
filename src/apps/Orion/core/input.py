@@ -10,6 +10,8 @@ class InputManager:
         self.pressed = bytearray(13)  # bytearray - encoder + 12 keys
         self.released = bytearray(13)  # bytearray - encoder + 12 keys
         self.knob_delta = 0
+        self.knob_delta_nth = 4
+        self.count = 0
 
 
     def get_inputs(self):
@@ -40,10 +42,12 @@ class InputManager:
             self.released[0] = 1
             self.downstate[0] = 0
             
-        if self.last_knob_pos != self.macropad.encoder:  # knob has been turned
+        if self.last_knob_pos != self.macropad.encoder and not self.count % self.knob_delta_nth:  # knob has been turned
             knob_pos = self.macropad.encoder  # read encoder
             self.knob_delta = knob_pos - self.last_knob_pos  # compute knob_delta since last read
             self.last_knob_pos = knob_pos  # save new reading
+
+        self.count += 1
 
         return self.pressed, self.released, self.knob_delta, self.downstate
     
