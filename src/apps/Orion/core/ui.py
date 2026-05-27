@@ -66,7 +66,7 @@ class UIManager:
         self.chain = Chain(self.state, self.palette, self.margin, self.main_group, self.font)
         self.parameter_section = ParameterSection(self.state, self.palette, self.margin, self.main_group, self.font)
 
-        bitmap = displayio.OnDiskBitmap("apps/Orion/imgs/5x5 v5.bmp")
+        bitmap = displayio.OnDiskBitmap("apps/Orion/imgs/SMPLE - PARMS - Headers2.bmp")
         tile_grid = displayio.TileGrid(bitmap, pixel_shader=bitmap.pixel_shader)
 
         group = displayio.Group()
