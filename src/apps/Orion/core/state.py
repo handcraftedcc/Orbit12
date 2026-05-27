@@ -95,6 +95,7 @@ class UISection:
     CHAIN = 0
     PARMSELECTION = 1
     PARMEDIT = 2
+    MODULESELECTION = 3
 
 class ChainElements:
     IN = 0

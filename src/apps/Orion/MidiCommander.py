@@ -8,6 +8,7 @@ import microcontroller
 microcontroller.cpu.frequency = 250_000_000
 
 from .core import ui
+from .core import neo_pixels
 from .core import transport
 from .core import input
 from .core import state
@@ -47,7 +48,9 @@ class MidiCommander:
         self.input_manager = input.InputManager(self.macropad)
         self.output_manager = output.OutputManager(self.macropad, self.state)
         self.transport = transport.Transport(self.state, self.output_manager, self.macropad)
+        self.neo_pixels = neo_pixels.NeoPixels(self.macropad, self.state)
         self.module_helper = module.ModuleHelper(self.macropad, self.state, self.input_manager, self.output_manager, self.transport)
+
 
         # Pass objects to state (Have to do after because of circular dependency)
         self.state.input = self.input_manager
@@ -82,8 +85,9 @@ class MidiCommander:
         self.state.ui_manager = self.ui_manager
 
         # Update Pixels
+        self.module_helper.neo_pixels = self.neo_pixels
         self.state.chain_modules[0].color_pixels()
-        self.ui_manager.neo_pixels.paint_pixels()
+        self.neo_pixels.paint_pixels()
 
         #gc.disable()
 
@@ -247,7 +251,7 @@ class MidiCommander:
                 self.knob_hold_down_start = ticks.ticks_ms()
                 self.input_manager.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
                 pressed [0] = 0
-                self.ui_manager.neo_pixels.set_nav_state_colors()
+                self.neo_pixels.set_nav_state_colors()
 
             ## Chain swap mode - timer ##
             if (self.state.active_ui_section == state.UISection.CHAIN and 
@@ -271,7 +275,7 @@ class MidiCommander:
 
                     if pressed[1]: # Switch Nav State
                         self.state.nav_keys_state = (self.state.nav_keys_state+1) % 2
-                        self.ui_manager.neo_pixels.set_nav_state_colors(update=True)
+                        self.neo_pixels.set_nav_state_colors(update=True)
 
                     if pressed[3]: # Switch between Nav and Modify State
                         if self.state.active_ui_section == state.UISection.CHAIN:
@@ -350,7 +354,7 @@ class MidiCommander:
 
                 for index in range(1, 13):
                     if pressed[index]:
-                        self.ui_manager.neo_pixels.set_held_pixel(index-1)
+                        self.neo_pixels.set_held_pixel(index-1)
 
             ## Process encoder button release ##
             # -> depends on state - either navbar selection, parm selection, or parm confirmation
@@ -387,7 +391,7 @@ class MidiCommander:
                         self.exit_parm_edit()
 
                 released[0] = 0 # Clear knob release bit
-                self.ui_manager.neo_pixels.exit_nav_state_colors()
+                self.neo_pixels.exit_nav_state_colors()
                 self.state.chain_modules[0].color_pixels()
 
             ## Process midi key release ##
@@ -401,7 +405,7 @@ class MidiCommander:
                         self.note_offs.append_value(index - 1)
                 for index in range(1, 13):
                     if released[index]:
-                        self.ui_manager.neo_pixels.release_held_pixel(index-1)
+                        self.neo_pixels.release_held_pixel(index-1)
 
             ### Update transport
             midi_tick = self.transport.update()

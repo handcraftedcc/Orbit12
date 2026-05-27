@@ -9,6 +9,7 @@ class ModuleHelper: #Used to centralize and unify module object access
         self.input_manager = input_manager
         self.output_manager = output_manager
         self.ui_manager = None
+        self.neo_pixels = None
         self.transport = transport
 
 # Module base

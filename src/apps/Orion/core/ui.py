@@ -1,53 +1,43 @@
 #Handles all UI
-from rainbowio import colorwheel
 from adafruit_macropad import MacroPad
 import displayio
 import terminalio
 import vectorio
 from adafruit_display_text.bitmap_label import Label
 from .state import State, ChainModes
-from .state import PARMSPERPAGE
+from .constants import PARMSPERPAGE
 
 DISPLAYRES = (128,64)
 
-COLORS = {
-    "black": 0x000000,
-    "white": 0xFFFFFF,
-    "red":  colorwheel(0),
-    "orange":  colorwheel(21),
-    "yellow":  colorwheel(42),
-    "lime":  colorwheel(64),
-    "green":  colorwheel(85),
-    "cyan":  colorwheel(128),
-    "blue":  colorwheel(150),
-    "purple":  colorwheel(191),
-    "magenta":  colorwheel(213),
-    "pink":  colorwheel(235),
-}
+### Tilegrid Helpers ###
+FONTCHARS = ''' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?;:\''()[]{}<>+-=*/\\_%&@#$^|~`'''
+FONTBITMAP = displayio.OnDiskBitmap("apps/Orion/imgs/Font_6x6.bmp")
+FONTBITMAP_DIMENSIONS = (6,6)
 
-KEYCOLORBASE = COLORS["cyan"]
-KEYCOLORROOT = COLORS["lime"]
-KEYCOLORDRUMS = COLORS["red"]
+STATEINDICATORSBITMAP = displayio.OnDiskBitmap("apps/Orion/imgs/StateIndicators_7x5.bmp")
+STATEINDICATORSBITMAP_DIMENSIONS = (7,5)
 
-KEYCOLORNAVNOTE = COLORS["blue"]
-KEYCOLORNAVPARMS = COLORS["orange"]
-KEYCOLORENTER = COLORS["yellow"]
+CHAINCURSORBITMAP = displayio.OnDiskBitmap("apps/Orion/imgs/ChainNav_12x5.1.bmp")
+CHAINCURSORBITMAP_DIMENSIONS = (12,6)
 
-KEYCOLORSTOP = COLORS["red"]
-KEYCOLORSTART = COLORS["green"]
-KEYOFF = COLORS["black"]
+def tile_for_char(char):
+    index = FONTCHARS.find(char)
+    if index < 0:
+        return 0
+    return index
 
-KEYBRIGHTNESSDEFAULT = 0.3
-KEYBRIGHTNESSHELD = 1
-KEYBRIGHTNESSMULTIPLIER = 1
+def set_text(tile_grid, text, width):
+    for i in range(width):
+        if i < len(text):
+            tile_grid[i] = tile_for_char(text[i])
+        else:
+            tile_grid[i] = 0
 
 class UIManager:
     def __init__(self,macropad: MacroPad,state):
         self.macropad = macropad
         self.main_group = displayio.Group()
         self.state = state
-        self.neo_pixels = NeoPixels(self.macropad, self.state)
-
         
         self.palette = displayio.Palette(4) 
         self.palette.make_transparent(0) # 0 = transparent
@@ -59,8 +49,14 @@ class UIManager:
         self.parm_spacing = 2
         self.chain_parm_sep_spacing = 4
 
-        self.chain = Chain(self.state, self.palette, self.margin, self.main_group)
-        self.parameter_section = ParameterSection(self.state, self.palette, self.margin, self.main_group)
+        self.chain = Chain(self.state, self.main_group)
+        self.chain.group.hidden = True
+        self.parameter_section = ParameterSection(self.state, self.main_group)
+        #self.parameter_section.group.hidden = True
+        self.module_selector = ModuleSelector(self.state, self.main_group)
+        self.module_selector.group.hidden = True
+
+        self.header_footer = HeaderFooter(self.state, self.main_group)
 
         self.screen = Screen(self.macropad,self.main_group)
 
@@ -74,86 +70,6 @@ class Screen:
     def update(self):
         self.display.refresh()
 
-class NeoPixels:
-    def __init__(self,macropad: MacroPad, state: State):
-        self.pixels = macropad.pixels
-        self.state = state
-        self.brightness_default = KEYBRIGHTNESSDEFAULT*KEYBRIGHTNESSMULTIPLIER
-        self.brightness_held = KEYBRIGHTNESSHELD*KEYBRIGHTNESSMULTIPLIER
-        self.pixels.fill(int(KEYCOLORBASE*self.brightness_default))
-        self.pixel_colors = [KEYCOLORBASE]*12
-        self.pixel_colors_temp = [KEYCOLORBASE]*12
-        self.held_pixels = bytearray(12)
-
-    def set_held_pixel(self, pressed_pad):
-        if not self.held_pixels[pressed_pad]:
-            self.held_pixels[pressed_pad] = 1
-            self.paint_pixel(pressed_pad,brightness = self.brightness_held)
-
-    def release_held_pixel(self, released_pad):
-        if self.held_pixels[released_pad]:
-            self.held_pixels[released_pad] = 0
-            self.paint_pixel(released_pad,brightness = self.brightness_default)
-
-    def combine_color_and_brightness(self, color, brightness):
-        r = int(((color >> 16) & 0xFF) * brightness)
-        g = int(((color >> 8) & 0xFF) * brightness)
-        b = int((color & 0xFF) * brightness)
-        return (r << 16) | (g << 8) | b
-
-    def paint_pixels(self):
-        for idx in range(len(self.pixel_colors)):
-            color = self.pixel_colors[idx]
-            color = self.combine_color_and_brightness(color,self.brightness_default)
-            self.pixels[idx] = color
-
-    def paint_pixel(self, pad, brightness=1.0):
-        color = self.pixel_colors[pad]
-        color = self.combine_color_and_brightness(color,brightness)
-        self.pixels[pad] = color
-
-    def set_key_colors_simple(self, key_bytearray: bytearray):
-        """key_bytearray needs to be 12 long. root keys are true, Others are false"""
-        if len(key_bytearray) == 12:
-            for idx, key in enumerate(key_bytearray):
-                if key:
-                    self.pixel_colors[idx] = KEYCOLORROOT
-                else:
-                    self.pixel_colors[idx] = KEYCOLORBASE
-            self.paint_pixels()
-        else:
-            raise RuntimeError("Array wrong length (should be 12 bytes)")
-
-
-    def set_key_colors(self, key_color_list : list):
-        """List of new key colors. Key color list needs to be 12 items long"""
-        if len(key_color_list) == 12:
-            for idx, key in enumerate(key_color_list):
-                self.pixel_colors[idx] = key
-            self.paint_pixels()
-        else:
-            raise RuntimeError("Array wrong length (should be 12 bytes)")
-
-    def set_nav_state_colors(self, update = False):
-        if self.state.nav_keys_state == 0: # NOTES
-            color_list = [KEYCOLORNAVPARMS, KEYCOLORNAVNOTE, KEYOFF,
-                    KEYCOLORNAVNOTE, KEYCOLORNAVNOTE, KEYCOLORNAVNOTE,
-                    KEYOFF, KEYOFF, KEYOFF,
-                    KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
-                    ]
-        else: # NAV
-            color_list = [KEYCOLORNAVNOTE, KEYCOLORNAVPARMS, KEYCOLORENTER,
-                    KEYCOLORNAVPARMS, KEYCOLORNAVPARMS, KEYCOLORNAVPARMS,
-                    KEYOFF, KEYOFF, KEYOFF,
-                    KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
-                    ]
-        if not update:
-            self.pixel_colors_temp = self.pixel_colors.copy()
-        self.set_key_colors(color_list)
-
-    def exit_nav_state_colors(self):
-        self.set_key_colors(self.pixel_colors_temp)
-
 
 class Section:
     def __init__(self,state: State):
@@ -162,33 +78,186 @@ class Section:
         self.state = state
         pass
 
-class Chain(Section):
-    def __init__(self,state,palette,margin,main_group):
+class HeaderFooter(Section):
+    def __init__(self, state: State, main_group):
         super().__init__(state)
-        
-        self.items = ["I", "T", "1", "2", "3", "4", "5", "6", "O"]
-        self.temp_items = self.items.copy()
-        self.text = "-".join(self.items)
-        self.chain_label = Label(
-            terminalio.FONT,
-            text=self.text,
-            color=0xFFFFFF,
-            color_palette=palette,
+        white_palette = displayio.Palette(1)
+        white_palette[0] = 0xFFFFFF
+
+        text_palette = displayio.Palette(2)
+        text_palette[0] = 0xFFFFFF
+        text_palette[1] = 0x000000
+
+
+        self.header_bg = vectorio.Rectangle(
+            pixel_shader=white_palette,
+            width=128,
+            height=11,
+            x=0,
+            y=0,
         )
-        self.chain_label.anchor_point = (0,0)
-        self.chain_label.anchored_position = (margin,margin-3)
-        self.group.append(self.chain_label)
 
-        self.rebuild_chain_section()
+        self.group.append(self.header_bg)
 
-        # divider line
-        line = displayio.Bitmap(DISPLAYRES[0]-margin*2, 1, 2)  # width, height, colors
-        line.fill(1)
-        tile = displayio.TileGrid(line, pixel_shader=palette)
-        tile.x = margin
-        tile.y = margin + 10
+        self.header_chain_id = displayio.TileGrid(
+            FONTBITMAP,
+            pixel_shader=text_palette,
+            width=1,          # number of visible tile cells
+            height=1,
+            tile_width=FONTBITMAP_DIMENSIONS[0],
+            tile_height=FONTBITMAP_DIMENSIONS[1],
+            x=4, y=3
+        )
 
-        self.group.append(tile)
+        self.group.append(self.header_chain_id)
+        self.header_chain_id[0] = tile_for_char("I")
+
+        self.header_chain_arrow = displayio.TileGrid(
+            STATEINDICATORSBITMAP,
+            pixel_shader=text_palette,
+            width=1,  # number of visible tile cells
+            height=1,
+            tile_width=STATEINDICATORSBITMAP_DIMENSIONS[0],
+            tile_height=STATEINDICATORSBITMAP_DIMENSIONS[1],
+            x=9, y=3
+        )
+
+        self.group.append(self.header_chain_arrow)
+        self.header_chain_arrow[0] = 0
+
+        self.header_chain_module = displayio.TileGrid(
+            FONTBITMAP,
+            pixel_shader=text_palette,
+            width=6,  # number of visible tile cells
+            height=1,
+            tile_width=FONTBITMAP_DIMENSIONS[0],
+            tile_height=FONTBITMAP_DIMENSIONS[1],
+            x=16, y=3
+        )
+
+        self.group.append(self.header_chain_module)
+        set_text(self.header_chain_module,"INPUT",6)
+
+        self.header_key_info = displayio.TileGrid(
+            FONTBITMAP,
+            pixel_shader=text_palette,
+            width=5,  # number of visible tile cells
+            height=1,
+            tile_width=FONTBITMAP_DIMENSIONS[0],
+            tile_height=FONTBITMAP_DIMENSIONS[1],
+            x=80, y=3
+        )
+
+        self.group.append(self.header_key_info)
+        set_text(self.header_key_info, "A#MIN", 5)
+
+        self.header_state_icons = displayio.TileGrid(
+            STATEINDICATORSBITMAP,
+            pixel_shader=text_palette,
+            width=2,  # number of visible tile cells
+            height=1,
+            tile_width=STATEINDICATORSBITMAP_DIMENSIONS[0],
+            tile_height=STATEINDICATORSBITMAP_DIMENSIONS[1],
+            x=112, y=3
+        )
+
+        self.group.append(self.header_state_icons)
+        self.header_state_icons[0] = 1
+        self.header_state_icons[1] = 2
+
+        self.footer_bg = vectorio.Rectangle(
+            pixel_shader=white_palette,
+            width=128,
+            height=11,
+            x=0,
+            y=53,
+        )
+
+        self.group.append(self.footer_bg)
+
+        self.footer_help_text = displayio.TileGrid(
+            FONTBITMAP,
+            pixel_shader=text_palette,
+            width=24,  # number of visible tile cells
+            height=1,
+            tile_width=FONTBITMAP_DIMENSIONS[0],
+            tile_height=FONTBITMAP_DIMENSIONS[1],
+            x=4, y=56
+        )
+
+        self.group.append(self.footer_help_text)
+        set_text(self.footer_help_text, ":THIS IS HELP A TEXT", 24)
+
+        main_group.append(self.group)
+
+    def update_header_chain_id(self, new_chain_id):
+        self.header_chain_id[0] = tile_for_char(new_chain_id)
+
+    def update_header_module_name(self, new_module_name):
+        set_text(self.header_chain_module, new_module_name, 6)
+
+    def update_header_key_info(self, new_key_info):
+        set_text(self.header_key_info, new_key_info, 5)
+
+    def update_header_state_icons(self, tile, value):
+        self.header_state_icons[tile] = value
+
+    def update_footer_help_text(self, new_help_text):
+        set_text(self.footer_help_text, new_help_text, 24)
+
+
+class Chain(Section):
+    def __init__(self,state,main_group):
+        super().__init__(state)
+
+        text_palette = displayio.Palette(2)
+        text_palette[0] = 0x000000
+        text_palette[1] = 0xFFFFFF
+        self.group_chain = displayio.Group()
+
+        self.chain = displayio.TileGrid(
+            FONTBITMAP,
+            pixel_shader=text_palette,
+            width=10,  # number of visible tile cells
+            height=1,
+            tile_width=FONTBITMAP_DIMENSIONS[0],
+            tile_height=FONTBITMAP_DIMENSIONS[1],
+            x=0, y=0
+        )
+
+        self.group_chain.append(self.chain)
+        set_text(self.chain, "IT123456O*", 10)
+        self.group_chain.scale = 2
+        self.group_chain.x = 4
+        self.group_chain.y = 27
+        self.group.append(self.group_chain)
+
+        self.chain_cursor_top = displayio.TileGrid(
+            CHAINCURSORBITMAP,
+            pixel_shader=text_palette,
+            width=10,  # number of visible tile cells
+            height=1,
+            tile_width=CHAINCURSORBITMAP_DIMENSIONS[0],
+            tile_height=CHAINCURSORBITMAP_DIMENSIONS[1],
+            x=3, y=17
+        )
+
+        self.group.append(self.chain_cursor_top)
+        self.chain_cursor_top[0] = 2
+
+        self.chain_cursor_bottom = displayio.TileGrid(
+            CHAINCURSORBITMAP,
+            pixel_shader=text_palette,
+            width=10,  # number of visible tile cells
+            height=1,
+            tile_width=CHAINCURSORBITMAP_DIMENSIONS[0],
+            tile_height=CHAINCURSORBITMAP_DIMENSIONS[1],
+            x=3, y=41
+        )
+
+        self.group.append(self.chain_cursor_bottom)
+        self.chain_cursor_bottom[0] = 3
+        #self.rebuild_chain_section()
 
         main_group.append(self.group)
 
@@ -212,10 +281,8 @@ class Chain(Section):
         self.chain_label.clear_accent_ranges()
 
 class ParameterSection(Section):
-    def __init__(self,state,palette,margin,main_group):
+    def __init__(self,state,main_group):
         super().__init__(state)
-        self.palette = palette
-        self.margin = margin
         self.highlighted = None
         self.active = None
         self.pages = 1
@@ -223,38 +290,70 @@ class ParameterSection(Section):
         self.parm_count = 4
         self.parm_labels = []
         self.parm_values = []
+        self.parm_groups = []
         self.pending_parm_value = None
         self.pending_parm_id = None
-        
-        for i in range(PARMSPERPAGE):
-            ypos = 15+11*i
-            labeltext = "LABEL" + str(i)
-            parm_label = Label(terminalio.FONT, color_palette=palette, text=labeltext)
-            parm_label.anchor_point = (0, 0)
-            parm_label.anchored_position = (margin, ypos)
-            self.parm_labels.append(parm_label)
-            valuetext = str(5)
-            parm_value = Label(terminalio.FONT, color_palette=self.palette, text=valuetext)
-            parm_value.anchor_point = (1, 0)
-            parm_value.anchored_position = (DISPLAYRES[0]-margin, ypos)
-            self.parm_values.append(parm_value)
-            self.group.append(parm_label)
-            self.group.append(parm_value)
 
-        # page indicator line
-        track_width = DISPLAYRES[0] - margin * 2
-        self.page_indicator = vectorio.Rectangle(
-            pixel_shader=palette,
-            width=track_width,
-            height=1,
-            x=margin,
-            y=DISPLAYRES[1] - margin,
+        black_palette = displayio.Palette(1)
+        black_palette[0] = 0xFFFFFF
+
+        text_palette = displayio.Palette(2)
+        text_palette[0] = 0x000000
+        text_palette[1] = 0xFFFFFF
+
+        white_palette = displayio.Palette(1)
+        white_palette[0] = 0xFFFFFF
+
+        self.cursor = vectorio.Rectangle(
+            pixel_shader=white_palette,
+            width=2,
+            height=10,
+            x=0,
+            y=15,
         )
-        self.page_indicator.color_index = 1
-        self.group.append(self.page_indicator)
 
-        self.rebuild_parm_section()
+        self.group.append(self.cursor)
 
+        for i in range(PARMSPERPAGE):
+            parm_group = displayio.Group()
+            ypos = 15+8*i
+            if i>0: ypos += 5
+            labeltext = "LABL" + str(i)
+            parm_label = displayio.TileGrid(
+                FONTBITMAP,
+                pixel_shader=text_palette,
+                width=5,  # number of visible tile cells
+                height=1,
+                tile_width=FONTBITMAP_DIMENSIONS[0],
+                tile_height=FONTBITMAP_DIMENSIONS[1],
+                x=0, y=0,
+            )
+            set_text(parm_label , labeltext, 5)
+            parm_group.append(parm_label)
+            self.parm_labels.append(parm_label)
+
+            parm_value = displayio.TileGrid(
+                FONTBITMAP,
+                pixel_shader=text_palette,
+                width=5,  # number of visible tile cells
+                height=1,
+                tile_width=FONTBITMAP_DIMENSIONS[0],
+                tile_height=FONTBITMAP_DIMENSIONS[1],
+                x=91, y=0
+            )
+            set_text(parm_value, " 100%", 5)
+            parm_group.append(parm_value)
+            if i == 0:
+                parm_group.scale = 2
+                parm_value.x = 31
+            parm_group.x = 4
+            parm_group.y = ypos
+
+            self.parm_groups.append(parm_group)
+            self.group.append(parm_group)
+            self.parm_values.append(parm_value)
+
+        #self.rebuild_parm_section()
         main_group.append(self.group)
             
     def update_parm(self, labeltext, new_value):
@@ -345,6 +444,35 @@ class ParameterSection(Section):
         if self.state.active_parm != -1: self.highlight_parm()
 
         self.set_page_indicator()
+
+class ModuleSelector(Section):
+    def __init__(self,state,main_group):
+        super().__init__(state)
+
+        text_palette = displayio.Palette(2)
+        text_palette[0] = 0x000000
+        text_palette[1] = 0xFFFFFF
+        self.group = displayio.Group()
+
+        self.chain = displayio.TileGrid(
+            FONTBITMAP,
+            pixel_shader=text_palette,
+            width=10,  # number of visible tile cells
+            height=1,
+            tile_width=FONTBITMAP_DIMENSIONS[0],
+            tile_height=FONTBITMAP_DIMENSIONS[1],
+            x=0, y=0
+        )
+
+        self.group.append(self.chain)
+        set_text(self.chain, "< MODULE >", 10)
+        self.group.scale = 2
+        self.group.x = 4
+        self.group.y = 27
+
+        #self.rebuild_chain_section()
+
+        main_group.append(self.group)
 
 
 

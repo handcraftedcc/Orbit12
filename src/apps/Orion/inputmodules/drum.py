@@ -48,7 +48,7 @@ class Drum(Input):
         color_array = [ui.KEYCOLORDRUMS]*12
 
         try:
-            self.module_helper.ui_manager.neo_pixels.set_key_colors(color_array)
+            self.module_helper.neo_pixels.set_key_colors(color_array)
         except:
             pass
 

@@ -1,5 +1,5 @@
 from ..module import Module
-from .. import ui
+from .. import neo_pixels
 from .. import parms as Parms
 from .. import music as Music
 from ..note_array import NoteArray, NoteOnArray, NoteOffArray
@@ -102,7 +102,7 @@ class Input(Module):
         self.velocity = velocity
 
     def color_pixels(self, color_overrides: dict = None):
-        color_array = [ui.KEYCOLORBASE]*12
+        color_array = [neo_pixels.KEYCOLORBASE]*12
         scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)
 
@@ -110,7 +110,7 @@ class Input(Module):
         for idx, color in enumerate(color_array):
             if (idx + self.state.key_offset) % scale_notes == 0:
                 key = PADMAP.index(idx)
-                color_array[key] = ui.KEYCOLORROOT
+                color_array[key] = neo_pixels.KEYCOLORROOT
 
         # set overrides
         if color_overrides:
@@ -119,7 +119,7 @@ class Input(Module):
                 color_array[pad_key] = color_overrides[key]
 
         try:
-            self.module_helper.ui_manager.neo_pixels.set_key_colors(color_array)
+            self.module_helper.neo_pixels.set_key_colors(color_array)
         except:
             pass
 
