@@ -5,8 +5,8 @@ import gc
 
 def print_ram_usage(value):
     gc.collect()
-    print(gc.mem_alloc())
-    print(gc.mem_free())
+    print("allocated:",gc.mem_alloc())
+    print("free:",gc.mem_free())
 
 class Settings(Module):
     name = "settings"

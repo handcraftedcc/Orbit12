@@ -1,4 +1,3 @@
-from ..core.module import Module
 from ..core import parms as Parms
 from ..core import neo_pixels
 from ..core._modules._input import Input, PADMAP

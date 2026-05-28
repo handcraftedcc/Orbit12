@@ -1,13 +1,6 @@
 from .. import module as Module
 from .. import parms as Parms
 
-try:
-    from typing import TYPE_CHECKING
-    if TYPE_CHECKING:
-        from ..state import State
-except ImportError:
-    pass
-
 class Empty(Module.Module):
     name = "empty"
     label = "EMPTY"

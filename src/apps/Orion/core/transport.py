@@ -1,5 +1,4 @@
 import adafruit_ticks as ticks
-from .state import TimingSteps
 import gc
 
 from adafruit_midi.timing_clock import TimingClock

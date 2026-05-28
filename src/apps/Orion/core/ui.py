@@ -1,6 +1,5 @@
 #Handles all UI
 from .music import SCALENAMES, NOTES
-from adafruit_macropad import MacroPad
 import displayio
 import vectorio
 from .state import State, ChainModes, UISection, ChainElements
@@ -82,7 +81,7 @@ def set_text(tile_grid, text, align_right=False, write_range=(None,None)):
 
 
 class UIManager:
-    def __init__(self,macropad: MacroPad, state, transport):
+    def __init__(self,macropad, state, transport):
         self.macropad = macropad
         self.main_group = displayio.Group()
         self.state = state

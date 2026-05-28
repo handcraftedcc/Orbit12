@@ -4,6 +4,11 @@ import keypad
 import adafruit_ticks as ticks
 import gc
 
+gc.collect()
+print("START")
+print("allocated:",gc.mem_alloc())
+print("free:",gc.mem_free())
+
 import microcontroller
 
 from .core.state import UISection, ChainElements
@@ -17,9 +22,8 @@ from .core import input
 from .core import state
 from .core import output
 from .core import parms as Parms
-from .core import music as Music
 from .core import module
-from .core.note_array import NoteArray, NoteOnArray, NoteOffArray
+from .core.note_array import NoteOnArray, NoteOffArray
 
 from .inputmodules.note import Note as InputModule
 from .core._modules._empty import Empty as EmptyModule

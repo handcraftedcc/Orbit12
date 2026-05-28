@@ -3,7 +3,6 @@ from ..core.constants import POLYPHONY
 from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks
-import random
 from ..core import utils
 from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
 

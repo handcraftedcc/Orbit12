@@ -1,6 +1,5 @@
 from ..module import Module
 from .. import parms as Parms
-from ..parms import Parm
 
 class Transport(Module):
     """ This module only handles the UI of the transport.
