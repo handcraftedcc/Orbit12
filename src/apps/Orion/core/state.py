@@ -1,7 +1,6 @@
 from ._modules._empty import Empty as EmptyModule
-from .constants import TOTALSLOTCOUNT, MODULESLOTCOUNT, PARMSPERPAGE, POLYPHONY
+from .constants import TOTALSLOTCOUNT
 from .music import NOTES
-from .music import SCALENAMES as SCALES
 from ..modules import _registry as ModuleRegistry
 from ..inputmodules import _registry as InputModuleRegistry
 
