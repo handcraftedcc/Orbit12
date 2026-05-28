@@ -6,13 +6,13 @@ import adafruit_ticks as ticks
 from ..core import utils
 from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
 
-MODE_LIST = [
+MODE_LIST = (
     "UP",
     "DOWN",
     "RND",
     "ORD",
     "RPT",
-]
+)
 
 MODE_UP = MODE_LIST.index("UP")
 MODE_DOWN = MODE_LIST.index("DOWN")
@@ -30,6 +30,7 @@ class Arp(Module):
         self.transport = self.module_helper.transport
 
         # Setup Attribs
+        self.rate_value = 8
         self.rate = 1
         self.note_register = NoteOnArray()
         self.note_register_position = 0
@@ -37,14 +38,14 @@ class Arp(Module):
         self.note_offs_out = NoteOffArray()
         self.scheduled_offs = NoteArray(times = True)
         self.popped_ids = NoteArray()
-        self.mode = None
+        self.mode = MODE_UP
         self.retrigger_mode = 0
-        self.retrigger_mode_list = [
+        self.retrigger_mode_list = (
             "RTRG",
             "CONT",
             "STBL",
-        ]
-        self.gate = 0
+        )
+        self.gate = 100
         self.gate_random = 0
         self.arp_state = 0 #0 = Not active, 1 = Active -> When all notes are released we go empty
         self.random_seed_user = 0
@@ -63,71 +64,67 @@ class Arp(Module):
 
         super().__init__(module_helper, slot_id)
 
-        # Init values
-        self.rate = self.rate_parm.get_actual_value()
-        self.mode = self.mode_parm.get_actual_value()
-        self.gate = self.gate_parm.get_actual_value()
-
     def create_main_parms(self):
         parms = []
         # Rate
-        self.rate_parm = Parms.Parm(name="rate", label="RATE", default=8, parm_type=Parms.RateParmType,
-                                    edit_callback_function=self.set_rate)
-        parms.append(self.rate_parm)
+        rate_parm = Parms.Parm(name="rate", label="RATE", default=self.rate_value, parm_type=Parms.RateParmType,
+                               edit_callback_function=self.set_rate)
+        parms.append(rate_parm)
 
         # Mode
-        self.mode_parm = Parms.Parm(name="mode", label="MDE", default=0, parm_type=Parms.EnumParmType,
-                                    options=MODE_LIST,edit_callback_function=self.set_mode)
-        parms.append(self.mode_parm)
+        mode_parm = Parms.Parm(name="mode", label="MDE", default=self.mode, parm_type=Parms.EnumParmType,
+                               options=MODE_LIST, edit_callback_function=self.set_mode)
+        parms.append(mode_parm)
 
         # Gate
-        self.gate_parm = Parms.Parm(name="gate", label="GATE", default=100, parm_type=Parms.FloatParmType,
-                                    increment=5, edit_callback_function=self.set_gate)
-        parms.append(self.gate_parm)
+        gate_parm = Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
+                               increment=5, edit_callback_function=self.set_gate)
+        parms.append(gate_parm)
 
         # Pattern
-        self.pattern_parm = Parms.Parm(name="pattern", label="PTN", default=self.selected_pattern,
-                                           parm_type=Parms.EnumParmType, options=music.patterns_text,
-                                           edit_callback_function=self.set_pattern)
-        parms.append(self.pattern_parm)
+        pattern_parm = Parms.Parm(name="pattern", label="PTN", default=self.selected_pattern,
+                                  parm_type=Parms.EnumParmType, options=music.patterns_text,
+                                  edit_callback_function=self.set_pattern)
+        parms.append(pattern_parm)
 
-        self.pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTN SHFT", default=self.pattern_shift,
-                                       parm_type=Parms.IntParmType, edit_callback_function=self.set_pattern_shift)
-        parms.append(self.pattern_shift_parm)
+        pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTN SHFT", default=self.pattern_shift,
+                                        parm_type=Parms.IntParmType, edit_callback_function=self.set_pattern_shift)
+        parms.append(pattern_shift_parm)
 
         # Gate Randomize
-        self.gate_random_parm = Parms.Parm(name="gate_random", label="RND GATE", default=0,
-                                           parm_type=Parms.IntParmType,
-                                           increment=5, edit_callback_function=self.set_gate_random)
-        parms.append(self.gate_random_parm)
+        gate_random_parm = Parms.Parm(name="gate_random", label="RND GATE", default=self.gate_random,
+                                      parm_type=Parms.IntParmType,
+                                      increment=5, edit_callback_function=self.set_gate_random)
+        parms.append(gate_random_parm)
 
         # Random Pattern Length
-        self.random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RND LEN", default=0,
-                                                    parm_type=Parms.IntParmType,minmax = (0,128),
-                                                    edit_callback_function=self.set_random_pattern_length)
-        parms.append(self.random_pattern_length_parm)
+        random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RND LEN", default=self.random_pattern_length,
+                                                parm_type=Parms.IntParmType, minmax=(0,128),
+                                                edit_callback_function=self.set_random_pattern_length)
+        parms.append(random_pattern_length_parm)
 
         # Random Seed
-        self.random_seed_parm = Parms.Parm(name="rand_seed", label="SEED", default=0,
-                                           parm_type=Parms.IntParmType,
-                                           minmax=(0, 10000), edit_callback_function=self.set_random_seed_user)
-        parms.append(self.random_seed_parm)
+        random_seed_parm = Parms.Parm(name="rand_seed", label="SEED", default=self.random_seed_user,
+                                      parm_type=Parms.IntParmType,
+                                      minmax=(0, 10000), edit_callback_function=self.set_random_seed_user)
+        parms.append(random_seed_parm)
 
         # Retrigger Mode
-        self.retrigger_parm = Parms.Parm(name="retrigger_mode", label="RTRG", default=0,
-                                         parm_type=Parms.EnumParmType,
-                                         options=self.retrigger_mode_list,
-                                         edit_callback_function=self.set_retrigger_mode)
-        parms.append(self.retrigger_parm)
+        retrigger_parm = Parms.Parm(name="retrigger_mode", label="RTRG", default=self.retrigger_mode,
+                                    parm_type=Parms.EnumParmType,
+                                    options=self.retrigger_mode_list,
+                                    edit_callback_function=self.set_retrigger_mode)
+        parms.append(retrigger_parm)
 
         return parms
 
     def set_rate(self, value):
-        self.rate = self.rate_parm.get_actual_value()
+        self.rate_value = value
+        self.rate = music.RATE_VALUES[value]
         return self.rate
 
     def set_mode(self, value):
-        self.mode = self.mode_parm.get_actual_value()
+        self.mode = value
         return self.mode
 
     def set_gate(self, value):
@@ -349,4 +346,3 @@ class Arp(Module):
         self.popped_ids = None
         self.held_notes = None
         self.retrigger_mode_list = None
-

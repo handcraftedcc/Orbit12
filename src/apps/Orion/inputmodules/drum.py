@@ -5,8 +5,9 @@ from ..core.note_array import NoteOnArray, NoteOffArray
 
 from ..core import music as Music
 
-FOURBYFOURBOTTOM3ROWSMAPPING = [3,7,11,2,6,10,1,5,9,0,4,8]
-FOURBYFOURBOTTOM3ROWSMAPPINGFLIPPED = [0,4,8,1,5,9,2,6,10,3,7,11]
+FOURBYFOURBOTTOM3ROWSMAPPING = (3,7,11,2,6,10,1,5,9,0,4,8)
+FOURBYFOURBOTTOM3ROWSMAPPINGFLIPPED = (0,4,8,1,5,9,2,6,10,3,7,11)
+LAYOUT_OPTIONS = ("ORD", "L12", "R12", "B3R", "B3F")
 
 
 class Drum(Input):
@@ -24,20 +25,19 @@ class Drum(Input):
 
     def create_main_parms(self):
         parms = super().create_main_parms()
-        layout_options = ("ORD","L12", "R12", "B3R","B3F")
         # Layout Mode
-        layout_mode_parm = Parms.Parm(name="layout", label="LAY", parm_type=Parms.EnumParmType, default=0, options=layout_options,
+        layout_mode_parm = Parms.Parm(name="layout", label="LAY", parm_type=Parms.EnumParmType, default=self.layout, options=LAYOUT_OPTIONS,
                                      edit_callback_function=self.set_layout)
         parms.append(layout_mode_parm)
 
         # Key Offset
-        key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=0,
+        key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
                                      edit_callback_function=self.set_key_offset)
         parms.append(key_offset_parm)
 
         # Velocity
-        velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=127,
-                                   minmax=[0, 127], edit_callback_function=self.set_velocity)
+        velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=self.velocity,
+                                   minmax=(0, 127), edit_callback_function=self.set_velocity)
         parms.append(velocity_parm)
         return parms
 

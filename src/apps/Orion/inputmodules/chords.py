@@ -35,6 +35,10 @@ class BassModes:
     Lowest = 3
     Highest = 4
 
+BASS_MODE_OPTIONS = ("NONE", "ROOT", "2ND", "LOW", "HIGH")
+SPREAD_MODE_OPTIONS = ("TIGHT", "MED", "WIDE")
+BORROW_SCALE_OPTIONS = ("AUTO",) + Music.SCALENAMES[1:]
+
 class Chords(Input):
     name = "chords"
     label = "CHRD"
@@ -55,24 +59,20 @@ class Chords(Input):
     def create_main_parms(self):
         parms = super().create_main_parms()
         # Bass Mode
-        bass_modes = ("NONE", "ROOT", "2ND", "LOW", "HIGH")
-        bass_mode_parm = Parms.Parm(name="bass", label="BASS", parm_type=Parms.EnumParmType, default=0,
-                                      options=bass_modes,
+        bass_mode_parm = Parms.Parm(name="bass", label="BASS", parm_type=Parms.EnumParmType, default=self.bass_mode,
+                                      options=BASS_MODE_OPTIONS,
                                       edit_callback_function=self.set_bass_mode)
         parms.append(bass_mode_parm)
 
         # Spread Mode
-        spread_modes = ("TIGHT", "MED", "WIDE")
-        spread_mode_parm = Parms.Parm(name="spread", label="SPRD", parm_type=Parms.EnumParmType, default=0,
-                                      options=spread_modes,
+        spread_mode_parm = Parms.Parm(name="spread", label="SPRD", parm_type=Parms.EnumParmType, default=self.spread_mode,
+                                      options=SPREAD_MODE_OPTIONS,
                                       edit_callback_function=self.set_spread_mode)
         parms.append(spread_mode_parm)
 
         # Borrow Scale
-        borrow_scale_options = ["AUTO"]
-        borrow_scale_options.extend(Music.SCALENAMES[1:])
-        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRWSCL", parm_type=Parms.EnumParmType, default=0,
-                                      options=borrow_scale_options,
+        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRWSCL", parm_type=Parms.EnumParmType, default=self.borrow_scale,
+                                      options=BORROW_SCALE_OPTIONS,
                                       edit_callback_function=self.set_borrow_scale)
         parms.append(borrow_scale_parm)
         return parms

@@ -26,7 +26,6 @@ class Chord(Module):
 
     def create_main_parms(self):
         parms = []
-        self.offset_parms = []
 
         for i in range(5):
             offset_parm = Parms.Parm(
@@ -37,14 +36,12 @@ class Chord(Module):
                 increment=1,
                 edit_callback_function=lambda value, index=i: self.set_offset(index, value),
             )
-            self.offset_parms.append(offset_parm)
-
-        parms.extend(self.offset_parms)
+            parms.append(offset_parm)
 
         scale_aware_parm = Parms.Parm(
             name="scale_aware",
             label="SCL AWR",
-            default=True,
+            default=self.scale_aware,
             parm_type=Parms.BooleanParmType,
             edit_callback_function=self.set_scale_aware,
         )
@@ -117,5 +114,4 @@ class Chord(Module):
     def remove(self):
         super().remove()
         self.note_relationship = None
-        self.offset_parms = None
         self.offsets = None

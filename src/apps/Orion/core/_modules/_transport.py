@@ -1,6 +1,8 @@
 from ..module import Module
 from .. import parms as Parms
 
+TRANSPORT_MODE_OPTIONS = ("INT", "EXT")
+
 class Transport(Module):
     """ This module only handles the UI of the transport.
     The actual midi clock stuff happens in the transport object in core."""
@@ -12,23 +14,21 @@ class Transport(Module):
             self.transport = self.module_helper.transport
             self.transport_mode = self.state.transport_mode
             self.bpm = self.state.bpm
-            self.parms = []
 
             super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
 
     def create_main_parms(self):
         parms = []
 
-        transport_mode_options = ["INT", "EXT"]
-        transport_mode_parm = Parms.Parm("mode", "MDE", Parms.EnumParmType, 0,
-                                         options=transport_mode_options, exit_callback_function=self.set_transport_mode)
+        transport_mode_parm = Parms.Parm("mode", "MDE", Parms.EnumParmType, self.state.transport_mode,
+                                         options=TRANSPORT_MODE_OPTIONS, exit_callback_function=self.set_transport_mode)
         parms.append(transport_mode_parm)
 
-        bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, 120, minmax=[1, 300],
+        bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, self.transport.bpm, minmax=(1, 300),
                               edit_callback_function=self.set_bpm)
         parms.append(bpm_parm)
 
-        swing_parm = Parms.Parm("swing", "SWNG", Parms.PercentParmType, self.state.swing, minmax=(0, 1),
+        swing_parm = Parms.Parm("swing", "SWNG", Parms.PercentParmType, self.transport.swing, minmax=(0, 1),
                                 increment=0.05,
                                 edit_callback_function=self.set_swing)
         parms.append(swing_parm)

@@ -2,6 +2,15 @@ from ..core.module import Module
 from ..core import parms as Parms
 from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
 
+PICK_MODE_OPTIONS = (
+    "1ST",
+    "2ND",
+    "3RD",
+    "LAST",
+    "LOW",
+    "HIGH",
+)
+
 class Pick(Module):
     name = "pick"
     label = "PICK"
@@ -20,21 +29,13 @@ class Pick(Module):
     def create_main_parms(self):
         parms = []
         # Pick Mode
-        pick_mode_options = [
-            "1ST",
-            "2ND",
-            "3RD",
-            "LAST",
-            "LOW",
-            "HIGH"
-        ]
-        self.mode_parm = Parms.Parm(name="pick_mode", label="MDE", default=0, parm_type=Parms.EnumParmType,
-                                      options=pick_mode_options, edit_callback_function=self.set_pick_mode)
-        parms.append(self.mode_parm)
+        mode_parm = Parms.Parm(name="pick_mode", label="MDE", default=self.pick_mode, parm_type=Parms.EnumParmType,
+                               options=PICK_MODE_OPTIONS, edit_callback_function=self.set_pick_mode)
+        parms.append(mode_parm)
 
-        self.octaves_parm = Parms.Parm(name="octaves", label="OCT", default=0, parm_type=Parms.IntParmType,
-                                      increment=1, edit_callback_function=self.set_octaves)
-        parms.append(self.octaves_parm)
+        octaves_parm = Parms.Parm(name="octaves", label="OCT", default=self.octaves, parm_type=Parms.IntParmType,
+                                  increment=1, edit_callback_function=self.set_octaves)
+        parms.append(octaves_parm)
 
         return parms
 

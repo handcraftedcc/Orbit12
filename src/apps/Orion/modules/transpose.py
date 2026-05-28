@@ -20,19 +20,20 @@ class Transpose(Module):
     def create_main_parms(self):
         parms = []
         # Amount
-        self.semitones_parm = Parms.Parm(name="semitones", label="SEMI", default=0, parm_type=Parms.IntParmType,
-                                         increment=1, edit_callback_function=self.set_semitones)
-        parms.append(self.semitones_parm)
+        semitones_parm = Parms.Parm(name="semitones", label="SEMI", default=self.semitones, parm_type=Parms.IntParmType,
+                                    increment=1, edit_callback_function=self.set_semitones)
+        parms.append(semitones_parm)
 
         # Octaves
-        self.octaves_parm = Parms.Parm(name="octaves", label="OCT", default=0, parm_type=Parms.IntParmType,
-                                      increment=1, edit_callback_function=self.set_octaves)
-        parms.append(self.octaves_parm)
+        octaves_parm = Parms.Parm(name="octaves", label="OCT", default=self.octaves, parm_type=Parms.IntParmType,
+                                  increment=1, edit_callback_function=self.set_octaves)
+        parms.append(octaves_parm)
 
         # Scale Aware
-        self.scale_aware_parm = Parms.Parm(name="scale_aware", label="SCL AWR", default=True, parm_type=Parms.BooleanParmType,
+        scale_aware_parm = Parms.Parm(name="scale_aware", label="SCL AWR", default=self.scale_aware,
+                                      parm_type=Parms.BooleanParmType,
                                       edit_callback_function=self.set_scale_aware)
-        parms.append(self.scale_aware_parm)
+        parms.append(scale_aware_parm)
         return parms
 
     def set_semitones(self, value):

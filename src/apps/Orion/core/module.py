@@ -2,14 +2,14 @@ from . import state
 from . import parms as Parms
 import gc
 
-OPERATION_OPTIONS = [
-            "NEXT",
-            "OUT+N",
-            "OUT+S",
-            "SKIP"
-        ]
+OPERATION_OPTIONS = (
+    "NEXT",
+    "OUT+N",
+    "OUT+S",
+    "SKIP",
+)
 
-SOURCE_OPTIONS = [
+SOURCE_OPTIONS = (
     "PREV",
     "IN",
     "S1",
@@ -17,7 +17,7 @@ SOURCE_OPTIONS = [
     "S3",
     "S4",
     "S5",
-]
+)
 
 class ModuleHelper: #Used to centralize and unify module object access
     def __init__(self, Orion, macropad, state, input_manager, output_manager, transport):
@@ -36,12 +36,15 @@ class Module:
     label = None
     version = 1
     def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
-        self.parms = []
+        self.parms = None
         self.label_length = len(self.label)
         self.module_helper = module_helper
         self.state = module_helper.state
         self.ui_manager = module_helper.ui_manager
         self.slot_id = slot_id
+        self.include_default_parms = include_default_parms
+        self.include_out_parms = include_out_parms
+        self.include_source_parms = include_source_parms
         self.operation_mode = 0
         self.out_channel = 0
         self.source_mode = 0
@@ -50,15 +53,6 @@ class Module:
         if not hasattr(self,"note_offs_out"):
             self.note_offs_out = None
 
-        # Add default parms each module will have
-        if include_default_parms:
-            self.parms.extend(self.create_top_parms())
-        self.parms.extend(self.create_main_parms())
-        if include_source_parms:
-            self.parms.extend(self.create_source_parms())
-        if include_out_parms:
-            self.parms.extend(self.create_out_parms())
-
         gc.collect()
 
 
@@ -66,26 +60,7 @@ class Module:
     ### Parm Creation ###
 
     def create_top_parms(self):
-        from ..modules._registry import (
-            AVAILABLE_MODULE_NAMES,
-            get_module_class,
-        )
-        parms = []
-
-        def switch_module(value):
-            module_key = AVAILABLE_MODULE_NAMES[value]
-            if module_key == self.name:
-                return None
-            else:
-                state_ref = self.state
-                slot_id = self.slot_id
-                ui_manager = self.module_helper.ui_manager
-                state_ref.set_chain_module(slot_id, get_module_class(module_key))
-                self.module_helper.orion.add_to_ui_queue(ui_manager.parameter_section.rebuild_parm_section)
-                return module_key
-
-        current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
-        return parms
+        return []
 
     def create_main_parms(self):
         parms = []
@@ -94,7 +69,7 @@ class Module:
     def create_out_parms(self):
         parms = []
 
-        operation_mode_parm = Parms.Parm("operation_mode", "OP", Parms.EnumParmType, 0,
+        operation_mode_parm = Parms.Parm("operation_mode", "OP", Parms.EnumParmType, self.operation_mode,
                                         options=OPERATION_OPTIONS,
                                         edit_callback_function=self.set_operation_mode)
         parms.append(operation_mode_parm)
@@ -105,7 +80,7 @@ class Module:
 
     def create_source_parms(self):
         parms = []
-        source_mode_parm = Parms.Parm("source_mode", "SRC", Parms.EnumParmType, 0,
+        source_mode_parm = Parms.Parm("source_mode", "SRC", Parms.EnumParmType, self.source_mode,
                                         options=SOURCE_OPTIONS,
                                         edit_callback_function=self.set_source_mode)
         parms.append(source_mode_parm)
@@ -126,37 +101,57 @@ class Module:
 
     ### UI Utilities ###
 
+    def _build_parms(self):
+        parms = []
+        if self.include_default_parms:
+            parms.extend(self.create_top_parms())
+        parms.extend(self.create_main_parms())
+        if self.include_source_parms:
+            parms.extend(self.create_source_parms())
+        if self.include_out_parms:
+            parms.extend(self.create_out_parms())
+        return parms
+
     def get_parms(self):
+        if self.parms is None:
+            self.parms = self._build_parms()
         return self.parms
 
     def get_parm(self, parm_id):
-        if 0 <= parm_id < len(self.parms):
-            return self.parms[parm_id]
+        parms = self.get_parms()
+        if 0 <= parm_id < len(parms):
+            return parms[parm_id]
         return None
 
     def get_parm_by_name(self, name):
-        for parm in self.parms:
+        for parm in self.get_parms():
             if parm.name == name:
                 return parm
         return None
     
     def get_parm_value(self, parm_id):
-        return self.parms[parm_id].value
+        return self.get_parms()[parm_id].value
     
     def set_parm_value(self, parm_id, parm_value):
-        self.parms[parm_id].value = parm_value
+        self.get_parms()[parm_id].value = parm_value
 
-    def remove(self):
-        if self.note_ons_out is not None or self.note_offs_out is not None:
-            self.stop()
+    def release_parms(self):
+        if self.parms is None:
+            return
 
-        for parm in self.parms or []:
+        for parm in self.parms:
             parm.enter_callback_function = None
             parm.edit_callback_function = None
             parm.exit_callback_function = None
             parm.options = None
 
-        self.parms = []
+        self.parms = None
+
+    def remove(self):
+        if self.note_ons_out is not None or self.note_offs_out is not None:
+            self.stop()
+
+        self.release_parms()
         self.note_ons_out = None
         self.note_offs_out = None
         self.ui_manager = None

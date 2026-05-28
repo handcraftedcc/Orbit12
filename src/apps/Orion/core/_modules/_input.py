@@ -4,7 +4,8 @@ from .. import parms as Parms
 from .. import music as Music
 from ..note_array import NoteArray, NoteOnArray, NoteOffArray
 
-PADMAP = [9,10,11,6,7,8,3,4,5,0,1,2]
+PADMAP = (9,10,11,6,7,8,3,4,5,0,1,2)
+INPUT_OPERATION_OPTIONS = ("NEXT", "OUT+N")
 
 class Input(Module):
     name = "input"
@@ -18,11 +19,7 @@ class Input(Module):
 
         self.velocity = 127
 
-        self.parms = []
         super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=True, include_source_parms=False)
-
-        operation_mode_parm = self.get_parm_by_name("operation_mode")
-        operation_mode_parm.options = operation_mode_parm.options[:-2]
 
         ## Color Pixels ##
         self.color_pixels()
@@ -46,15 +43,21 @@ class Input(Module):
             parms.append(octave_parm)
 
             # Key Offset
-            key_offset_parm = Parms.Parm(name="key_offset", label="PADOFS", parm_type=Parms.IntParmType, default=0,
+            key_offset_parm = Parms.Parm(name="key_offset", label="PADOFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
                                      edit_callback_function=self.set_key_offset)
             parms.append(key_offset_parm)
 
             # Velocity
-            velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=127,
-                                       minmax = [0,127], edit_callback_function=self.set_velocity)
+            velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=self.velocity,
+                                       minmax = (0,127), edit_callback_function=self.set_velocity)
             parms.append(velocity_parm)
 
+        return parms
+
+    def create_out_parms(self):
+        parms = super().create_out_parms()
+        parms[0].options = INPUT_OPERATION_OPTIONS
+        parms[0].display_value = parms[0].get_display_value()
         return parms
 
     def set_key(self, key_id):

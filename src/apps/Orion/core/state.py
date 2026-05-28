@@ -44,9 +44,13 @@ class State:
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
 
     def update_parm_count(self):
-        self.parm_count = len(self.chain_modules[self.active_chain].get_parms())
+        module = self.chain_modules[self.active_chain]
+        self.parm_count = len(module.get_parms()) if module is not None else 0
 
     def move_active_chain_elem(self,delta):
+        current_module = self.chain_modules[self.active_chain]
+        if current_module is not None:
+            current_module.release_parms()
         self.active_chain = (self.active_chain+delta)%TOTALSLOTCOUNT
         self.update_parm_count()
         self.active_parm = 0
