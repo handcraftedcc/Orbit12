@@ -48,9 +48,8 @@ class Module:
 
     def create_top_parms(self):
         from ..modules._registry import (
-            AVAILABLE_MODULES,
             AVAILABLE_MODULE_NAMES,
-            AVAILABLE_MODULE_LABELS
+            get_module_class,
         )
         parms = []
 
@@ -62,8 +61,8 @@ class Module:
                 state_ref = self.state
                 slot_id = self.slot_id
                 ui_manager = self.module_helper.ui_manager
-                state_ref.set_chain_module(slot_id, AVAILABLE_MODULES[module_key])
-                ui_manager.parameter_section.rebuild_parm_section()
+                state_ref.set_chain_module(slot_id, get_module_class(module_key))
+                self.module_helper.orion.add_to_ui_queue(ui_manager.parameter_section.rebuild_parm_section)
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)

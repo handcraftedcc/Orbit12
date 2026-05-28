@@ -107,7 +107,7 @@ class State:
             registry = InputModuleRegistry
         else:
             registry = ModuleRegistry
-        self.module_selector_active_module = (self.module_selector_active_module + delta) % len(registry.AVAILABLE_MODULES)
+        self.module_selector_active_module = (self.module_selector_active_module + delta) % len(registry.AVAILABLE_MODULE_NAMES)
 
     def module_selector_apply_module_selection(self):
         if self.active_chain == ChainElements.IN:
@@ -119,7 +119,7 @@ class State:
         if active_key == selected_key :
             return
         else:
-            self.set_chain_module(self.active_chain, registry.AVAILABLE_MODULES[selected_key])
+            self.set_chain_module(self.active_chain, registry.get_module_class(selected_key))
 
     def stop_all_modules(self):
         for module in self.chain_modules:
