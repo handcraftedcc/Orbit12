@@ -1,12 +1,7 @@
 # Creates parm templates
-from .music import SCALENAMES
 from .music import NOTES
 from .music import RATE_LABELS
 from .music import RATE_VALUES
-
-class parmManager:
-    def __init__(self):
-        pass
 
 class Parm:
     __slots__ = (
@@ -96,7 +91,6 @@ class Parm:
 class ParmType:
     label = None
     name = None
-    value_type = None
 
     @classmethod
     def get_display_value(cls, parm):
@@ -127,18 +121,10 @@ class ParmEnterResult:
     STAY_IN_EDIT = 0
     RETURN_TO_SELECTION = 1
 
-class ValueType:
-    INT = 0
-    FLOAT = 1
-    STRING = 2
-    NONE = 3
-
 class IntParmType(ParmType):
-    value_type = ValueType.INT
+    pass
 
 class BooleanParmType(ParmType):
-    value_type = ValueType.INT
-
     @classmethod
     def get_display_value(cls, parm):
         if parm.value == 0:
@@ -152,22 +138,18 @@ class BooleanParmType(ParmType):
         return (parm.value + delta) % 2
 
 class FloatParmType(ParmType):
-    value_type = ValueType.FLOAT
+    pass
 
 class PercentParmType(ParmType):
-    value_type = ValueType.FLOAT
-
     @classmethod
     def get_display_value(cls, parm):
         parm.display_value = str(round(parm.value * 100)) + "%"
         return parm.display_value
 
 class StringParmType(ParmType):
-    value_type = ValueType.STRING
+    pass
 
 class ButtonParmType(ParmType):
-    value_type = ValueType.NONE
-
     @classmethod
     def enter(cls, parm):
         return ParmEnterResult.RETURN_TO_SELECTION
@@ -177,8 +159,6 @@ class ButtonParmType(ParmType):
         return ">"
 
 class EnumParmType(ParmType):
-    value_type = ValueType.INT
-
     @classmethod
     def get_display_value(cls, parm):
         return parm.options[parm.value]
@@ -191,10 +171,9 @@ class EnumParmType(ParmType):
         else:
             new_value = (parm.value + delta) % count
             parm.display_value = parm.options[new_value]
-            return new_value
+        return new_value
 
 class RateParmType(ParmType):
-    value_type = ValueType.INT
     rates_labels = RATE_LABELS
     rates_values = RATE_VALUES
     bar_count = 16
@@ -255,7 +234,6 @@ class RateParmType(ParmType):
         return rate
 
 class NoteParmType(ParmType):
-    value_type = ValueType.INT
     notes = NOTES
 
     @classmethod

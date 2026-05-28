@@ -1,6 +1,5 @@
 # Utilities for Note Array Management
 from .constants import POLYPHONY
-import random
 from array import array
 
 ### Main Class ###
@@ -28,11 +27,6 @@ class NoteArray:
 
     ### Helper Functions ###
     ## Reading ##
-    def get(self, index):
-        if index < 0 or index >= self.length:
-            return None
-        return self.notes[index]
-
     def contains(self, value, channel=None):
         for i in range(self.length):
             if self.notes[i] != value:
@@ -42,27 +36,6 @@ class NoteArray:
             if self.channels is not None and self.channels[i] == channel:
                 return True
         return False
-
-    def index_of(self, value, order=0, channel=None):
-        def matches(i):
-            if self.notes[i] != value:
-                return False
-
-            if channel is None:
-                return True
-
-            return self.channels is not None and self.channels[i] == channel
-
-        if order == 0:
-            for i in range(0, self.length):
-                if matches(i):
-                    return i
-        else:
-            for i in range(self.length - 1, -1, -1):
-                if matches(i):
-                    return i
-
-        return None
 
     def get_min_note(self):
         if self.length == 0:
@@ -90,29 +63,6 @@ class NoteArray:
 
     def clear(self):
         self.length = 0
-
-    def copy(self, note_array: "NoteArray"):
-        copy_length = note_array.length
-        if self.max_length < note_array.length:
-            copy_length = self.max_length
-        self.length = copy_length
-        for i in range(copy_length):
-            self.notes[i] = note_array.notes[i]
-            if self.velocities is not None:
-                if note_array.velocities is not None:
-                    self.velocities[i] = note_array.velocities[i]
-                else:
-                    self.velocities[i] = 127
-            if self.times is not None:
-                if note_array.times is not None:
-                    self.times[i] = note_array.times[i]
-                else:
-                    self.times[i] = 0
-            if self.channels is not None:
-                if note_array.channels is not None:
-                    self.channels[i] = note_array.channels[i]
-                else:
-                    self.channels[i] = 0
 
     def sort_notes(self):
         for i in range(1, self.length):
@@ -159,12 +109,6 @@ class NoteArray:
             self.swap_notes(left, right)
             left += 1
             right -= 1
-
-    def randomize_notes(self, seed: int):
-        random.seed(seed)
-        for i in range(self.length - 1, 0, -1):
-            rand = random.randint(0, i)
-            self.swap_notes(rand, i)
             
     def remove_index(self, index: int):
         if index < 0 or index >= self.length:
@@ -178,26 +122,20 @@ class NoteArray:
         return True
 
     def remove_value_first(self, value, order=0, channel=None):
-        def matches(i):
-            if self.notes[i] != value:
-                return False
-
-            if channel is None:
-                return True
-
-            return self.channels is not None and self.channels[i] == channel
-
+        notes = self.notes
+        channels = self.channels
+        match_any_channel = channel is None
         if order == 1:
             i = self.length - 1
             while i >= 0:
-                if matches(i):
+                if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
                     self.remove_index(i)
                     return i
                 i -= 1
         else:
             i = 0
             while i < self.length:
-                if matches(i):
+                if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
                     self.remove_index(i)
                     return i
                 i += 1
@@ -205,25 +143,19 @@ class NoteArray:
         return None
 
     def remove_value_all(self, value, order=0, channel=None):
-        def matches(i):
-            if self.notes[i] != value:
-                return False
-
-            if channel is None:
-                return True
-
-            return self.channels is not None and self.channels[i] == channel
-
+        notes = self.notes
+        channels = self.channels
+        match_any_channel = channel is None
         if order == 1:
             i = self.length - 1
             while i >= 0:
-                if matches(i):
+                if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
                     self.remove_index(i)
                 i -= 1
         else:
             i = 0
             while i < self.length:
-                if matches(i):
+                if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
                     self.remove_index(i)
                 else:
                     i += 1
@@ -289,19 +221,6 @@ class NoteArray:
 
         self.length += 1
         return True
-
-    def append_value_sorted(self, value: int, velocity=127, time=0, channel = 0, dedup=False):
-        if self.length >= self.max_length:
-            return False
-
-        for i in range(self.length):
-            if value == self.notes[i] and dedup:
-                return False
-
-            if value < self.notes[i]:
-                return self.insert_value_at_index(value, i, velocity, time, channel)
-
-        return self.append_value(value, velocity, time, channel)
 
 class NoteOnArray(NoteArray):
     __slots__ = ()

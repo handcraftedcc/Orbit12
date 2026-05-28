@@ -81,8 +81,13 @@ class Chord(Module):
                 velocity = note_ons.velocities[i]
 
             for idx,offset in enumerate(self.offsets):
-                if offset in self.offsets[:idx]:
-                        continue #skip duplicate notes
+                duplicate_offset = False
+                for previous_idx in range(idx):
+                    if self.offsets[previous_idx] == offset:
+                        duplicate_offset = True
+                        break
+                if duplicate_offset:
+                    continue  # skip duplicate notes
                 new_note = music.transpose(note, offset, 0, self.scale_aware, self.state.key, scale)
                 append = False
                 if self.note_relationship.in_array.length < self.note_relationship.in_array.max_length:

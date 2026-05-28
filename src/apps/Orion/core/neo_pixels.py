@@ -31,6 +31,20 @@ KEYBRIGHTNESSDEFAULT = 0.3
 KEYBRIGHTNESSHELD = 1
 KEYBRIGHTNESSMULTIPLIER = 1
 
+NAV_NOTE_COLORS = (
+    KEYCOLORNAVPARMS, KEYCOLORNAVNOTE, KEYOFF,
+    KEYCOLORNAVNOTE, KEYCOLORNAVNOTE, KEYCOLORNAVNOTE,
+    KEYOFF, KEYOFF, KEYOFF,
+    KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
+)
+
+NAV_PARM_COLORS = (
+    KEYCOLORNAVNOTE, KEYCOLORNAVPARMS, KEYCOLORENTER,
+    KEYCOLORNAVPARMS, KEYCOLORNAVPARMS, KEYCOLORNAVPARMS,
+    KEYOFF, KEYOFF, KEYOFF,
+    KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
+)
+
 
 def combine_color_and_brightness(color, brightness):
     r = int(((color >> 16) & 0xFF) * brightness)
@@ -95,19 +109,12 @@ class NeoPixels:
 
     def set_nav_state_colors(self, update = False):
         if self.state.nav_keys_state == 0: # NOTES
-            color_list = [KEYCOLORNAVPARMS, KEYCOLORNAVNOTE, KEYOFF,
-                    KEYCOLORNAVNOTE, KEYCOLORNAVNOTE, KEYCOLORNAVNOTE,
-                    KEYOFF, KEYOFF, KEYOFF,
-                    KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
-                    ]
+            color_list = NAV_NOTE_COLORS
         else: # NAV
-            color_list = [KEYCOLORNAVNOTE, KEYCOLORNAVPARMS, KEYCOLORENTER,
-                    KEYCOLORNAVPARMS, KEYCOLORNAVPARMS, KEYCOLORNAVPARMS,
-                    KEYOFF, KEYOFF, KEYOFF,
-                    KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
-                    ]
+            color_list = NAV_PARM_COLORS
         if not update:
-            self.pixel_colors_temp = self.pixel_colors.copy()
+            for idx in range(12):
+                self.pixel_colors_temp[idx] = self.pixel_colors[idx]
         self.set_key_colors(color_list)
 
     def exit_nav_state_colors(self):
