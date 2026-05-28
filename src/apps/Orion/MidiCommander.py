@@ -176,8 +176,8 @@ class MidiCommander:
             self.state.active_ui_section = UISection.CHAIN
             self.add_to_ui_queue(self.ui_manager.switch_section)
         elif self.state.active_parm == -1: #Check if on chain selection -> Switch back to chain selection
-            self.state.active_ui_section = UISection.MODULESELECTION
-            self.add_to_ui_queue(self.ui_manager.switch_section)
+            self.enter_module_selection()
+            return
         else:  # Go into parm edit
             self.state.active_ui_section = UISection.PARMEDIT
             active_parm = self.state.get_active_module_parm()
@@ -203,7 +203,9 @@ class MidiCommander:
     def enter_parm_selection(self):
         """Switch state to active module"""
         active_module = self.state.chain_modules[self.state.active_chain].name
-        if active_module == "empty": self.enter_module_selection()
+        if active_module == "empty":
+            self.enter_module_selection()
+            return
         else:
             self.state.active_ui_section = UISection.PARMSELECTION
             self.state.active_parm = 0

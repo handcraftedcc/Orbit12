@@ -601,8 +601,6 @@ class ModuleSelector(Section):
         self.group.x = 4
         self.group.y = 27
 
-        #self.rebuild_chain_section()
-
         main_group.append(self.group)
 
     def update_module_name(self):
