@@ -3,7 +3,8 @@ from . import parms as Parms
 from .note_array import NoteOnArray,NoteOffArray
 
 class ModuleHelper: #Used to centralize and unify module object access
-    def __init__(self, macropad, state, input_manager, output_manager, transport):
+    def __init__(self, Orion, macropad, state, input_manager, output_manager, transport):
+        self.orion = Orion
         self.macropad = macropad
         self.state = state
         self.input_manager = input_manager
@@ -19,6 +20,7 @@ class Module:
     version = 1
     def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
         self.parms = []
+        self.label_length = len(self.label)
         self.module_helper = module_helper
         self.state = module_helper.state
         self.ui_manager = module_helper.ui_manager
@@ -65,10 +67,6 @@ class Module:
                 return module_key
 
         current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
-        module_picker_parm = Parms.Parm("module_picker", "||MDLE||", Parms.EnumParmType, current_module_index,
-                                        options=AVAILABLE_MODULE_LABELS,
-                                        exit_callback_function=switch_module)
-        parms.append(module_picker_parm)
         return parms
 
     def create_main_parms(self):
@@ -170,7 +168,6 @@ class Module:
                 source = self.state.chain_modules[state.ChainElements.IN]
             else:
                 source = self.state.chain_modules[self.source_mode]
-            print("source", source)
             if hasattr(source,"note_ons_out") and hasattr(source,"note_offs_out"):
                 note_ons,note_offs = source.note_ons_out,source.note_offs_out
 

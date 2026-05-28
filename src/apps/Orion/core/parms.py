@@ -149,7 +149,7 @@ class ButtonParmType(ParmType):
 
     @classmethod
     def get_display_value(cls, parm):
-        return ""
+        return ">"
 
 class EnumParmType(ParmType):
     value_type = ValueType.INT

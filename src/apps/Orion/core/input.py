@@ -11,7 +11,7 @@ class InputManager:
         self.pressed = bytearray(13)  # bytearray - encoder + 12 keys
         self.released = bytearray(13)  # bytearray - encoder + 12 keys
         self.knob_delta = 0
-        self.knob_delta_nth = 4
+        self.knob_delta_nth = 8
         self.count = 0
 
     def get_inputs(self):

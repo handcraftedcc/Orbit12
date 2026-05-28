@@ -1,6 +1,6 @@
 from ..core.module import Module
 from ..core import parms as Parms
-from ..core import ui
+from ..core import neo_pixels
 from ..core._modules._input import Input, PADMAP
 from ..core.note_array import NoteOnArray, NoteOffArray
 
@@ -20,6 +20,8 @@ class Drum(Input):
 
         self.state.octave = 0
         self.state.key_offset = 0
+
+        self.ui_manager.header_footer.update_header_key_info(alt_text = "drums")
 
     def create_main_parms(self):
         parms = super().create_main_parms()
@@ -45,7 +47,7 @@ class Drum(Input):
         self.module_helper.output_manager.all_notes_off()
 
     def color_pixels(self, color_overrides: dict = None):
-        color_array = [ui.KEYCOLORDRUMS]*12
+        color_array = [neo_pixels.KEYCOLORDRUMS]*12
 
         try:
             self.module_helper.neo_pixels.set_key_colors(color_array)

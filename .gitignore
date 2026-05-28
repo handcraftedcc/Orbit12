@@ -15,3 +15,4 @@ src/apps/Orion/._helpers/Chords/__pycache__
 src/apps/Orion/__pycache__
 src/apps/__pycache__
 UI-DESIGN_00.ai
+*.tmp

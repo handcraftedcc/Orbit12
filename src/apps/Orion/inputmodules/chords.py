@@ -177,7 +177,7 @@ class Chords(Input):
         # Resolve into actual midi notes
         for i in range(self.temp_chord.length):
             note = self.temp_chord.notes[i]
-            octave = (note // scale_notes + (self.state.octave + Music.OCTAVEOFFSET + root_pad_octave))*12
+            octave = (note // scale_notes + (self.state.octave + 2 + root_pad_octave))*12
             degree = note % scale_notes
             note = scale[degree]+self.state.key
             self.temp_chord.notes[i] = note + octave

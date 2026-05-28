@@ -29,29 +29,6 @@ class Input(Module):
 
     def create_main_parms(self):
         parms = []
-        from ...inputmodules._registry import (
-            AVAILABLE_MODULES,
-            AVAILABLE_MODULE_NAMES,
-            AVAILABLE_MODULE_LABELS,
-        )
-
-        def switch_module(value):
-            module_key = AVAILABLE_MODULE_NAMES[value]
-            if module_key == self.name:
-                return None
-            else:
-                state_ref = self.state
-                slot_id = self.slot_id
-                ui_manager = self.module_helper.ui_manager
-                state_ref.set_chain_module(slot_id, AVAILABLE_MODULES[module_key])
-                ui_manager.parameter_section.rebuild_parm_section()
-                return module_key
-
-        current_module_index = AVAILABLE_MODULE_NAMES.index(self.name)
-        module_picker_parm = Parms.Parm("module_picker", "||MDLE||", Parms.EnumParmType, current_module_index,
-                                        options=AVAILABLE_MODULE_LABELS,
-                                        exit_callback_function=switch_module)
-        parms.append(module_picker_parm)
 
         if self.include_musical_parms:
             # Key
@@ -64,12 +41,12 @@ class Input(Module):
                                     options=Music.SCALENAMES, edit_callback_function=self.set_scale)
             parms.append(scale_parm)
             # Octave
-            octave_parm = Parms.Parm(name="octave", label="OCT", parm_type=Parms.IntParmType, default=0,
+            octave_parm = Parms.Parm(name="octave", label="OCT", parm_type=Parms.IntParmType, default=self.state.octave,
                                   edit_callback_function=self.set_octave)
             parms.append(octave_parm)
 
             # Key Offset
-            key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=0,
+            key_offset_parm = Parms.Parm(name="key_offset", label="KEYOF", parm_type=Parms.IntParmType, default=0,
                                      edit_callback_function=self.set_key_offset)
             parms.append(key_offset_parm)
 
@@ -83,15 +60,18 @@ class Input(Module):
     def set_key(self, key_id):
         self.state.key = key_id
         self.module_helper.output_manager.all_notes_off()
+        self.module_helper.ui_manager.header_footer.update_header_key_info()
 
     def set_scale(self, scale_id):
         self.state.scale = scale_id
         self.module_helper.output_manager.all_notes_off()
         self.color_pixels()
+        self.module_helper.ui_manager.header_footer.update_header_key_info()
 
     def set_octave(self, octave_id):
         self.state.octave = octave_id
         self.module_helper.output_manager.all_notes_off()
+        self.module_helper.ui_manager.header_footer.update_header_key_info()
 
     def set_key_offset(self, key_offset_id):
         self.state.key_offset = key_offset_id
@@ -133,7 +113,7 @@ class Input(Module):
         return (
                 scale[degree]
                 + self.state.key
-                + (octave + Music.OCTAVEOFFSET) * 12
+                + (octave+2) * 12
         )
 
     def process(self, note_ons, note_offs):

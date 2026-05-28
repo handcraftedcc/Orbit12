@@ -1,5 +1,3 @@
-import adafruit_macropad as MacroPad
-from .state import State
 from rainbowio import colorwheel
 
 COLORS = {
@@ -42,7 +40,7 @@ def combine_color_and_brightness(color, brightness):
 
 
 class NeoPixels:
-    def __init__(self,macropad: MacroPad, state: State):
+    def __init__(self, macropad, state):
         self.pixels = macropad.pixels
         self.state = state
         self.brightness_default = KEYBRIGHTNESSDEFAULT*KEYBRIGHTNESSMULTIPLIER

@@ -2,13 +2,6 @@ from ..module import Module
 from .. import parms as Parms
 from ..parms import Parm
 
-import gc
-
-def print_ram_usage(value):
-    gc.collect()
-    print(gc.mem_alloc())
-    print(gc.mem_free())
-
 class Transport(Module):
     """ This module only handles the UI of the transport.
     The actual midi clock stuff happens in the transport object in core."""
@@ -26,9 +19,6 @@ class Transport(Module):
 
     def create_main_parms(self):
         parms = []
-        print_ram_usage_parm = Parms.Parm("printRam", "RAM", Parms.ButtonParmType, None,
-                                          enter_callback_function=print_ram_usage)
-        parms.append(print_ram_usage_parm)
 
         transport_mode_options = ["INT", "EXT"]
         transport_mode_parm = Parms.Parm("mode", "MDE", Parms.EnumParmType, 0,

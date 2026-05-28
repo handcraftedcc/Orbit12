@@ -2,6 +2,8 @@ from ._modules._empty import Empty as EmptyModule
 from .constants import TOTALSLOTCOUNT, MODULESLOTCOUNT, PARMSPERPAGE, POLYPHONY
 from .music import NOTES
 from .music import SCALENAMES as SCALES
+from ..modules import _registry as ModuleRegistry
+from ..inputmodules import _registry as InputModuleRegistry
 
 import gc
 
@@ -11,7 +13,7 @@ class State:
         # Music State
         self.key = NOTES.index("C")
         self.scale = 1
-        self.octave = 0
+        self.octave = 3
         self.key_offset = 0
 
         # Timing State
@@ -31,6 +33,9 @@ class State:
         self.active_parm_page = 0
         self.parm_count = 2
 
+        # Module Selector State
+        self.module_selector_active_module = 0
+
         # Others
         self.ui_manager = None
         self.input_manager = None
@@ -43,13 +48,19 @@ class State:
         self.parm_count = len(self.chain_modules[self.active_chain].get_parms())
 
     def move_active_chain_elem(self,delta):
-        self.active_chain = (self.active_chain+delta)%9
+        self.active_chain = (self.active_chain+delta)%TOTALSLOTCOUNT
         self.update_parm_count()
-        self.active_parm = -1
+        self.active_parm = 0
 
     def move_active_parm_elem(self,delta):
-        self.active_parm = ((self.active_parm + 1 + delta) % (self.parm_count + 1)) - 1
-        self.active_parm_page = page_index = max(0, self.active_parm) // PARMSPERPAGE
+        prev_parm = self.active_parm
+        self.active_parm = ((self.active_parm + 2 + delta) % (self.parm_count + 2)) - 2
+        if self.active_parm == -1 and self.active_chain in ChainElements.STATICELEMENTS:
+            if prev_parm < self.active_parm:
+                self.active_parm = 0
+            else:
+                self.active_parm = -2
+        self.update_parm_count()
 
     def set_chain_module(self, slot_id, module_class):
         old_module = self.chain_modules[slot_id]
@@ -79,6 +90,37 @@ class State:
     def get_active_module_parm(self):
         return self.get_active_chain_module().get_parm(self.active_parm)
 
+    def module_selector_enter(self):
+        if self.active_chain == ChainElements.IN:
+            registry = InputModuleRegistry
+        else:
+            registry = ModuleRegistry
+        active_key = self.chain_modules[self.active_chain].name
+        if active_key in registry.AVAILABLE_MODULE_NAMES:
+            self.module_selector_active_module = registry.AVAILABLE_MODULE_NAMES.index(active_key)
+        else:
+            self.module_selector_active_module = 0
+
+    def module_selector_change_module_selection(self,delta):
+        registry = None
+        if self.active_chain == ChainElements.IN:
+            registry = InputModuleRegistry
+        else:
+            registry = ModuleRegistry
+        self.module_selector_active_module = (self.module_selector_active_module + delta) % len(registry.AVAILABLE_MODULES)
+
+    def module_selector_apply_module_selection(self):
+        if self.active_chain == ChainElements.IN:
+            registry = InputModuleRegistry
+        else:
+            registry = ModuleRegistry
+        active_key = self.chain_modules[self.active_chain].name
+        selected_key = registry.AVAILABLE_MODULE_NAMES[self.module_selector_active_module]
+        if active_key == selected_key :
+            return
+        else:
+            self.set_chain_module(self.active_chain, registry.AVAILABLE_MODULES[selected_key])
+
     def stop_all_modules(self):
         for module in self.chain_modules:
             module.stop()
@@ -89,7 +131,6 @@ class State:
             slot_id1]
         self.chain_modules[slot_id1].slot_id = slot_id1
         self.chain_modules[slot_id2].slot_id = slot_id2
-        print("swapped", slot_id1, slot_id2)
 
 class UISection:
     CHAIN = 0
@@ -107,6 +148,9 @@ class ChainElements:
     SLOT5 = 6
     SLOT6 = 7
     OUT = 8
+    SETTINGS = 9
+
+    STATICELEMENTS = (TRANSPORT,OUT,SETTINGS)
 
 class ChainModes:
     SELECT = 0
