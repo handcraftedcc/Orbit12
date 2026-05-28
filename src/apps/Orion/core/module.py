@@ -1,6 +1,23 @@
 from . import state
 from . import parms as Parms
-from .note_array import NoteOnArray,NoteOffArray
+import gc
+
+OPERATION_OPTIONS = [
+            "NEXT",
+            "OUT+N",
+            "OUT+S",
+            "SKIP"
+        ]
+
+SOURCE_OPTIONS = [
+    "PREV",
+    "IN",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+]
 
 class ModuleHelper: #Used to centralize and unify module object access
     def __init__(self, Orion, macropad, state, input_manager, output_manager, transport):
@@ -42,6 +59,8 @@ class Module:
         if include_out_parms:
             self.parms.extend(self.create_out_parms())
 
+        gc.collect()
+
 
 
     ### Parm Creation ###
@@ -74,14 +93,9 @@ class Module:
 
     def create_out_parms(self):
         parms = []
-        operation_options = [
-            "NEXT",
-            "OUT+N",
-            "OUT+S",
-            "SKIP"
-        ]
+
         operation_mode_parm = Parms.Parm("operation_mode", "OP", Parms.EnumParmType, 0,
-                                        options=operation_options,
+                                        options=OPERATION_OPTIONS,
                                         edit_callback_function=self.set_operation_mode)
         parms.append(operation_mode_parm)
         out_channel_parm = Parms.Parm("out_channel", "OUT CH", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
@@ -91,17 +105,8 @@ class Module:
 
     def create_source_parms(self):
         parms = []
-        source_options = [
-            "PREV",
-            "IN",
-            "S1",
-            "S2",
-            "S3",
-            "S4",
-            "S5",
-        ]
         source_mode_parm = Parms.Parm("source_mode", "SRC", Parms.EnumParmType, 0,
-                                        options=source_options,
+                                        options=SOURCE_OPTIONS,
                                         edit_callback_function=self.set_source_mode)
         parms.append(source_mode_parm)
         return parms

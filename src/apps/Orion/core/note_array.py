@@ -6,6 +6,15 @@ from array import array
 ### Main Class ###
 
 class NoteArray:
+    __slots__ = (
+        "notes",
+        "velocities",
+        "times",
+        "channels",
+        "length",
+        "max_length",
+    )
+
     def __init__(self, length = POLYPHONY, velocities = False, times = False, channels = None):
         self.notes = bytearray(length)
         if velocities: self.velocities = bytearray(length)
@@ -295,14 +304,24 @@ class NoteArray:
         return self.append_value(value, velocity, time, channel)
 
 class NoteOnArray(NoteArray):
+    __slots__ = ()
+
     def __init__(self, length = POLYPHONY, channels = False):
         super().__init__(length, velocities = True, channels= channels)
 
 class NoteOffArray(NoteArray):
+    __slots__ = ()
+
     def __init__(self, length = POLYPHONY, channels = False):
         super().__init__(length, channels = channels)
 
 class NoteRelationshipArray:
+    __slots__ = (
+        "in_array",
+        "out_array",
+        "return_array",
+    )
+
     def __init__(self, length = POLYPHONY):
         self.in_array = NoteArray(length)
         self.out_array = NoteArray(length)
@@ -356,4 +375,3 @@ class NoteRelationshipArray:
         self.in_array.clear()
         self.out_array.clear()
         self.return_array.clear()
-

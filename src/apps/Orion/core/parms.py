@@ -9,6 +9,24 @@ class parmManager:
         pass
 
 class Parm:
+    __slots__ = (
+        "name",
+        "label",
+        "type",
+        "value",
+        "minmax",
+        "jog_increment",
+        "options",
+        "include_bars",
+        "include_rates",
+        "multiple_octaves",
+        "octave_range",
+        "edit_callback_function",
+        "enter_callback_function",
+        "exit_callback_function",
+        "display_value",
+    )
+
     def __init__(
             self,
             name,
@@ -262,4 +280,3 @@ class NoteParmType(ParmType):
             label = cls.notes[note_num]
 
         return label
-
