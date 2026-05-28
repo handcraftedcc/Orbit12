@@ -18,10 +18,10 @@ class Empty(Module.Module):
     def create_main_parms(self):
         parms = []
         # Key
-        pick_module_parm = Parms.Parm(name="pick", label="PKMDLE", parm_type=Parms.ButtonParmType, default=0,
+        pick_module_parm = Parms.Parm(name="pick", label="PICK", parm_type=Parms.ButtonParmType, default=0,
                               enter_callback_function=self.enter_module_picker)
         parms.append(pick_module_parm)
         return parms
 
-    def enter_module_picker(self):
+    def enter_module_picker(self, value):
         self.module_helper.orion.enter_module_selection()

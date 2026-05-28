@@ -57,6 +57,13 @@ class Parm:
         if self.edit_callback_function:
             self.edit_callback_function(self.value)
         return self.value, self.display_value
+
+    def set_value(self,value):
+        if self.minmax:
+            value = min(max(value, self.minmax[0]),self.minmax[1])
+        self.value = value
+        self.display_value = self.get_display_value()
+        return self.value, self.display_value
     
     def enter(self):
         if self.enter_callback_function:

@@ -2,9 +2,7 @@
 from .music import SCALENAMES, NOTES
 from adafruit_macropad import MacroPad
 import displayio
-import terminalio
 import vectorio
-from adafruit_display_text.bitmap_label import Label
 from .state import State, ChainModes, UISection, ChainElements
 from .constants import PARMSPERPAGE
 
@@ -66,16 +64,20 @@ def set_text(tile_grid, text, align_right=False, write_range=(None,None)):
             text_index = i - offset
             tile_index = start + i
             if 0 <= text_index < len(text):
-                tile_grid[tile_index] = tile_for_char(text[text_index])
+                tile = tile_for_char(text[text_index])
             else:
-                tile_grid[tile_index] = 0
+                tile = 0
+            if tile_grid[tile_index] != tile:
+                tile_grid[tile_index] = tile
     else:
         for i in range(write_width):
             tile_index = start + i
             if i < len(text):
-                tile_grid[tile_index] = tile_for_char(text[i])
+                tile = tile_for_char(text[i])
             else:
-                tile_grid[tile_index] = 0
+                tile = 0
+            if tile_grid[tile_index] != tile:
+                tile_grid[tile_index] = tile
 
 
 
@@ -227,7 +229,7 @@ class HeaderFooter(Section):
 
         self.group.append(self.header_state_icons)
         self.header_state_icons[0] = 1
-        self.header_state_icons[1] = 2
+        self.header_state_icons[1] = 3
 
         self.footer_bg = vectorio.Rectangle(
             pixel_shader=white_palette,
@@ -255,6 +257,7 @@ class HeaderFooter(Section):
         self.update_header_key_info()
         self.update_header_chain_id()
         self.update_header_module_label()
+        self.update_header_state_icons()
 
         main_group.append(self.group)
 
@@ -278,14 +281,16 @@ class HeaderFooter(Section):
         set_text(self.header_key_info, new_text, align_right=True)
 
     def update_header_state_icons(self):
-        if self.transport.running:
+        if self.state.transport_mode == 1:
+            self.header_state_icons[0] = 2
+        elif self.transport.running:
             self.header_state_icons[0] = 0
         else:
             self.header_state_icons[0] = 1
         if self.state.nav_keys_state == 0:
-            self.header_state_icons[1] = 2
-        else:
             self.header_state_icons[1] = 3
+        else:
+            self.header_state_icons[1] = 4
 
     def update_footer_help_text(self, new_help_text):
         set_text(self.footer_help_text, new_help_text)
@@ -483,6 +488,53 @@ class ParameterSection(Section):
             return None
         return row
 
+    def get_active_parm_and_scroll(self, parm_count):
+        active_parm = self.state.active_parm
+        if active_parm < 0:
+            active_parm = 0
+        elif active_parm >= parm_count:
+            active_parm = parm_count - 1
+
+        if active_parm > self.last_active_parm:
+            direction = 1
+        elif active_parm < self.last_active_parm:
+            direction = -1
+        else:
+            direction = 1
+
+        if direction > 0:
+            preferred_row = PARMSPERPAGE - 2
+        else:
+            preferred_row = 1
+
+        max_scroll = max(0, parm_count - PARMSPERPAGE)
+        scroll_offset = active_parm - preferred_row
+        if scroll_offset < 0:
+            scroll_offset = 0
+        elif scroll_offset > max_scroll:
+            scroll_offset = max_scroll
+
+        return active_parm, scroll_offset
+
+    def update_parm_row_layout(self, highlight_row):
+        for i in range(PARMSPERPAGE):
+            if i == highlight_row:
+                if self.parm_groups[i].scale != 2:
+                    self.parm_groups[i].scale = 2
+                if self.parm_values[i].x != 31:
+                    self.parm_values[i].x = 31
+            else:
+                if self.parm_groups[i].scale != 1:
+                    self.parm_groups[i].scale = 1
+                if self.parm_values[i].x != 91:
+                    self.parm_values[i].x = 91
+
+            ypos = 15 + 8 * i
+            if i > highlight_row:
+                ypos += 5
+            if self.parm_groups[i].y != ypos:
+                self.parm_groups[i].y = ypos
+
     def cursor_change_state(self):
         """Use to change cursor state between parm selection and edit"""
         highlight_row = self.state.active_parm - self.scroll_offset
@@ -508,6 +560,23 @@ class ParameterSection(Section):
             else:
                 self.cursor.x = 0
 
+    def update_parm_selection(self):
+        module = self.state.chain_modules[self.state.active_chain]
+        parm_count = len(module.get_parms())
+        if parm_count == 0:
+            self.rebuild_parm_section()
+            return
+
+        active_parm, scroll_offset = self.get_active_parm_and_scroll(parm_count)
+        if parm_count != self.parm_count or scroll_offset != self.scroll_offset:
+            self.rebuild_parm_section()
+            return
+
+        highlight_row = active_parm - self.scroll_offset
+        self.update_parm_row_layout(highlight_row)
+        self.cursor_change_state()
+        self.last_active_parm = active_parm
+
     def rebuild_parm_section(self):
         module = self.state.chain_modules[self.state.active_chain]
         parms = module.get_parms()
@@ -519,32 +588,8 @@ class ParameterSection(Section):
                 set_text(self.parm_values[i], " ")
             return
 
-        active_parm = self.state.active_parm
-        if active_parm < 0:
-            active_parm = 0
-        elif active_parm >= self.parm_count:
-            active_parm = self.parm_count - 1
-
-        if active_parm > self.last_active_parm:
-            direction = 1
-        elif active_parm < self.last_active_parm:
-            direction = -1
-        else:
-            direction = 1
-
+        active_parm, self.scroll_offset = self.get_active_parm_and_scroll(self.parm_count)
         visible_rows = PARMSPERPAGE
-        if direction > 0:
-            preferred_row = visible_rows - 2
-        else:
-            preferred_row = 1
-
-        max_scroll = max(0, self.parm_count - visible_rows)
-
-        self.scroll_offset = active_parm - preferred_row
-        if self.scroll_offset < 0:
-            self.scroll_offset = 0
-        elif self.scroll_offset > max_scroll:
-            self.scroll_offset = max_scroll
 
         highlight_row = active_parm - self.scroll_offset
 
@@ -559,16 +604,7 @@ class ParameterSection(Section):
                 set_text(self.parm_labels[i], " ")
                 set_text(self.parm_values[i], " ")
 
-            if i == highlight_row: #Highlight parm
-                self.parm_groups[i].scale = 2
-                self.parm_values[i].x = 31
-            else: #Reset others
-                self.parm_groups[i].scale = 1
-                self.parm_values[i].x = 91
-
-            ypos = 15 + 8 * i
-            if i > highlight_row: ypos += 5 #Offset rows under highlighted row
-            self.parm_groups[i].y = ypos
+        self.update_parm_row_layout(highlight_row)
 
         self.cursor_change_state()
 

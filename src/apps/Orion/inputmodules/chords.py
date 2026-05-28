@@ -71,7 +71,7 @@ class Chords(Input):
         # Borrow Scale
         borrow_scale_options = ["AUTO"]
         borrow_scale_options.extend(Music.SCALENAMES[1:])
-        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRW SCL", parm_type=Parms.EnumParmType, default=0,
+        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRWSCL", parm_type=Parms.EnumParmType, default=0,
                                       options=borrow_scale_options,
                                       edit_callback_function=self.set_borrow_scale)
         parms.append(borrow_scale_parm)

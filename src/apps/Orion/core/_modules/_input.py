@@ -46,7 +46,7 @@ class Input(Module):
             parms.append(octave_parm)
 
             # Key Offset
-            key_offset_parm = Parms.Parm(name="key_offset", label="KEYOF", parm_type=Parms.IntParmType, default=0,
+            key_offset_parm = Parms.Parm(name="key_offset", label="PADOFS", parm_type=Parms.IntParmType, default=0,
                                      edit_callback_function=self.set_key_offset)
             parms.append(key_offset_parm)
 

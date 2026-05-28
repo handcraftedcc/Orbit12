@@ -156,7 +156,7 @@ class MidiCommander:
             self.state.stop_all_modules()
         else:
             self.state.move_active_chain_elem(delta)
-            self.state.active_parm = -1
+            self.state.active_parm = 0
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_id)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
@@ -168,7 +168,7 @@ class MidiCommander:
         if self.state.active_parm < 0:
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
         else:
-            self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+            self.add_to_ui_queue(self.ui_manager.parameter_section.update_parm_selection)
 
 
     def enter_parm_edit(self):
@@ -182,6 +182,8 @@ class MidiCommander:
             self.state.active_ui_section = UISection.PARMEDIT
             active_parm = self.state.get_active_module_parm()
             enter_result = active_parm.enter()
+            if self.state.active_ui_section != UISection.PARMEDIT:
+                return
             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                 self.state.active_ui_section = UISection.PARMSELECTION
 
@@ -228,7 +230,9 @@ class MidiCommander:
         self.state.module_selector_apply_module_selection()
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
         active_module = self.state.chain_modules[self.state.active_chain].name
-        if active_module == "empty": self.state.active_ui_section = UISection.CHAIN
+        if active_module == "empty":
+            self.state.active_ui_section = UISection.CHAIN
+            self.add_to_ui_queue(self.ui_manager.switch_section)
         else:
             self.enter_parm_selection()
 
@@ -317,6 +321,8 @@ class MidiCommander:
                             if self.state.active_chain_mode == state.ChainModes.SWAP:
                                 self.disable_chain_swap_mode()
                             self.enter_parm_selection()
+                        elif self.state.active_ui_section == UISection.MODULESELECTION:
+                            self.exit_module_selection()
                         elif self.state.active_ui_section == UISection.PARMSELECTION:
                             self.enter_parm_edit()
                         elif self.state.active_ui_section == UISection.PARMEDIT:
@@ -325,12 +331,23 @@ class MidiCommander:
                     if self.state.nav_keys_state == 0: #Nav Notes
                         if pressed[2]:
                             self.state.octave+=1
+                            self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
                         if pressed[5]:
                             self.state.octave-=1
+                            self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
                         if pressed[4]:
                             self.state.key_offset -= 1
                         if pressed[6]:
                             self.state.key_offset += 1
+                        if self.state.active_chain == ChainElements.IN:
+                            in_module = self.state.chain_modules[self.state.active_chain]
+                            parm_octave = in_module.get_parm_by_name("octave")
+                            if parm_octave:
+                                parm_octave.set_value(self.state.octave)
+                            key_offset = in_module.get_parm_by_name("key_offset")
+                            if key_offset:
+                                key_offset.set_value(self.state.key_offset)
+                            self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
 
                     if self.state.nav_keys_state == 1: #Nav Parms
                         # Active section: Chain #
@@ -368,12 +385,10 @@ class MidiCommander:
                             if pressed[5]:  # DOWN
                                 self.move_active_parm_element(1)
                             if pressed[4]:  # LEFT
-                                self.state.active_ui_section = UISection.CHAIN
-                                self.state.active_parm = -1
+                                self.state.active_parm = 0
                                 self.move_active_chain_element(-1)
                             if pressed[6]:  # RIGHT
-                                self.state.active_ui_section = UISection.CHAIN
-                                self.state.active_parm = -1
+                                self.state.active_parm = 0
                                 self.move_active_chain_element(1)
 
                         # Active Section: Parm Edit #
@@ -474,7 +489,7 @@ class MidiCommander:
             self.maybe_gc()
 
             ### Update UI & screen ###
-            if self.ui_queue and self.can_do_ui_work(min_slack_ms=16):
+            if self.ui_queue and self.can_do_ui_work(min_slack_ms=12):
                 callback = self.ui_queue.pop(0)
                 current = ticks.ticks_ms()
                 callback()
@@ -483,7 +498,7 @@ class MidiCommander:
                 # mark refresh, but don't flush display immediately
                 self.screen_update_needed = True
 
-            if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work():
+            if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work(min_slack_ms=12):
                 self.ui_manager.screen.update()
                 self.screen_update_needed = False
 
