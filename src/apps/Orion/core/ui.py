@@ -21,13 +21,16 @@ STATEINDICATORSBITMAP_DIMENSIONS = (7,5)
 CHAINCURSORBITMAP = displayio.OnDiskBitmap("apps/Orion/imgs/ChainNav_12x5.1.bmp")
 CHAINCURSORBITMAP_DIMENSIONS = (12,6)
 
+CHAINPREVIEWBITMAP = displayio.OnDiskBitmap("apps/Orion/imgs/ChainPreview_3x3.bmp")
+CHAINPREVIEWBITMAP_DIMENSIONS = (3,3)
+
 CHAINITEMS = "IT123456O*"
 
 MODULECHARS = 6
 KEYCHARS = 6
 PARMLABELCHARS = 6
 PARMVALUECHARS = 5
-HELPERCHARS = 24
+HELPERCHARS = 17
 CHAINCHARS = 10
 MODULESELECTORCHARS = 10
 
@@ -253,10 +256,26 @@ class HeaderFooter(Section):
         self.group.append(self.footer_help_text)
         set_text(self.footer_help_text, ":THIS IS HELP A TEXT")
 
+        self.footer_chain_preview = displayio.TileGrid(
+            CHAINPREVIEWBITMAP,
+            pixel_shader=text_palette,
+            width=5,  # number of visible tile cells
+            height=2,
+            tile_width=CHAINPREVIEWBITMAP_DIMENSIONS[0],
+            tile_height=CHAINPREVIEWBITMAP_DIMENSIONS[1],
+            x=110, y=56
+        )
+
+        self.group.append(self.footer_chain_preview)
+        self.footer_chain_preview[0] = 1
+        for i in range(1,10):
+            self.footer_chain_preview[i] = 2
+
         self.update_header_key_info()
         self.update_header_chain_id()
         self.update_header_module_label()
         self.update_header_state_icons()
+        self.update_footer_chain_preview()
 
         main_group.append(self.group)
 
@@ -293,6 +312,13 @@ class HeaderFooter(Section):
 
     def update_footer_help_text(self, new_help_text):
         set_text(self.footer_help_text, new_help_text)
+
+    def update_footer_chain_preview(self):
+        for i in range(10):
+            if i == self.state.active_chain:
+                self.footer_chain_preview[i]=1
+            else:
+                self.footer_chain_preview[i]=2
 
 
 class Chain(Section):

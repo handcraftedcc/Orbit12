@@ -164,6 +164,7 @@ class MidiCommander:
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_id)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_chain_preview)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
 
     def move_active_parm_element(self, delta):
@@ -216,6 +217,11 @@ class MidiCommander:
             self.state.active_ui_section = UISection.PARMSELECTION
             self.state.active_parm = 0
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+        self.add_to_ui_queue(self.ui_manager.switch_section)
+
+    def enter_chain_view(self):
+        self.state.active_ui_section = UISection.CHAIN
+        self.state.active_parm = 0
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
     def enter_module_selection(self):
@@ -308,19 +314,22 @@ class MidiCommander:
                     self.disable_chain_swap_mode()
                 if downstate[0]==1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
-                    if pressed[11]:
+                    if pressed[2]: # Start Clock
                         self.transport.clock_start()
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
-                    if pressed[10]:
+                    if pressed[1]: # Stop Clock
                         self.transport.clock_stop()
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
 
-                    if pressed[1]: # Switch Nav State
+                    if pressed[5]: # Go to Chain
+                        self.enter_chain_view()
+
+                    if pressed[7]: # Switch Nav State
                         self.state.nav_keys_state = (self.state.nav_keys_state+1) % 2
                         self.neo_pixels.set_nav_state_colors(update=True)
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
 
-                    if pressed[3]: # Switch between Nav and Modify State
+                    if pressed[9]: # Switch between Nav and Modify State
                         if self.state.active_ui_section == UISection.CHAIN:
                             if self.state.active_chain_mode == state.ChainModes.SWAP:
                                 self.disable_chain_swap_mode()
@@ -333,15 +342,15 @@ class MidiCommander:
                             self.exit_parm_edit()
 
                     if self.state.nav_keys_state == 0: #Nav Notes
-                        if pressed[2]:
+                        if pressed[8]:
                             self.state.octave+=1
                             self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
-                        if pressed[5]:
+                        if pressed[11]:
                             self.state.octave-=1
                             self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
-                        if pressed[4]:
+                        if pressed[10]:
                             self.state.key_offset -= 1
-                        if pressed[6]:
+                        if pressed[12]:
                             self.state.key_offset += 1
                         if self.state.active_chain == ChainElements.IN:
                             in_module = self.state.chain_modules[self.state.active_chain]
@@ -356,54 +365,54 @@ class MidiCommander:
                     if self.state.nav_keys_state == 1: #Nav Parms
                         # Active section: Chain #
                         if self.state.active_ui_section == UISection.CHAIN:
-                            if pressed[2]: #UP
+                            if pressed[8]: #UP
                                 if self.state.active_chain_mode == state.ChainModes.SWAP:
                                     self.disable_chain_swap_mode()
                                 self.state.active_ui_section = UISection.PARMSELECTION
                                 self.move_active_parm_element(-1)
-                            if pressed[5]: #DOWN
+                            if pressed[11]: #DOWN
                                 if self.state.active_chain_mode == state.ChainModes.SWAP:
                                     self.disable_chain_swap_mode()
                                 self.state.active_ui_section = UISection.PARMSELECTION
                                 self.move_active_parm_element(1)
-                            if pressed[4]: #LEFT
+                            if pressed[10]: #LEFT
                                 self.move_active_chain_element(-1)
-                            if pressed[6]: #RIGHT
+                            if pressed[12]: #RIGHT
                                 self.move_active_chain_element(1)
 
                         # Active section: Parm Selection #
                         elif self.state.active_ui_section == UISection.MODULESELECTION:
-                            if pressed[2]:  # UP
+                            if pressed[8]:  # UP
                                 self.move_module_selection(-1)
-                            if pressed[5]:  # DOWN
+                            if pressed[11]:  # DOWN
                                 self.move_module_selection(1)
-                            if pressed[4]:  # LEFT
+                            if pressed[10]:  # LEFT
                                 self.move_module_selection(1)
-                            if pressed[6]:  # RIGHT
+                            if pressed[12]:  # RIGHT
                                 self.move_module_selection(-1)
 
                         # Active section: Parm Selection #
                         elif self.state.active_ui_section == UISection.PARMSELECTION:
-                            if pressed[2]:  # UP
+                            if pressed[8]:  # UP
                                 self.move_active_parm_element(-1)
-                            if pressed[5]:  # DOWN
+                            if pressed[11]:  # DOWN
                                 self.move_active_parm_element(1)
-                            if pressed[4]:  # LEFT
+                            if pressed[10]:  # LEFT
                                 self.state.active_parm = 0
                                 self.move_active_chain_element(-1)
-                            if pressed[6]:  # RIGHT
+                            if pressed[12]:  # RIGHT
                                 self.state.active_parm = 0
                                 self.move_active_chain_element(1)
 
                         # Active Section: Parm Edit #
                         elif self.state.active_ui_section == UISection.PARMEDIT:
-                            if pressed[2]:  # UP
+                            if pressed[8]:  # UP
                                 self.edit_parm(1)
-                            if pressed[5]:  # DOWN
+                            if pressed[11]:  # DOWN
                                 self.edit_parm(-1)
-                            if pressed[4]:  # LEFT
+                            if pressed[10]:  # LEFT
                                 self.edit_parm(-1)
-                            if pressed[6]:  # RIGHT
+                            if pressed[12]:  # RIGHT
                                 self.edit_parm(1)
 
                 else: #knob is not held -> simple button press
