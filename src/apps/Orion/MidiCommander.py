@@ -35,6 +35,12 @@ SCREENREFRESHRATE = 4
 SWAP_CHAIN_MIN = ChainElements.SLOT1
 SWAP_CHAIN_MAX = ChainElements.SLOT6
 
+MSG_STATE_CHAIN_SELECTION = "SEL CHAIN ELEMNT"
+MSG_STATE_CHAIN_SWAP = "SWAP CHAIN ELEMNT"
+MSG_STATE_PARM_SELECTION = "SEL PARM"
+MSG_STATE_PARM_EDIT = "EDIT PARM"
+MSG_STATE_MODULE_SELECTION = "SEL MODULE"
+
 class MidiCommander:
     def __init__(self):
         # Init macropad
@@ -92,6 +98,7 @@ class MidiCommander:
         self.ui_manager = ui.UIManager(self.macropad,self.state, self.transport)
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
+        self.update_help_text(MSG_STATE_CHAIN_SELECTION)
 
         # Update Pixels
         self.module_helper.neo_pixels = self.neo_pixels
@@ -137,6 +144,11 @@ class MidiCommander:
                 gc.collect()
                 self.last_gc_ms = now
 
+    def update_help_text(self, text):
+        if self.state.help_text != text:
+            self.state.help_text = text
+            self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
+
     def move_active_chain_element(self, delta):
         if self.chain_swap_mode == 2: #Swap instead of move active
             if self.state.active_chain < SWAP_CHAIN_MIN:
@@ -172,26 +184,33 @@ class MidiCommander:
         self.state.move_active_parm_elem(delta)
         if self.state.active_parm < 0:
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
+            if self.state.active_parm == -1:
+                self.update_help_text(MSG_STATE_MODULE_SELECTION)
+            else:
+                self.update_help_text(MSG_STATE_CHAIN_SELECTION)
         else:
+            self.update_help_text(MSG_STATE_PARM_SELECTION)
             self.add_to_ui_queue(self.ui_manager.parameter_section.update_parm_selection)
-        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
-
 
     def enter_parm_edit(self):
         if self.state.active_parm == -2: #Check if on chain selection -> Switch back to chain selection
             self.state.active_ui_section = UISection.CHAIN
+            self.update_help_text(MSG_STATE_CHAIN_SELECTION)
             self.add_to_ui_queue(self.ui_manager.switch_section)
-        elif self.state.active_parm == -1: #Check if on chain selection -> Switch back to chain selection
+
+        elif self.state.active_parm == -1: #Check if on chain selection -> Switch to module selection
             self.enter_module_selection()
             return
         else:  # Go into parm edit
             self.state.active_ui_section = UISection.PARMEDIT
+            self.update_help_text(MSG_STATE_PARM_EDIT)
             active_parm = self.state.get_active_module_parm()
             enter_result = active_parm.enter()
             if self.state.active_ui_section != UISection.PARMEDIT:
                 return
             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                 self.state.active_ui_section = UISection.PARMSELECTION
+                self.update_help_text(MSG_STATE_PARM_SELECTION)
 
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
 
@@ -200,6 +219,7 @@ class MidiCommander:
         active_parm = self.state.get_active_module_parm()
         active_parm.exit()
         self.state.active_ui_section = UISection.PARMSELECTION
+        self.update_help_text(MSG_STATE_PARM_SELECTION)
 
         self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
 
@@ -216,12 +236,14 @@ class MidiCommander:
             return
         else:
             self.state.active_ui_section = UISection.PARMSELECTION
+            self.update_help_text(MSG_STATE_PARM_SELECTION)
             self.state.active_parm = 0
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
     def enter_chain_view(self):
         self.state.active_ui_section = UISection.CHAIN
+        self.update_help_text(MSG_STATE_CHAIN_SELECTION)
         self.state.active_parm = 0
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
@@ -229,6 +251,7 @@ class MidiCommander:
         if self.state.active_chain == ChainElements.TRANSPORT:
             return
         self.state.active_ui_section = UISection.MODULESELECTION
+        self.update_help_text(MSG_STATE_MODULE_SELECTION)
         self.state.module_selector_enter()
         self.add_to_ui_queue(self.ui_manager.module_selector.update_module_name)
         self.add_to_ui_queue(self.ui_manager.switch_section)
@@ -242,23 +265,29 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
         active_module = self.state.chain_modules[self.state.active_chain].name
         if active_module == "empty":
+            self.update_help_text(MSG_STATE_CHAIN_SELECTION)
             self.state.active_ui_section = UISection.CHAIN
             self.add_to_ui_queue(self.ui_manager.switch_section)
         else:
+            self.update_help_text(MSG_STATE_PARM_EDIT)
             self.enter_parm_selection()
 
     def enable_chain_swap_mode(self):
         if self.state.active_chain < SWAP_CHAIN_MIN:
             self.disable_chain_swap_mode()
+            self.update_help_text(MSG_STATE_CHAIN_SELECTION)
             return
         if self.state.active_chain > SWAP_CHAIN_MAX:
             self.disable_chain_swap_mode()
+            self.update_help_text(MSG_STATE_CHAIN_SELECTION)
             return
+        self.update_help_text(MSG_STATE_CHAIN_SWAP)
         self.state.active_chain_mode = state.ChainModes.SWAP
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
 
     def disable_chain_swap_mode(self):
         self.state.active_chain_mode = state.ChainModes.SELECT
+        self.update_help_text(MSG_STATE_CHAIN_SELECTION)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.knob_hold_down_start = None
         self.chain_swap_mode = 0

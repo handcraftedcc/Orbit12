@@ -42,6 +42,7 @@ BORROW_SCALE_OPTIONS = ("AUTO",) + Music.SCALENAMES[1:]
 class Chords(Input):
     name = "chords"
     label = "CHRD"
+    help_text = "CHORD GENERATOR"
     def __init__(self, module_helper, slot_id):
         self.bass_mode = 0
         self.spread_mode = 0

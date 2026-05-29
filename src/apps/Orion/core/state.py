@@ -43,7 +43,7 @@ class State:
         self.macropad = macropad
         self.module_helper = None
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
-        self.help_text = "CHAIN SELECTION"
+        self.help_text = "SEL CHAIN ELMT"
 
     def update_parm_count(self):
         module = self.chain_modules[self.active_chain]
@@ -65,10 +65,6 @@ class State:
                 self.active_parm = 0
             else:
                 self.active_parm = -2
-        if self.chain_modules[self.active_chain].parms[self.active_parm].help_text is not None:
-            self.help_text = self.chain_modules[self.active_chain].parms[self.active_parm].help_text
-        else:
-            self.help_text = "PARM SELECTION"
         self.update_parm_count()
 
     def set_chain_module(self, slot_id, module_class):

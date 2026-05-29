@@ -9,6 +9,7 @@ RANDOMIZE_MODE_OPTIONS = ("UNI", "BI")
 class Randomize(Module):
     name = "randomize"
     label = "RND"
+    help_text = "RAND VEL/OCT/NOTE.."
     version = 1
     def __init__(self, module_helper, slot_id):
         self.note_relationship = NoteRelationshipArray()

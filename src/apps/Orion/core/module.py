@@ -34,6 +34,7 @@ class ModuleHelper: #Used to centralize and unify module object access
 class Module:
     name = None
     label = None
+    help_text = None
     version = 1
     def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
         self.parms = None

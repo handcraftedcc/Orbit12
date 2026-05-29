@@ -13,6 +13,7 @@ LAYOUT_OPTIONS = ("ORD", "L12", "R12", "B3R", "B3F")
 class Drum(Input):
     name = "drum"
     label = "DRUM"
+    help_text = "SIMPLE DRUM LAYOUT"
     def __init__(self, module_helper, slot_id):
         self.layout = 0
         self.velocity = 127

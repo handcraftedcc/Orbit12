@@ -14,6 +14,7 @@ PICK_MODE_OPTIONS = (
 class Pick(Module):
     name = "pick"
     label = "PICK"
+    help_text = "PICKS SINGLE NOTE"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.pick_mode = 0

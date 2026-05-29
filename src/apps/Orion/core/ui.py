@@ -150,6 +150,7 @@ class HeaderFooter(Section):
 
         self.transport = transport
         self.key_info_custom_text = None
+        self.current_help_text = None
         white_palette = displayio.Palette(1)
         white_palette[0] = 0xFFFFFF
 
@@ -298,7 +299,9 @@ class HeaderFooter(Section):
             self.footer_state_icons[1] = 4
 
     def update_footer_help_text(self):
-        if self.state.help_text:
+        if self.state.help_text == self.current_help_text:
+            return
+        elif self.state.help_text:
             set_text(self.footer_help_text, self.state.help_text)
         else:
             set_text(self.footer_help_text, " ")

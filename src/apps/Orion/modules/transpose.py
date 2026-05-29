@@ -6,6 +6,7 @@ from ..core.note_array import NoteRelationshipArray,NoteOnArray,NoteOffArray
 class Transpose(Module):
     name = "transpose"
     label = "TRNS"
+    help_text = "SCL AWARE TRANSPOSE"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.note_relationship = NoteRelationshipArray()

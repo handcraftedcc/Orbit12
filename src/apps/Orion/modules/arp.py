@@ -23,6 +23,7 @@ MODE_REPEAT = MODE_LIST.index("RPT")
 class Arp(Module):
     name = "arp"
     label = "ARP"
+    help_text = "ADVANCED ARPEGGIATOR"
     version = 1
     def __init__(self, module_helper, slot_id):
         #TODO: Rewrite to new Note Array Format

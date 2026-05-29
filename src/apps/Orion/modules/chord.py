@@ -14,6 +14,7 @@ def find_closest(values, target):
 class Chord(Module):
     name = "chord"
     label = "CHRD"
+    help_text = "SIMPLE CHORD GENERATOR"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.offsets = [0,2,4,0,0]
