@@ -242,7 +242,7 @@ class HeaderFooter(Section):
         )
 
         self.group.append(self.footer_help_text)
-        set_text(self.footer_help_text, ":THIS IS HELP A TEXT")
+        set_text(self.footer_help_text, ":HELP TEXT HERE")
 
         self.footer_state_icons = displayio.TileGrid(
             STATEINDICATORSBITMAP,
@@ -263,6 +263,7 @@ class HeaderFooter(Section):
         self.update_header_module_label()
         self.update_footer_state_icons()
         self.update_header_chain_preview()
+        self.update_footer_help_text()
 
         main_group.append(self.group)
 
@@ -296,8 +297,11 @@ class HeaderFooter(Section):
         else:
             self.footer_state_icons[1] = 4
 
-    def update_footer_help_text(self, new_help_text):
-        set_text(self.footer_help_text, new_help_text)
+    def update_footer_help_text(self):
+        if self.state.help_text:
+            set_text(self.footer_help_text, self.state.help_text)
+        else:
+            set_text(self.footer_help_text, " ")
 
     def update_header_chain_preview(self):
         for i in range(10):
@@ -307,7 +311,7 @@ class HeaderFooter(Section):
             if self.state.chain_modules[i].name == "empty":
                 self.header_chain_preview[i] = 1
             else:
-                self.header_chain_preview[i]=2
+                self.header_chain_preview[i] = 2
 
 
 class Chain(Section):

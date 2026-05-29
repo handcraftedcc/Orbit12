@@ -33,7 +33,6 @@ KEYWHITE = COLORS["white"]
 
 KEYBRIGHTNESSDEFAULT = 0.3
 KEYBRIGHTNESSHELD = 1
-KEYBRIGHTNESSMULTIPLIER = 1
 
 NAV_NOTE_COLORS = (
     KEYCOLORSTOP, KEYCOLORSTART, KEYOFF,
@@ -61,8 +60,9 @@ class NeoPixels:
     def __init__(self, macropad, state):
         self.pixels = macropad.pixels
         self.state = state
-        self.brightness_default = KEYBRIGHTNESSDEFAULT*KEYBRIGHTNESSMULTIPLIER
-        self.brightness_held = KEYBRIGHTNESSHELD*KEYBRIGHTNESSMULTIPLIER
+        self.brightness_multiplier = 1.0
+        self.brightness_default = KEYBRIGHTNESSDEFAULT
+        self.brightness_held = KEYBRIGHTNESSHELD
         self.pixels.fill(int(KEYCOLORBASE*self.brightness_default))
         self.pixel_colors = [KEYCOLORBASE]*12
         self.pixel_colors_temp = [KEYCOLORBASE]*12
@@ -71,22 +71,22 @@ class NeoPixels:
     def set_held_pixel(self, pressed_pad):
         if not self.held_pixels[pressed_pad]:
             self.held_pixels[pressed_pad] = 1
-            self.paint_pixel(pressed_pad,brightness = self.brightness_held)
+            self.paint_pixel(pressed_pad,brightness = self.brightness_held*self.brightness_multiplier)
 
     def release_held_pixel(self, released_pad):
         if self.held_pixels[released_pad]:
             self.held_pixels[released_pad] = 0
-            self.paint_pixel(released_pad,brightness = self.brightness_default)
+            self.paint_pixel(released_pad,brightness = self.brightness_default*self.brightness_multiplier)
 
     def paint_pixels(self):
         for idx in range(len(self.pixel_colors)):
             color = self.pixel_colors[idx]
-            color = combine_color_and_brightness(color,self.brightness_default)
+            color = combine_color_and_brightness(color,self.brightness_default*self.brightness_multiplier)
             self.pixels[idx] = color
 
     def paint_pixel(self, pad, brightness=1.0):
         color = self.pixel_colors[pad]
-        color = combine_color_and_brightness(color,brightness)
+        color = combine_color_and_brightness(color,brightness*self.brightness_multiplier)
         self.pixels[pad] = color
 
     def set_key_colors_simple(self, key_bytearray: bytearray):

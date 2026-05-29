@@ -174,6 +174,7 @@ class MidiCommander:
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
         else:
             self.add_to_ui_queue(self.ui_manager.parameter_section.update_parm_selection)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
 
 
     def enter_parm_edit(self):

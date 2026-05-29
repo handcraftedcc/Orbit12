@@ -20,6 +20,7 @@ class Parm:
         "enter_callback_function",
         "exit_callback_function",
         "display_value",
+        "help_text"
     )
 
     def __init__(
@@ -37,7 +38,8 @@ class Parm:
             octave_range = (1,8),
             edit_callback_function = None,
             enter_callback_function = None,
-            exit_callback_function = None
+            exit_callback_function = None,
+            help_text = None
         ):
 
         self.name = name
@@ -54,6 +56,7 @@ class Parm:
         self.edit_callback_function = edit_callback_function
         self.enter_callback_function = enter_callback_function
         self.exit_callback_function = exit_callback_function
+        self.help_text = help_text
 
         self.display_value = self.get_display_value()
 
@@ -107,6 +110,7 @@ class ParmType:
             new_value = max(parm.minmax[0],min(parm.minmax[1],parm.value+delta))
         else:
             new_value = parm.value+delta
+        if new_value: new_value = round(new_value,2)
         return new_value
 
     @classmethod
