@@ -21,6 +21,11 @@ class Input(Module):
 
         super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=True, include_source_parms=False)
 
+        self.state.key_custom_text = None
+
+        if self.module_helper.ui_manager:
+            self.module_helper.ui_manager.header_footer.update_header_key_info()
+
         ## Color Pixels ##
         self.color_pixels()
 

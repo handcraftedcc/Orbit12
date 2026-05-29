@@ -20,8 +20,9 @@ class Drum(Input):
 
         self.state.octave = 0
         self.state.key_offset = 0
+        self.state.key_custom_text = "DRUM"
 
-        self.ui_manager.header_footer.update_header_key_info(alt_text = "drums")
+        self.ui_manager.header_footer.update_header_key_info()
 
     def create_main_parms(self):
         parms = super().create_main_parms()

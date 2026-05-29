@@ -14,6 +14,7 @@ class State:
         self.scale = 1
         self.octave = 3
         self.key_offset = 0
+        self.key_custom_text = None
 
         # Timing State
         self.bpm = 120

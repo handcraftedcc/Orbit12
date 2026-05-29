@@ -314,12 +314,17 @@ class MidiCommander:
                     self.disable_chain_swap_mode()
                 if downstate[0]==1: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
+
                     if pressed[2]: # Start Clock
                         self.transport.clock_start()
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
+
                     if pressed[1]: # Stop Clock
                         self.transport.clock_stop()
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
+
+                    if pressed[4]: # Swap Module
+                        self.enter_module_selection()
 
                     if pressed[5]: # Go to Chain
                         self.enter_chain_view()

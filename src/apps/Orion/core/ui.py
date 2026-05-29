@@ -149,6 +149,7 @@ class HeaderFooter(Section):
         super().__init__(state)
 
         self.transport = transport
+        self.key_info_custom_text = None
         white_palette = displayio.Palette(1)
         white_palette[0] = 0xFFFFFF
 
@@ -191,9 +192,8 @@ class HeaderFooter(Section):
         )
 
         self.group.append(self.header_chain_preview)
-        self.header_chain_preview[0] = 1
         for i in range(1,10):
-            self.header_chain_preview[i] = 2
+            self.header_chain_preview[i] = 1
 
         self.header_chain_module = displayio.TileGrid(
             FONTBITMAP,
@@ -274,15 +274,14 @@ class HeaderFooter(Section):
         module_label = self.state.chain_modules[self.state.active_chain].label
         set_text(self.header_chain_module, module_label)
 
-    def update_header_key_info(self, alt_text = None):
-        new_text = None
-        if not alt_text:
+    def update_header_key_info(self):
+        if not self.state.key_custom_text:
             key = NOTES[self.state.key]
             scale = SCALENAMES[self.state.scale]
             octave = str(self.state.octave)
             new_text = key+octave+scale
         else:
-            new_text = alt_text
+            new_text = self.state.key_custom_text
         set_text(self.header_key_info, new_text, align_right=True)
 
     def update_footer_state_icons(self):
@@ -303,7 +302,10 @@ class HeaderFooter(Section):
     def update_header_chain_preview(self):
         for i in range(10):
             if i == self.state.active_chain:
-                self.header_chain_preview[i]=1
+                self.header_chain_preview[i]=3
+                continue
+            if self.state.chain_modules[i].name == "empty":
+                self.header_chain_preview[i] = 1
             else:
                 self.header_chain_preview[i]=2
 
@@ -345,7 +347,6 @@ class Chain(Section):
         )
 
         self.group.append(self.chain_cursor_top)
-        self.chain_cursor_top[0] = 2
 
         self.chain_cursor_bottom = displayio.TileGrid(
             CHAINCURSORBITMAP,
@@ -358,8 +359,7 @@ class Chain(Section):
         )
 
         self.group.append(self.chain_cursor_bottom)
-        self.chain_cursor_bottom[0] = 3
-        #self.rebuild_chain_section()
+        self.set_cursor(self.state.active_chain)
 
         main_group.append(self.group)
 
@@ -369,18 +369,22 @@ class Chain(Section):
             if i != position:
                 if self.chain_cursor_top[i] != 0:
                     self.chain_cursor_top[i] = 0
-                if self.chain_cursor_bottom[i] != 0:
-                    self.chain_cursor_bottom[i] = 0
+                if self.state.chain_modules[i].name == "empty":
+                    if self.chain_cursor_bottom[i] != 1:
+                        self.chain_cursor_bottom[i] = 1
+                else:
+                    if self.chain_cursor_bottom[i] != 0:
+                        self.chain_cursor_bottom[i] = 0
         if self.state.active_chain_mode == ChainModes.SELECT:
+            if self.chain_cursor_top[position] != 3:
+                self.chain_cursor_top[position] = 3
+            if self.chain_cursor_bottom[position] != 4:
+                self.chain_cursor_bottom[position] = 4
+        if self.state.active_chain_mode == ChainModes.SWAP:
             if self.chain_cursor_top[position] != 2:
                 self.chain_cursor_top[position] = 2
-            if self.chain_cursor_bottom[position] != 3:
-                self.chain_cursor_bottom[position] = 3
-        if self.state.active_chain_mode == ChainModes.SWAP:
-            if self.chain_cursor_top[position] != 1:
-                self.chain_cursor_top[position] = 1
-            if self.chain_cursor_bottom[position] != 1:
-                self.chain_cursor_bottom[position] = 1
+            if self.chain_cursor_bottom[position] != 2:
+                self.chain_cursor_bottom[position] = 2
 
     def rebuild_chain_section(self):
         #TODO: Remove references
@@ -559,7 +563,7 @@ class ParameterSection(Section):
             self.cursor.pixel_shader = self.black_palette
         elif self.state.active_parm == -1: #Module Selection
             label_length = self.state.chain_modules[self.state.active_chain].label_length
-            self.cursor.x = 54 - (6-label_length)*6
+            self.cursor.x = 64 - (6-label_length)*6
             self.cursor.height = 5
             self.cursor.y = 3
             self.cursor.pixel_shader = self.black_palette
