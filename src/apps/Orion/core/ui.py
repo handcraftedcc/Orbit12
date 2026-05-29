@@ -180,18 +180,20 @@ class HeaderFooter(Section):
         self.group.append(self.header_chain_id)
         self.header_chain_id[0] = tile_for_char("I")
 
-        self.header_chain_arrow = displayio.TileGrid(
-            STATEINDICATORSBITMAP,
+        self.header_chain_preview = displayio.TileGrid(
+            CHAINPREVIEWBITMAP,
             pixel_shader=text_palette,
-            width=1,  # number of visible tile cells
-            height=1,
-            tile_width=STATEINDICATORSBITMAP_DIMENSIONS[0],
-            tile_height=STATEINDICATORSBITMAP_DIMENSIONS[1],
-            x=9, y=3
+            width=5,  # number of visible tile cells
+            height=2,
+            tile_width=CHAINPREVIEWBITMAP_DIMENSIONS[0],
+            tile_height=CHAINPREVIEWBITMAP_DIMENSIONS[1],
+            x=10, y=3
         )
 
-        self.group.append(self.header_chain_arrow)
-        self.header_chain_arrow[0] = 0
+        self.group.append(self.header_chain_preview)
+        self.header_chain_preview[0] = 1
+        for i in range(1,10):
+            self.header_chain_preview[i] = 2
 
         self.header_chain_module = displayio.TileGrid(
             FONTBITMAP,
@@ -200,7 +202,7 @@ class HeaderFooter(Section):
             height=1,
             tile_width=FONTBITMAP_DIMENSIONS[0],
             tile_height=FONTBITMAP_DIMENSIONS[1],
-            x=16, y=3
+            x=26, y=3
         )
 
         self.group.append(self.header_chain_module)
@@ -213,25 +215,11 @@ class HeaderFooter(Section):
             height=1,
             tile_width=FONTBITMAP_DIMENSIONS[0],
             tile_height=FONTBITMAP_DIMENSIONS[1],
-            x=75, y=3
+            x=89, y=3
         )
 
         self.group.append(self.header_key_info)
         set_text(self.header_key_info, "A#MIN3", align_right=True)
-
-        self.header_state_icons = displayio.TileGrid(
-            STATEINDICATORSBITMAP,
-            pixel_shader=text_palette,
-            width=2,  # number of visible tile cells
-            height=1,
-            tile_width=STATEINDICATORSBITMAP_DIMENSIONS[0],
-            tile_height=STATEINDICATORSBITMAP_DIMENSIONS[1],
-            x=112, y=3
-        )
-
-        self.group.append(self.header_state_icons)
-        self.header_state_icons[0] = 1
-        self.header_state_icons[1] = 3
 
         self.footer_bg = vectorio.Rectangle(
             pixel_shader=white_palette,
@@ -256,26 +244,25 @@ class HeaderFooter(Section):
         self.group.append(self.footer_help_text)
         set_text(self.footer_help_text, ":THIS IS HELP A TEXT")
 
-        self.footer_chain_preview = displayio.TileGrid(
-            CHAINPREVIEWBITMAP,
+        self.footer_state_icons = displayio.TileGrid(
+            STATEINDICATORSBITMAP,
             pixel_shader=text_palette,
-            width=5,  # number of visible tile cells
-            height=2,
-            tile_width=CHAINPREVIEWBITMAP_DIMENSIONS[0],
-            tile_height=CHAINPREVIEWBITMAP_DIMENSIONS[1],
-            x=110, y=56
+            width=2,  # number of visible tile cells
+            height=1,
+            tile_width=STATEINDICATORSBITMAP_DIMENSIONS[0],
+            tile_height=STATEINDICATORSBITMAP_DIMENSIONS[1],
+            x=112, y=56
         )
 
-        self.group.append(self.footer_chain_preview)
-        self.footer_chain_preview[0] = 1
-        for i in range(1,10):
-            self.footer_chain_preview[i] = 2
+        self.group.append(self.footer_state_icons)
+        self.footer_state_icons[0] = 1
+        self.footer_state_icons[1] = 3
 
         self.update_header_key_info()
         self.update_header_chain_id()
         self.update_header_module_label()
-        self.update_header_state_icons()
-        self.update_footer_chain_preview()
+        self.update_footer_state_icons()
+        self.update_header_chain_preview()
 
         main_group.append(self.group)
 
@@ -298,27 +285,27 @@ class HeaderFooter(Section):
             new_text = alt_text
         set_text(self.header_key_info, new_text, align_right=True)
 
-    def update_header_state_icons(self):
+    def update_footer_state_icons(self):
         if self.state.transport_mode == 1:
-            self.header_state_icons[0] = 2
+            self.footer_state_icons[0] = 2
         elif self.transport.running:
-            self.header_state_icons[0] = 0
+            self.footer_state_icons[0] = 0
         else:
-            self.header_state_icons[0] = 1
+            self.footer_state_icons[0] = 1
         if self.state.nav_keys_state == 0:
-            self.header_state_icons[1] = 3
+            self.footer_state_icons[1] = 3
         else:
-            self.header_state_icons[1] = 4
+            self.footer_state_icons[1] = 4
 
     def update_footer_help_text(self, new_help_text):
         set_text(self.footer_help_text, new_help_text)
 
-    def update_footer_chain_preview(self):
+    def update_header_chain_preview(self):
         for i in range(10):
             if i == self.state.active_chain:
-                self.footer_chain_preview[i]=1
+                self.header_chain_preview[i]=1
             else:
-                self.footer_chain_preview[i]=2
+                self.header_chain_preview[i]=2
 
 
 class Chain(Section):

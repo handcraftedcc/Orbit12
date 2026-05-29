@@ -41,7 +41,7 @@ class Transport(Module):
         self.module_helper.output_manager.pending_midi_clock_ticks = 0
         self.transport.running = 0
         self.transport.reset()
-        self.module_helper.ui_manager.header_footer.update_header_state_icons()
+        self.module_helper.ui_manager.header_footer.update_footer_state_icons()
 
     def set_bpm(self, value):
         self.transport.update_bpm(value)

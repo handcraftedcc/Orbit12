@@ -164,7 +164,7 @@ class MidiCommander:
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_id)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
-        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_chain_preview)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
 
     def move_active_parm_element(self, delta):
@@ -316,10 +316,10 @@ class MidiCommander:
                     self.input_manager.encoder_press_consumed = 1
                     if pressed[2]: # Start Clock
                         self.transport.clock_start()
-                        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
+                        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
                     if pressed[1]: # Stop Clock
                         self.transport.clock_stop()
-                        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
+                        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
 
                     if pressed[5]: # Go to Chain
                         self.enter_chain_view()
@@ -327,7 +327,7 @@ class MidiCommander:
                     if pressed[7]: # Switch Nav State
                         self.state.nav_keys_state = (self.state.nav_keys_state+1) % 2
                         self.neo_pixels.set_nav_state_colors(update=True)
-                        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
+                        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
 
                     if pressed[9]: # Switch between Nav and Modify State
                         if self.state.active_ui_section == UISection.CHAIN:
@@ -422,7 +422,7 @@ class MidiCommander:
                             self.note_ons.append_value(index - 1)
                     if not self.transport.running and self.state.transport_mode == 0:
                         self.transport.clock_start()
-                        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_state_icons)
+                        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
 
                 for index in range(1, 13):
                     if pressed[index]:
