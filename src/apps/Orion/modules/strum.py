@@ -10,21 +10,36 @@ ORDER_LIST = (
     "ORD",
     "UP",
     "DOWN",
+    "UPDWN",
+    "RAND",
 )
 
 MODE_UP = ORDER_LIST.index("UP")
 MODE_DOWN = ORDER_LIST.index("DOWN")
 MODE_INORDER = ORDER_LIST.index("ORD")
+MODE_ALTERNATE = ORDER_LIST.index("UPDWN")
+MODE_RANDOM = ORDER_LIST.index("RAND")
+
 
 STRUM_ARTICULATE_PATTERNS = (
-    bytearray((10, 10, 10, 10)),  # 0 EVEN - steady spacing
     bytearray((24, 16, 8, 4)),    # 1 ACCL - very wide start, tight finish
     bytearray((4, 8, 16, 24)),    # 2 DECL - tight start, wide finish
-    bytearray((5, 16, 7, 18)),    # 3 HUMN - obvious uneven human timing
     bytearray((28, 4, 18, 5)),    # 4 RAKE - hard drag, snap, drag, snap
     bytearray((4, 22, 5, 20)),    # 5 BNC - strong short/long bounce
     bytearray((18, 5, 20, 6)),    # 6 SWNG - exaggerated lopsided roll
     bytearray((32, 8, 5, 4)),     # 7 FLAM - huge first gap, rapid cascade
+)
+
+STRUM_ARTICULATE_LIST = (
+    "EVEN",
+    "RNDLTE",
+    "RNDSTR",
+    "ACCL",
+    "DECL",
+    "HUMN",
+    "RAKE",
+    "SWNG",
+    "FLAM",
 )
 
 STRUM_CHORD_LENGTH = 5
@@ -40,6 +55,10 @@ def get_tilt_multiplier(strum_position, tilt, note_count=5):
         return (1.0 + tilt) + (-tilt * pos_norm)
     else:
         return 1.0 - (tilt * pos_norm)
+
+def get_tilt_velocity(velocity, strum_position, tilt, note_count=5):
+    tilt_velocity = int(velocity * get_tilt_multiplier(strum_position, tilt, note_count))
+    return max(0, min(127, tilt_velocity))
 
 class Strum(Module):
     name = "strum"
@@ -58,11 +77,14 @@ class Strum(Module):
         self.amount = 30
         self.order = 0
         self.tilt = 0
+        self.tilt_note_count = 3
         self.articulate = 0
 
         self.strum_active = False
         self.next_strum_scheduled = None
         self.strum_position = 0
+
+        self.strum_count = 0
 
         super().__init__(module_helper, slot_id)
 
@@ -70,7 +92,7 @@ class Strum(Module):
         parms = []
         # Strum amount
         amount_parm = Parms.Parm(name="amount", label="AMOUNT", default=self.amount, parm_type=Parms.IntParmType,
-                               bind_object=self, bind_attribute="amount", help_text="ARP STEP RATE", minmax = (0,1000000))
+                               bind_object=self, bind_attribute="amount", help_text="STRUM AMOUNT MS", minmax = (0,1000000))
         parms.append(amount_parm)
 
         order_parm = Parms.Parm(name="order", label="ORDER", default=self.order, parm_type=Parms.EnumParmType,
@@ -83,9 +105,14 @@ class Strum(Module):
                                increment= 0.05)
         parms.append(tilt_parm)
 
-        articulate_parm = Parms.Parm(name="articulate", label="ARTCLT", default=self.articulate, parm_type=Parms.IntParmType,
-                                bind_object=self, bind_attribute="articulate", help_text="ARTICULATE PATTERN",
-                                minmax=(0, len(STRUM_ARTICULATE_PATTERNS)-1))
+        tilt_note_count_parm = Parms.Parm(name="tilt_note_count", label="COUNT", default=self.tilt_note_count, parm_type=Parms.IntParmType,
+                               bind_object=self, bind_attribute="tilt_note_count", help_text="TILT NOTE COUNT", minmax=(1, 12),
+                               increment=1)
+        parms.append(tilt_note_count_parm)
+
+        articulate_parm = Parms.Parm(name="articulate", label="ARTC", default=self.articulate, parm_type=Parms.EnumParmType,
+                                bind_object=self, bind_attribute="articulate", help_text="ARTICULATE TIMING",
+                                options= STRUM_ARTICULATE_LIST)
         parms.append(articulate_parm)
 
 
@@ -110,9 +137,9 @@ class Strum(Module):
             self.note_register.remove_value_first(note)
         self.note_offs_out.append_values(note_offs)
 
-        if self.order == MODE_UP or self.order == MODE_DOWN:
+        if self.order in (MODE_UP, MODE_DOWN, MODE_ALTERNATE):
             self.note_register.sort_notes()
-            if self.order == MODE_DOWN:
+            if self.order == MODE_DOWN or (self.order == MODE_ALTERNATE and self.strum_count%2==0):
                 self.note_register.reverse_notes()
 
         if not self.strum_active and self.note_register.length>0:
@@ -123,21 +150,36 @@ class Strum(Module):
             self.strum_active = False
             self.strum_position = 0
             self.next_strum_scheduled = None
+            self.strum_count += 1
 
         if (self.strum_active and self.note_register.length > 0 and
                 ticks.ticks_diff(self.next_strum_scheduled, self.transport.now) < 0):
             # Emit next note
-            note = self.note_register.notes[0]
-            velocity = int(self.note_register.velocities[0] * get_tilt_multiplier(self.strum_position,self.tilt,self.note_register.length))
+            n = 0
+            if self.order == MODE_RANDOM:
+                n = utils.random_int(self.strum_count,self.note_register.length-1,0)
+            note = self.note_register.notes[n]
+            velocity = get_tilt_velocity(self.note_register.velocities[n], self.strum_position, self.tilt, STRUM_CHORD_LENGTH)
             self.note_ons_out.append_value(note, velocity = velocity)
             # Remove from register
-            self.note_register.remove_index(0)
+            self.note_register.remove_index(n)
             # Schedule next one
-            articulation_pattern = STRUM_ARTICULATE_PATTERNS[self.articulate]
-            articulation_position = min(self.strum_position, len(articulation_pattern)-1)
-            strum_delta = int(self.amount * (articulation_pattern[articulation_position]/10))
+            articulate_modifier = 1
+            if self.articulate == 1: #Random light
+                articulate_modifier = utils.random_int(self.strum_count+25,4,1) + 10
+            elif self.articulate == 2:
+                articulate_modifier = utils.random_int(self.strum_count + 25, 9, 1) + 10
+            elif self.articulate-3 < len(STRUM_ARTICULATE_PATTERNS):
+                articulation_pattern = STRUM_ARTICULATE_PATTERNS[self.articulate-3]
+                articulation_position = min(self.strum_position, len(articulation_pattern) - 1)
+                articulate_modifier = articulation_pattern[articulation_position]
+
+
+            strum_delta = int(self.amount * (articulate_modifier/10))
             self.next_strum_scheduled = ticks.ticks_add(self.next_strum_scheduled,strum_delta)
             self.strum_position = (self.strum_position + 1) % STRUM_CHORD_LENGTH
+
+
 
         return self.note_ons_out, self.note_offs_out
 
