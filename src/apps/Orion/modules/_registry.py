@@ -6,6 +6,7 @@ MODULE_SPECS = (
     ("chord", "CHRD", "ADD CHORD TONES"),
     ("randomize", "RND", "RAND VEL/OCT/NTE"),
     ("strum", "STRUM", "CHORD STRUM GEN"),
+    ("wander", "WANDR", "SCALE MELODY WALK")
 )
 
 AVAILABLE_MODULE_NAMES = [spec[0] for spec in MODULE_SPECS]
@@ -35,4 +36,7 @@ def get_module_class(module_key):
     if module_key == "strum":
         from .strum import Strum
         return Strum
+    if module_key == "wander":
+        from .wander import Wander
+        return Wander
     return None
