@@ -420,16 +420,16 @@ class MidiCommander:
                             if pressed[12]: #RIGHT
                                 self.move_active_chain_element(1)
 
-                        # Active section: Parm Selection #
+                        # Active section: Module Selection #
                         elif self.state.active_ui_section == UISection.MODULESELECTION:
                             if pressed[8]:  # UP
                                 self.move_module_selection(-1)
                             if pressed[11]:  # DOWN
                                 self.move_module_selection(1)
                             if pressed[10]:  # LEFT
-                                self.move_module_selection(1)
-                            if pressed[12]:  # RIGHT
                                 self.move_module_selection(-1)
+                            if pressed[12]:  # RIGHT
+                                self.move_module_selection(1)
 
                         # Active section: Parm Selection #
                         elif self.state.active_ui_section == UISection.PARMSELECTION:

@@ -5,6 +5,7 @@ MODULE_SPECS = (
     ("pick", "PICK", "PICK SINGLE NOTE"),
     ("chord", "CHRD", "ADD CHORD TONES"),
     ("randomize", "RND", "RAND VEL/OCT/NTE"),
+    ("strum", "STRUM", "CHORD STRUM GEN"),
 )
 
 AVAILABLE_MODULE_NAMES = [spec[0] for spec in MODULE_SPECS]
@@ -31,4 +32,7 @@ def get_module_class(module_key):
     if module_key == "randomize":
         from .randomize import Randomize
         return Randomize
+    if module_key == "strum":
+        from .strum import Strum
+        return Strum
     return None

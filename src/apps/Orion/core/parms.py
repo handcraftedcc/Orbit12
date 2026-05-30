@@ -16,6 +16,8 @@ class Parm:
         "include_rates",
         "multiple_octaves",
         "octave_range",
+        "bind_object",
+        "bind_attribute",
         "edit_callback_function",
         "enter_callback_function",
         "exit_callback_function",
@@ -36,6 +38,8 @@ class Parm:
             include_rates = True,
             multiple_octaves = False,
             octave_range = (1,8),
+            bind_object = None,
+            bind_attribute = None,
             edit_callback_function = None,
             enter_callback_function = None,
             exit_callback_function = None,
@@ -53,6 +57,8 @@ class Parm:
         self.include_rates = include_rates
         self.multiple_octaves = multiple_octaves
         self.octave_range = octave_range
+        self.bind_object = bind_object
+        self.bind_attribute = bind_attribute
         self.edit_callback_function = edit_callback_function
         self.enter_callback_function = enter_callback_function
         self.exit_callback_function = exit_callback_function
@@ -70,6 +76,8 @@ class Parm:
     def edit(self,delta):
         self.value = self.type.edit(self,delta*self.jog_increment)
         self.display_value = self.get_display_value()
+        if self.bind_object is not None and self.bind_attribute is not None:
+            setattr(self.bind_object, self.bind_attribute, self.value)
         if self.edit_callback_function:
             self.edit_callback_function(self.value)
         return self.value, self.display_value
@@ -79,6 +87,8 @@ class Parm:
             value = min(max(value, self.minmax[0]),self.minmax[1])
         self.value = value
         self.display_value = self.get_display_value()
+        if self.bind_object is not None and self.bind_attribute is not None:
+            setattr(self.bind_object, self.bind_attribute, self.value)
         return self.value, self.display_value
     
     def enter(self):
