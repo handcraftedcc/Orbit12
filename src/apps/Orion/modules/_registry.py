@@ -1,14 +1,15 @@
 MODULE_SPECS = (
-    ("empty", "EMPTY"),
-    ("arp", "ARP"),
-    ("transpose", "TRNS"),
-    ("pick", "PICK"),
-    ("chord", "CHRD"),
-    ("randomize", "RND"),
+    ("empty", "EMPTY", "EMPTY MODULE SLOT"),
+    ("arp", "ARP", "ADV ARPEGGIATOR"),
+    ("transpose", "TRNS", "SCL AWARE TRNSP"),
+    ("pick", "PICK", "PICK SINGLE NOTE"),
+    ("chord", "CHRD", "ADD CHORD TONES"),
+    ("randomize", "RND", "RAND VEL/OCT/NTE"),
 )
 
 AVAILABLE_MODULE_NAMES = [spec[0] for spec in MODULE_SPECS]
 AVAILABLE_MODULE_LABELS = [spec[1] for spec in MODULE_SPECS]
+AVAILABLE_MODULE_HELP_TEXTS = [spec[2] for spec in MODULE_SPECS]
 
 
 def get_module_class(module_key):

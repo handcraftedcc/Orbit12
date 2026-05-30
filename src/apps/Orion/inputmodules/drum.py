@@ -13,7 +13,7 @@ LAYOUT_OPTIONS = ("ORD", "L12", "R12", "B3R", "B3F")
 class Drum(Input):
     name = "drum"
     label = "DRUM"
-    help_text = "SIMPLE DRUM LAYOUT"
+    help_text = "DRUM PAD LAYOUT"
     def __init__(self, module_helper, slot_id):
         self.layout = 0
         self.velocity = 127
@@ -29,16 +29,19 @@ class Drum(Input):
         parms = super().create_main_parms()
         # Layout Mode
         layout_mode_parm = Parms.Parm(name="layout", label="LAY", parm_type=Parms.EnumParmType, default=self.layout, options=LAYOUT_OPTIONS,
+                                     help_text="DRUM PAD ORDER",
                                      edit_callback_function=self.set_layout)
         parms.append(layout_mode_parm)
 
         # Key Offset
         key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
+                                     help_text="DRUM NOTE OFS",
                                      edit_callback_function=self.set_key_offset)
         parms.append(key_offset_parm)
 
         # Velocity
         velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=self.velocity,
+                                   help_text="DRUM VELOCITY",
                                    minmax=(0, 127), edit_callback_function=self.set_velocity)
         parms.append(velocity_parm)
         return parms

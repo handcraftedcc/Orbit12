@@ -9,7 +9,7 @@ RANDOMIZE_MODE_OPTIONS = ("UNI", "BI")
 class Randomize(Module):
     name = "randomize"
     label = "RND"
-    help_text = "RAND VEL/OCT/NOTE.."
+    help_text = "RAND VEL/OCT/NTE"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.note_relationship = NoteRelationshipArray()
@@ -42,65 +42,77 @@ class Randomize(Module):
         # Randomize Velocity
         velocity_range_parm = Parms.Parm(name="velocity", label="VEL RNG", default=self.velocity_range,
                                          parm_type=Parms.IntParmType, increment=1,
+                                         help_text="VEL RANDOM RNG",
                                          edit_callback_function=self.set_velocity_range)
         parms.append(velocity_range_parm)
 
         velocity_mode_parm = Parms.Parm(name="velocity_mode", label="VEL MDE", default=self.velocity_mode,
                                         parm_type=Parms.EnumParmType, options=RANDOMIZE_MODE_OPTIONS,
+                                        help_text="VEL RAND MODE",
                                         edit_callback_function=self.set_velocity_mode)
         parms.append(velocity_mode_parm)
 
         # Randomize Note
         note_range_parm = Parms.Parm(name="note", label="NOTE RNG", default=self.note_range,
                                      parm_type=Parms.IntParmType, increment=1,
+                                     help_text="NOTE RAND RNG",
                                      edit_callback_function=self.set_note_range)
         parms.append(note_range_parm)
 
         note_increment_parm = Parms.Parm(name="note_increment", label="NOTE INC", default=self.note_increment,
                                          parm_type=Parms.IntParmType, minmax=(1,128), increment=1,
+                                         help_text="NOTE RAND STEP",
                                          edit_callback_function=self.set_note_increment)
         parms.append(note_increment_parm)
 
         note_chance_parm = Parms.Parm(name="note_chance", label="NOTE %", default=self.note_chance,
                                       parm_type=Parms.PercentParmType, increment=0.05, minmax=(0,1),
+                                      help_text="NOTE RAND CHANCE",
                                       edit_callback_function=self.set_note_chance)
         parms.append(note_chance_parm)
 
         note_mode_parm = Parms.Parm(name="note_mode", label="NOTE MDE", default=self.note_mode,
                                     parm_type=Parms.EnumParmType, options=RANDOMIZE_MODE_OPTIONS,
+                                    help_text="NOTE RAND MODE",
                                     edit_callback_function=self.set_note_mode)
         parms.append(note_mode_parm)
 
-        scale_aware_parm = Parms.Parm(name="scale_aware", label="SCL AWR", default=self.scale_aware,
+        scale_aware_parm = Parms.Parm(name="scale_aware", label="IN SCL", default=self.scale_aware,
                                       parm_type=Parms.BooleanParmType,
+                                      help_text="STAY IN SCALE",
                                       edit_callback_function=self.set_scale_aware)
         parms.append(scale_aware_parm)
 
         # Randomize Octave
         octave_range_parm = Parms.Parm(name="octave", label="OCT RNG", default=self.octave_range,
                                        parm_type=Parms.IntParmType, increment=1,
+                                       help_text="OCT RAND RNG",
                                        edit_callback_function=self.set_octave_range)
         parms.append(octave_range_parm)
 
         octave_chance_parm = Parms.Parm(name="octave_chance", label="OCT %", default=self.octave_chance,
                                         parm_type=Parms.PercentParmType, minmax=(0, 1),
-                                        increment=0.05, edit_callback_function=self.set_octave_chance)
+                                        increment=0.05, help_text="OCT RAND CHANCE",
+                                        edit_callback_function=self.set_octave_chance)
         parms.append(octave_chance_parm)
 
         octave_mode_parm = Parms.Parm(name="octave_mode", label="OCT MDE", default=self.octave_mode,
                                       parm_type=Parms.EnumParmType, options=RANDOMIZE_MODE_OPTIONS,
+                                      help_text="OCT RAND MODE",
                                       edit_callback_function=self.set_octave_mode)
         parms.append(octave_mode_parm)
 
         # Pattern Length
         pattern_length_parm = Parms.Parm(name="pattern_length", label="PTN LEN", default=self.pattern_length,
                                          parm_type=Parms.IntParmType, minmax=(0,128),
+                                         help_text="RAND LOOP LEN",
                                          edit_callback_function=self.set_pattern_length) #In 16th steps
         parms.append(pattern_length_parm)
 
         # Random Seed User
         random_seed_user_parm = Parms.Parm(name="random_seed_user", label="SEED", default=self.random_seed_user,
                                            parm_type=Parms.IntParmType, minmax=(0, 10000),
+                                           help_text="RAND SEED",
                                            edit_callback_function=self.set_random_seed_user)
         parms.append(random_seed_user_parm)
 

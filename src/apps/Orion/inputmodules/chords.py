@@ -62,18 +62,21 @@ class Chords(Input):
         # Bass Mode
         bass_mode_parm = Parms.Parm(name="bass", label="BASS", parm_type=Parms.EnumParmType, default=self.bass_mode,
                                       options=BASS_MODE_OPTIONS,
+                                      help_text="ADD BASS NOTE",
                                       edit_callback_function=self.set_bass_mode)
         parms.append(bass_mode_parm)
 
         # Spread Mode
         spread_mode_parm = Parms.Parm(name="spread", label="SPRD", parm_type=Parms.EnumParmType, default=self.spread_mode,
                                       options=SPREAD_MODE_OPTIONS,
+                                      help_text="CHORD SPREAD",
                                       edit_callback_function=self.set_spread_mode)
         parms.append(spread_mode_parm)
 
         # Borrow Scale
         borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRWSCL", parm_type=Parms.EnumParmType, default=self.borrow_scale,
                                       options=BORROW_SCALE_OPTIONS,
+                                      help_text="BORROWED SCALE",
                                       edit_callback_function=self.set_borrow_scale)
         parms.append(borrow_scale_parm)
         return parms

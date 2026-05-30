@@ -8,7 +8,7 @@ from ..core import music as Music
 class Note(Input):
     name = "note"
     label = "NOTE"
-    help_text = "IN KEY NOTE LAYOUT"
+    help_text = "IN KEY NOTE LYT"
     def __init__(self, module_helper, slot_id):
         super().__init__(module_helper, slot_id, include_musical_parms=True)
 

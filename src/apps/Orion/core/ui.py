@@ -305,6 +305,7 @@ class HeaderFooter(Section):
             set_text(self.footer_help_text, self.state.help_text)
         else:
             set_text(self.footer_help_text, " ")
+        self.current_help_text = self.state.help_text
 
     def update_header_chain_preview(self):
         for i in range(10):

@@ -31,10 +31,12 @@ class Pick(Module):
         parms = []
         # Pick Mode
         mode_parm = Parms.Parm(name="pick_mode", label="MDE", default=self.pick_mode, parm_type=Parms.EnumParmType,
+                               help_text="NOTE PICK MODE",
                                options=PICK_MODE_OPTIONS, edit_callback_function=self.set_pick_mode)
         parms.append(mode_parm)
 
         octaves_parm = Parms.Parm(name="octaves", label="OCT", default=self.octaves, parm_type=Parms.IntParmType,
+                                  help_text="PICK OCT SHIFT",
                                   increment=1, edit_callback_function=self.set_octaves)
         parms.append(octaves_parm)
 

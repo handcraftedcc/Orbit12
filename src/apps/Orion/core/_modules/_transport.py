@@ -8,6 +8,7 @@ class Transport(Module):
     The actual midi clock stuff happens in the transport object in core."""
     name = "transport"
     label = "TRNSP"
+    help_text = "TRANSPORT CLOCK"
     def __init__(self, module_helper, slot_id):
             self.module_helper = module_helper
             self.state = self.module_helper.state
@@ -21,15 +22,18 @@ class Transport(Module):
         parms = []
 
         transport_mode_parm = Parms.Parm("mode", "MDE", Parms.EnumParmType, self.state.transport_mode,
-                                         options=TRANSPORT_MODE_OPTIONS, exit_callback_function=self.set_transport_mode)
+                                         options=TRANSPORT_MODE_OPTIONS, help_text="CLOCK INT/EXT",
+                                         exit_callback_function=self.set_transport_mode)
         parms.append(transport_mode_parm)
 
         bpm_parm = Parms.Parm("bpm", "BPM", Parms.IntParmType, self.transport.bpm, minmax=(1, 300),
+                              help_text="CLOCK TEMPO",
                               edit_callback_function=self.set_bpm)
         parms.append(bpm_parm)
 
         swing_parm = Parms.Parm("swing", "SWNG", Parms.PercentParmType, self.transport.swing, minmax=(0, 1),
                                 increment=0.05,
+                                help_text="CLOCK SWING",
                                 edit_callback_function=self.set_swing)
         parms.append(swing_parm)
 

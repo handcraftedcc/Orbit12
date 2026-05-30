@@ -23,7 +23,7 @@ MODE_REPEAT = MODE_LIST.index("RPT")
 class Arp(Module):
     name = "arp"
     label = "ARP"
-    help_text = "ADVANCED ARPEGGIATOR"
+    help_text = "ADV ARPEGGIATOR"
     version = 1
     def __init__(self, module_helper, slot_id):
         #TODO: Rewrite to new Note Array Format
@@ -69,44 +69,52 @@ class Arp(Module):
         parms = []
         # Rate
         rate_parm = Parms.Parm(name="rate", label="RATE", default=self.rate_value, parm_type=Parms.RateParmType,
+                               help_text="ARP STEP RATE",
                                edit_callback_function=self.set_rate)
         parms.append(rate_parm)
 
         # Mode
         mode_parm = Parms.Parm(name="mode", label="MDE", default=self.mode, parm_type=Parms.EnumParmType,
+                               help_text="ARP ORDER MODE",
                                options=MODE_LIST, edit_callback_function=self.set_mode)
         parms.append(mode_parm)
 
         # Gate
         gate_parm = Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
+                               help_text="NOTE GATE MS",
                                increment=5, edit_callback_function=self.set_gate)
         parms.append(gate_parm)
 
         # Pattern
         pattern_parm = Parms.Parm(name="pattern", label="PTN", default=self.selected_pattern,
                                   parm_type=Parms.EnumParmType, options=music.patterns_text,
+                                  help_text="ARP PATTERN",
                                   edit_callback_function=self.set_pattern)
         parms.append(pattern_parm)
 
         pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTN SHFT", default=self.pattern_shift,
+                                        help_text="PATTERN SHIFT",
                                         parm_type=Parms.IntParmType, edit_callback_function=self.set_pattern_shift)
         parms.append(pattern_shift_parm)
 
         # Gate Randomize
         gate_random_parm = Parms.Parm(name="gate_random", label="RND GATE", default=self.gate_random,
                                       parm_type=Parms.IntParmType,
+                                      help_text="RAND GATE MS",
                                       increment=5, edit_callback_function=self.set_gate_random)
         parms.append(gate_random_parm)
 
         # Random Pattern Length
         random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RND LEN", default=self.random_pattern_length,
                                                 parm_type=Parms.IntParmType, minmax=(0,128),
+                                                help_text="RAND LOOP LEN",
                                                 edit_callback_function=self.set_random_pattern_length)
         parms.append(random_pattern_length_parm)
 
         # Random Seed
         random_seed_parm = Parms.Parm(name="rand_seed", label="SEED", default=self.random_seed_user,
                                       parm_type=Parms.IntParmType,
+                                      help_text="RAND SEED",
                                       minmax=(0, 10000), edit_callback_function=self.set_random_seed_user)
         parms.append(random_seed_parm)
 
@@ -114,6 +122,7 @@ class Arp(Module):
         retrigger_parm = Parms.Parm(name="retrigger_mode", label="RTRG", default=self.retrigger_mode,
                                     parm_type=Parms.EnumParmType,
                                     options=self.retrigger_mode_list,
+                                    help_text="RETRIG MODE",
                                     edit_callback_function=self.set_retrigger_mode)
         parms.append(retrigger_parm)
 

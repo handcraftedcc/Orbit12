@@ -6,7 +6,7 @@ from ..core.note_array import NoteRelationshipArray,NoteOnArray,NoteOffArray
 class Transpose(Module):
     name = "transpose"
     label = "TRNS"
-    help_text = "SCL AWARE TRANSPOSE"
+    help_text = "SCL AWARE TRNSP"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.note_relationship = NoteRelationshipArray()
@@ -22,17 +22,20 @@ class Transpose(Module):
         parms = []
         # Amount
         semitones_parm = Parms.Parm(name="semitones", label="SEMI", default=self.semitones, parm_type=Parms.IntParmType,
+                                    help_text="SEMITONE SHIFT",
                                     increment=1, edit_callback_function=self.set_semitones)
         parms.append(semitones_parm)
 
         # Octaves
         octaves_parm = Parms.Parm(name="octaves", label="OCT", default=self.octaves, parm_type=Parms.IntParmType,
+                                  help_text="OCTAVE SHIFT",
                                   increment=1, edit_callback_function=self.set_octaves)
         parms.append(octaves_parm)
 
         # Scale Aware
-        scale_aware_parm = Parms.Parm(name="scale_aware", label="SCL AWR", default=self.scale_aware,
+        scale_aware_parm = Parms.Parm(name="scale_aware", label="IN SCL", default=self.scale_aware,
                                       parm_type=Parms.BooleanParmType,
+                                      help_text="STAY IN SCALE",
                                       edit_callback_function=self.set_scale_aware)
         parms.append(scale_aware_parm)
         return parms

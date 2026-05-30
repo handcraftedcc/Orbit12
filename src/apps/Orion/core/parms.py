@@ -56,7 +56,7 @@ class Parm:
         self.edit_callback_function = edit_callback_function
         self.enter_callback_function = enter_callback_function
         self.exit_callback_function = exit_callback_function
-        self.help_text = help_text
+        self.help_text = help_text if help_text is not None else label
 
         self.display_value = self.get_display_value()
 

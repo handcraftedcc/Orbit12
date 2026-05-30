@@ -13,6 +13,7 @@ class Empty(Module.Module):
         parms = []
         # Key
         pick_module_parm = Parms.Parm(name="pick", label="EMPTY", parm_type=Parms.ButtonParmType, default=0,
+                              help_text="PICK MODULE",
                               enter_callback_function=self.enter_module_picker)
         parms.append(pick_module_parm)
         return parms

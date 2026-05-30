@@ -72,9 +72,11 @@ class Module:
 
         operation_mode_parm = Parms.Parm("operation_mode", "OP", Parms.EnumParmType, self.operation_mode,
                                         options=OPERATION_OPTIONS,
+                                        help_text="CHAIN OP MODE",
                                         edit_callback_function=self.set_operation_mode)
         parms.append(operation_mode_parm)
         out_channel_parm = Parms.Parm("out_channel", "OUT CH", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
+                                         help_text="MODULE OUT CH",
                                          edit_callback_function=self.set_out_channel)
         parms.append(out_channel_parm)
         return parms
@@ -83,6 +85,7 @@ class Module:
         parms = []
         source_mode_parm = Parms.Parm("source_mode", "SRC", Parms.EnumParmType, self.source_mode,
                                         options=SOURCE_OPTIONS,
+                                        help_text="NOTE INPUT SRC",
                                         edit_callback_function=self.set_source_mode)
         parms.append(source_mode_parm)
         return parms

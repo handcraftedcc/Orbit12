@@ -14,7 +14,7 @@ def find_closest(values, target):
 class Chord(Module):
     name = "chord"
     label = "CHRD"
-    help_text = "SIMPLE CHORD GENERATOR"
+    help_text = "ADD CHORD TONES"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.offsets = [0,2,4,0,0]
@@ -35,15 +35,17 @@ class Chord(Module):
                 default=self.offsets[i],
                 parm_type=Parms.IntParmType,
                 increment=1,
+                help_text="CHORD TONE " + str(i+1),
                 edit_callback_function=lambda value, index=i: self.set_offset(index, value),
             )
             parms.append(offset_parm)
 
         scale_aware_parm = Parms.Parm(
             name="scale_aware",
-            label="SCL AWR",
+            label="IN SCL",
             default=self.scale_aware,
             parm_type=Parms.BooleanParmType,
+            help_text="STAY IN SCALE",
             edit_callback_function=self.set_scale_aware,
         )
 
