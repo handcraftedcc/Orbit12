@@ -18,13 +18,13 @@ MODE_INORDER = ORDER_LIST.index("ORD")
 
 STRUM_ARTICULATE_PATTERNS = (
     bytearray((10, 10, 10, 10)),  # 0 EVEN - steady spacing
-    bytearray((14, 12, 9, 7)),    # 1 ACCL - starts wide, gets tighter
-    bytearray((7, 9, 12, 14)),    # 2 DECL - starts tight, spreads out
-    bytearray((8, 12, 9, 11)),    # 3 HUMN - lightly uneven natural timing
-    bytearray((16, 7, 13, 8)),    # 4 RAKE - strong drag, uneven catch-up
-    bytearray((6, 14, 7, 13)),    # 5 BNC - short/long alternating bounce
-    bytearray((12, 8, 13, 9)),    # 6 SWNG - rolling lopsided feel
-    bytearray((18, 9, 7, 6)),     # 7 FLAM - big first gap, then quick cascade
+    bytearray((24, 16, 8, 4)),    # 1 ACCL - very wide start, tight finish
+    bytearray((4, 8, 16, 24)),    # 2 DECL - tight start, wide finish
+    bytearray((5, 16, 7, 18)),    # 3 HUMN - obvious uneven human timing
+    bytearray((28, 4, 18, 5)),    # 4 RAKE - hard drag, snap, drag, snap
+    bytearray((4, 22, 5, 20)),    # 5 BNC - strong short/long bounce
+    bytearray((18, 5, 20, 6)),    # 6 SWNG - exaggerated lopsided roll
+    bytearray((32, 8, 5, 4)),     # 7 FLAM - huge first gap, rapid cascade
 )
 
 STRUM_CHORD_LENGTH = 5
@@ -80,7 +80,7 @@ class Strum(Module):
 
         tilt_parm = Parms.Parm(name="tilt", label="TILT", default=self.tilt, parm_type=Parms.PercentParmType,
                                  bind_object=self, bind_attribute="tilt", help_text="TILT AMOUNT", minmax = (-1,1),
-                               increment= 0.1)
+                               increment= 0.05)
         parms.append(tilt_parm)
 
         articulate_parm = Parms.Parm(name="articulate", label="ARTCLT", default=self.articulate, parm_type=Parms.IntParmType,
@@ -128,15 +128,16 @@ class Strum(Module):
                 ticks.ticks_diff(self.next_strum_scheduled, self.transport.now) < 0):
             # Emit next note
             note = self.note_register.notes[0]
-            velocity = int(self.note_register.velocities[0] * get_tilt_multiplier(self.strum_position,self.tilt,STRUM_CHORD_LENGTH))
+            velocity = int(self.note_register.velocities[0] * get_tilt_multiplier(self.strum_position,self.tilt,self.note_register.length))
             self.note_ons_out.append_value(note, velocity = velocity)
             # Remove from register
             self.note_register.remove_index(0)
             # Schedule next one
-            strum_delta = int(self.amount * (STRUM_ARTICULATE_PATTERNS[self.articulate][min(self.strum_position,STRUM_CHORD_LENGTH)]/10))
+            articulation_pattern = STRUM_ARTICULATE_PATTERNS[self.articulate]
+            articulation_position = min(self.strum_position, len(articulation_pattern)-1)
+            strum_delta = int(self.amount * (articulation_pattern[articulation_position]/10))
             self.next_strum_scheduled = ticks.ticks_add(self.next_strum_scheduled,strum_delta)
-            self.strum_position += 1
-            self.strum_position = self.strum_position % STRUM_CHORD_LENGTH
+            self.strum_position = (self.strum_position + 1) % STRUM_CHORD_LENGTH
 
         return self.note_ons_out, self.note_offs_out
 
@@ -149,4 +150,3 @@ class Strum(Module):
         super().remove()
         self.transport = None
         self.note_register = None
-

@@ -16,16 +16,13 @@ class Output(Module):
         parms = []
         print_output_parm = Parms.Parm(name="print", label="PRNT", parm_type=Parms.BooleanParmType, default=self.print_state,
                                        help_text="PRINT MIDI LOG",
-                                       edit_callback_function=self.set_print)
+                                       bind_object=self, bind_attribute="print_state")
         parms.append(print_output_parm)
         out_ch_parm = Parms.Parm(name="out_ch", label="OUT CH", parm_type=Parms.IntParmType, default=self.out_ch+1, minmax = (1,16),
                                        help_text="FINAL OUT CH",
                                        edit_callback_function=self.set_out_ch)
         parms.append(out_ch_parm)
         return parms
-
-    def set_print(self, value):
-        self.print_state = value
 
     def set_out_ch(self, value):
         self.out_ch = value-1

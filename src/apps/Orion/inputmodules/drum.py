@@ -42,7 +42,7 @@ class Drum(Input):
         # Velocity
         velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=self.velocity,
                                    help_text="DRUM VELOCITY",
-                                   minmax=(0, 127), edit_callback_function=self.set_velocity)
+                                   minmax=(0, 127), bind_object=self, bind_attribute="velocity")
         parms.append(velocity_parm)
         return parms
 

@@ -76,13 +76,13 @@ class Arp(Module):
         # Mode
         mode_parm = Parms.Parm(name="mode", label="MDE", default=self.mode, parm_type=Parms.EnumParmType,
                                help_text="ARP ORDER MODE",
-                               options=MODE_LIST, edit_callback_function=self.set_mode)
+                               options=MODE_LIST, bind_object=self, bind_attribute="mode")
         parms.append(mode_parm)
 
         # Gate
         gate_parm = Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
                                help_text="NOTE GATE MS",
-                               increment=5, edit_callback_function=self.set_gate)
+                               increment=5, bind_object=self, bind_attribute="gate")
         parms.append(gate_parm)
 
         # Pattern
@@ -94,28 +94,28 @@ class Arp(Module):
 
         pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTN SHFT", default=self.pattern_shift,
                                         help_text="PATTERN SHIFT",
-                                        parm_type=Parms.IntParmType, edit_callback_function=self.set_pattern_shift)
+                                        parm_type=Parms.IntParmType, bind_object=self, bind_attribute="pattern_shift")
         parms.append(pattern_shift_parm)
 
         # Gate Randomize
         gate_random_parm = Parms.Parm(name="gate_random", label="RND GATE", default=self.gate_random,
                                       parm_type=Parms.IntParmType,
                                       help_text="RAND GATE MS",
-                                      increment=5, edit_callback_function=self.set_gate_random)
+                                      increment=5, bind_object=self, bind_attribute="gate_random")
         parms.append(gate_random_parm)
 
         # Random Pattern Length
         random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RND LEN", default=self.random_pattern_length,
                                                 parm_type=Parms.IntParmType, minmax=(0,128),
                                                 help_text="RAND LOOP LEN",
-                                                edit_callback_function=self.set_random_pattern_length)
+                                                bind_object=self, bind_attribute="random_pattern_length")
         parms.append(random_pattern_length_parm)
 
         # Random Seed
         random_seed_parm = Parms.Parm(name="rand_seed", label="SEED", default=self.random_seed_user,
                                       parm_type=Parms.IntParmType,
                                       help_text="RAND SEED",
-                                      minmax=(0, 10000), edit_callback_function=self.set_random_seed_user)
+                                      minmax=(0, 10000), bind_object=self, bind_attribute="random_seed_user")
         parms.append(random_seed_parm)
 
         # Retrigger Mode
@@ -123,7 +123,7 @@ class Arp(Module):
                                     parm_type=Parms.EnumParmType,
                                     options=self.retrigger_mode_list,
                                     help_text="RETRIG MODE",
-                                    edit_callback_function=self.set_retrigger_mode)
+                                    bind_object=self, bind_attribute="retrigger_mode")
         parms.append(retrigger_parm)
 
         return parms
@@ -133,39 +133,11 @@ class Arp(Module):
         self.rate = music.RATE_VALUES[value]
         return self.rate
 
-    def set_mode(self, value):
-        self.mode = value
-        return self.mode
-
-    def set_gate(self, value):
-        self.gate = value
-        return self.gate
-
-    def set_gate_random(self, value):
-        self.gate_random = value
-        return self.gate_random
-
     def set_pattern(self, value):
         self.selected_pattern = value
         self.active_pattern = music.patterns_bit[self.selected_pattern]
         self.active_pattern_length = music.patterns_len[self.selected_pattern]
         return self.selected_pattern
-
-    def set_pattern_shift(self, value):
-        self.pattern_shift = value
-        return self.pattern_shift
-
-    def set_retrigger_mode(self, value):
-        self.retrigger_mode = value
-        return self.retrigger_mode
-
-    def set_random_seed_user(self, value):
-        self.random_seed_user = value
-        return self.random_seed_user
-
-    def set_random_pattern_length(self, value):
-        self.random_pattern_length = value
-        return self.random_pattern_length
 
     def rate_to_midi_ticks(self):
         # RATE_VALUES are in 1/16-note units; 1/16 = 6 MIDI clock ticks

@@ -46,7 +46,8 @@ class Chord(Module):
             default=self.scale_aware,
             parm_type=Parms.BooleanParmType,
             help_text="STAY IN SCALE",
-            edit_callback_function=self.set_scale_aware,
+            bind_object=self,
+            bind_attribute="scale_aware",
         )
 
         parms.append(scale_aware_parm)
@@ -55,9 +56,6 @@ class Chord(Module):
 
     def set_offset(self, index, value):
         self.offsets[index] = value
-
-    def set_scale_aware(self, value):
-        self.scale_aware = value
 
     def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
         self.note_ons_out.clear()

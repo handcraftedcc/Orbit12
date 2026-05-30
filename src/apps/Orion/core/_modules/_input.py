@@ -60,7 +60,7 @@ class Input(Module):
             # Velocity
             velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=self.velocity,
                                        help_text="NOTE VELOCITY",
-                                       minmax = (0,127), edit_callback_function=self.set_velocity)
+                                       minmax = (0,127), bind_object=self, bind_attribute="velocity")
             parms.append(velocity_parm)
 
         return parms
@@ -91,9 +91,6 @@ class Input(Module):
         self.state.key_offset = key_offset_id
         self.module_helper.output_manager.all_notes_off()
         self.color_pixels()
-
-    def set_velocity(self, velocity):
-        self.velocity = velocity
 
     def color_pixels(self, color_overrides: dict = None):
         color_array = [neo_pixels.KEYCOLORBASE]*12

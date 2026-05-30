@@ -23,31 +23,22 @@ class Transpose(Module):
         # Amount
         semitones_parm = Parms.Parm(name="semitones", label="SEMI", default=self.semitones, parm_type=Parms.IntParmType,
                                     help_text="SEMITONE SHIFT",
-                                    increment=1, edit_callback_function=self.set_semitones)
+                                    increment=1, bind_object=self, bind_attribute="semitones")
         parms.append(semitones_parm)
 
         # Octaves
         octaves_parm = Parms.Parm(name="octaves", label="OCT", default=self.octaves, parm_type=Parms.IntParmType,
                                   help_text="OCTAVE SHIFT",
-                                  increment=1, edit_callback_function=self.set_octaves)
+                                  increment=1, bind_object=self, bind_attribute="octaves")
         parms.append(octaves_parm)
 
         # Scale Aware
         scale_aware_parm = Parms.Parm(name="scale_aware", label="IN SCL", default=self.scale_aware,
                                       parm_type=Parms.BooleanParmType,
                                       help_text="STAY IN SCALE",
-                                      edit_callback_function=self.set_scale_aware)
+                                      bind_object=self, bind_attribute="scale_aware")
         parms.append(scale_aware_parm)
         return parms
-
-    def set_semitones(self, value):
-        self.semitones = value
-
-    def set_octaves(self, value):
-        self.octaves = value
-
-    def set_scale_aware(self, value):
-        self.scale_aware = value
 
     def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
         self.note_ons_out.clear()
