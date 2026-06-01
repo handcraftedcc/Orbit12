@@ -73,7 +73,10 @@ class Transport:
 				else:
 					pass
 
-		elif self.running == 1:
+		else:
+			self.drain_midi_input()
+
+		if self.state.transport_mode == 0 and self.running == 1:
 			if ticks.ticks_less(self.midi_tick_scheduled, self.now):
 				self.schedule_next_tick()
 				self.midi_tick += 1
@@ -81,6 +84,13 @@ class Transport:
 				steps += 1
 
 		return steps
+
+	def drain_midi_input(self):
+		max_msgs = 200
+		for _ in range(max_msgs):
+			msg = self.macropad.midi.receive()
+			if msg is None:
+				break
 
 	def schedule_next_tick(self):
 		tick_interval = self.tick_interval_ms_f * self.next_tick_swing_factor()

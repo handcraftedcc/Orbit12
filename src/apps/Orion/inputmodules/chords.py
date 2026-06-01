@@ -52,7 +52,7 @@ class Chords(Input):
         self.color_pixels()
 
         self.held_modifiers = NoteArray(length = 6)
-        self.held_note_relationship = NoteRelationshipArray()
+        self.held_note_relationship = NoteRelationshipArray(18)
         self.note_ons = NoteOnArray(length = 6)
         self.note_offs = NoteOffArray(length = 6)
         self.temp_chord = NoteArray(length = 6)
@@ -233,7 +233,9 @@ class Chords(Input):
             if chord.length > 0:
                 for j in range(chord.length):
                     note = chord.notes[j]
-                    self.note_offs_out.append_value(note)
+                    has_out_note, _ = self.held_note_relationship.has_out_note(note)
+                    if not has_out_note:
+                        self.note_offs_out.append_value(note)
 
         ## Process input notes and split them into notes and modifiers
         for i in range(note_ons.length):
@@ -253,14 +255,11 @@ class Chords(Input):
             for j in range(self.temp_chord.length):
                 chord_note = self.temp_chord.notes[j]
                 if self.held_note_relationship.in_array.length < self.held_note_relationship.in_array.max_length:
-                    has_out_note, out_note_id = self.held_note_relationship.has_out_note(chord_note)
-
+                    has_out_note, _ = self.held_note_relationship.has_out_note(chord_note)
                     if has_out_note:
-                        self.held_note_relationship.replace_note_in_index(pad_note, out_note_id)
-
-                    elif self.held_note_relationship.in_array.length < self.held_note_relationship.in_array.max_length:
-                        self.held_note_relationship.add_note(pad_note, chord_note)
-                        self.note_ons_out.append_value(chord_note, velocity=self.velocity)
+                        self.note_offs_out.append_value(chord_note)
+                    self.held_note_relationship.add_note(pad_note, chord_note)
+                    self.note_ons_out.append_value(chord_note, velocity=self.velocity)
 
         #if note_ons.length > 0 or note_offs.length > 0:
             #print("Held Notes Relationship: ", self.held_note_relationship.in_array.notes, self.held_note_relationship.out_array.notes)

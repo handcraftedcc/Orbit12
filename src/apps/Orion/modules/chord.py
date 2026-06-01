@@ -18,7 +18,7 @@ class Chord(Module):
     version = 1
     def __init__(self, module_helper, slot_id):
         self.offsets = [0,2,4,0,0]
-        self.note_relationship = NoteRelationshipArray()
+        self.note_relationship = NoteRelationshipArray(18)
         self.note_ons_out = NoteOnArray()
         self.note_offs_out = NoteOffArray()
         self.scale_aware = True
@@ -69,7 +69,11 @@ class Chord(Module):
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             off_notes = self.note_relationship.remove_note_all(note)
-            self.note_offs_out.append_values(off_notes)
+            for j in range(off_notes.length):
+                off_note = off_notes.notes[j]
+                has_out_note, _ = self.note_relationship.has_out_note(off_note)
+                if not has_out_note:
+                    self.note_offs_out.append_value(off_note)
 
         for i in range(note_ons.length):
             note = note_ons.notes[i]
@@ -97,12 +101,11 @@ class Chord(Module):
                     append = True
 
                 if append:
-                        has_out_note,out_note_id = self.note_relationship.has_out_note(new_note)
-                        if has_out_note:
-                            self.note_relationship.replace_note_in_index(note, out_note_id)
-                        else:
-                            self.note_ons_out.append_value(new_note, velocity=velocity)
-                            self.note_relationship.add_note(note, new_note)
+                    has_out_note, _ = self.note_relationship.has_out_note(new_note)
+                    if has_out_note:
+                        self.note_offs_out.append_value(new_note)
+                    self.note_ons_out.append_value(new_note, velocity=velocity)
+                    self.note_relationship.add_note(note, new_note)
 
 
         return self.note_ons_out, self.note_offs_out
