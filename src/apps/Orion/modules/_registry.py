@@ -15,6 +15,9 @@ AVAILABLE_MODULE_HELP_TEXTS = [spec[2] for spec in MODULE_SPECS]
 
 
 def get_module_class(module_key):
+    import gc
+    gc.collect()
+
     if module_key == "empty":
         from ..core._modules._empty import Empty
         return Empty

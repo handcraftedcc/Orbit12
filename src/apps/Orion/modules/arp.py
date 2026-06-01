@@ -32,7 +32,7 @@ class Arp(Module):
 
         # Setup Attribs
         self.rate_value = 8
-        self.rate = 1
+        self.rate_ticks = music.RATE_MIDI_TICKS[self.rate_value]
         self.note_register = NoteOnArray()
         self.note_register_position = 0
         self.note_ons_out = NoteOnArray()
@@ -87,7 +87,7 @@ class Arp(Module):
 
         # Pattern
         pattern_parm = Parms.Parm(name="pattern", label="PTN", default=self.selected_pattern,
-                                  parm_type=Parms.EnumParmType, options=music.patterns_text,
+                                  parm_type=Parms.PatternParmType,
                                   help_text="ARP PATTERN",
                                   edit_callback_function=self.set_pattern)
         parms.append(pattern_parm)
@@ -130,8 +130,8 @@ class Arp(Module):
 
     def set_rate(self, value):
         self.rate_value = value
-        self.rate = music.RATE_VALUES[value]
-        return self.rate
+        self.rate_ticks = music.RATE_MIDI_TICKS[value]
+        return self.rate_ticks
 
     def set_pattern(self, value):
         self.selected_pattern = value
@@ -140,8 +140,7 @@ class Arp(Module):
         return self.selected_pattern
 
     def rate_to_midi_ticks(self):
-        # RATE_VALUES are in 1/16-note units; 1/16 = 6 MIDI clock ticks
-        return max(1, int(round(self.rate * 6)))
+        return self.rate_ticks
 
     def update_note_register(self, note_ons, note_offs):
         for i in range(note_ons.length):

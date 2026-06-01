@@ -1,7 +1,8 @@
 # Creates parm templates
+from . import music as Music
 from .music import NOTES
 from .music import RATE_LABELS
-from .music import RATE_VALUES
+from .music import RATE_MIDI_TICKS
 
 class Parm:
     __slots__ = (
@@ -187,11 +188,26 @@ class EnumParmType(ParmType):
             parm.display_value = parm.options[new_value]
         return new_value
 
+class PatternParmType(ParmType):
+    @classmethod
+    def get_display_value(cls, parm):
+        label = "PTN" + str(parm.value + 1)
+        pattern = Music.pattern_to_text(Music.patterns_bit[parm.value], Music.patterns_len[parm.value])
+        parm.help_text = label + ": " + pattern
+        return label
+
+    @classmethod
+    def edit(cls, parm, delta):
+        count = len(Music.patterns_bit)
+        if count == 0:
+            return 0
+        return (parm.value + delta) % count
+
 class RateParmType(ParmType):
     rates_labels = RATE_LABELS
-    rates_values = RATE_VALUES
+    rates_midi_ticks = RATE_MIDI_TICKS
     bar_count = 16
-    len_rates = len(RATE_VALUES)
+    len_rates = len(RATE_MIDI_TICKS)
 
     @classmethod
     def edit(cls, parm, delta):
@@ -233,17 +249,17 @@ class RateParmType(ParmType):
         # Rates and bars
         if parm.include_bars and parm.include_rates:
             if parm.value < cls.bar_count:
-                rate = (16-parm.value)*16
+                rate = (16-parm.value)*96
             else:
-                rate = cls.rates_values[parm.value-cls.bar_count]
+                rate = cls.rates_midi_ticks[parm.value-cls.bar_count]
 
         # Rates only
         elif parm.include_rates:
-            rate = cls.rates_values[parm.value]
+            rate = cls.rates_midi_ticks[parm.value]
 
         # Bars only
         else:
-            rate = (16-parm.value)*16
+            rate = (16-parm.value)*96
 
         return rate
 

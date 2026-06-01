@@ -42,7 +42,7 @@ class Wander(Module):
         self.transport = self.module_helper.transport
 
         self.rate_value = 8
-        self.rate = 1
+        self.rate_ticks = music.RATE_MIDI_TICKS[self.rate_value]
 
         self.wander = 45          # 0-100, bigger = larger jumps
         self.range = 5            # scale steps from center
@@ -159,11 +159,11 @@ class Wander(Module):
 
     def set_rate(self, value):
         self.rate_value = value
-        self.rate = music.RATE_VALUES[value]
-        return self.rate
+        self.rate_ticks = music.RATE_MIDI_TICKS[value]
+        return self.rate_ticks
 
     def rate_to_midi_ticks(self):
-        return max(1, int(round(self.rate * 6)))
+        return self.rate_ticks
 
     def clamp_note(self, note):
         if note < 0:

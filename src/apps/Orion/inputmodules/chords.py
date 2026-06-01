@@ -52,7 +52,7 @@ class Chords(Input):
         self.color_pixels()
 
         self.held_modifiers = NoteArray(length = 6)
-        self.held_note_relationship = NoteRelationshipArray(18)
+        self.held_note_relationship = NoteRelationshipArray(12)
         self.note_ons = NoteOnArray(length = 6)
         self.note_offs = NoteOffArray(length = 6)
         self.temp_chord = NoteArray(length = 6)

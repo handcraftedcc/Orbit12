@@ -18,7 +18,7 @@ class Chord(Module):
     version = 1
     def __init__(self, module_helper, slot_id):
         self.offsets = [0,2,4,0,0]
-        self.note_relationship = NoteRelationshipArray(18)
+        self.note_relationship = NoteRelationshipArray(12)
         self.note_ons_out = NoteOnArray()
         self.note_offs_out = NoteOffArray()
         self.scale_aware = True

@@ -22,12 +22,12 @@ MODE_RANDOM = ORDER_LIST.index("RAND")
 
 
 STRUM_ARTICULATE_PATTERNS = (
-    bytearray((24, 16, 8, 4)),    # 1 ACCL - very wide start, tight finish
-    bytearray((4, 8, 16, 24)),    # 2 DECL - tight start, wide finish
-    bytearray((28, 4, 18, 5)),    # 4 RAKE - hard drag, snap, drag, snap
-    bytearray((4, 22, 5, 20)),    # 5 BNC - strong short/long bounce
-    bytearray((18, 5, 20, 6)),    # 6 SWNG - exaggerated lopsided roll
-    bytearray((32, 8, 5, 4)),     # 7 FLAM - huge first gap, rapid cascade
+    bytes((24, 16, 8, 4)),    # 1 ACCL - very wide start, tight finish
+    bytes((4, 8, 16, 24)),    # 2 DECL - tight start, wide finish
+    bytes((28, 4, 18, 5)),    # 4 RAKE - hard drag, snap, drag, snap
+    bytes((4, 22, 5, 20)),    # 5 BNC - strong short/long bounce
+    bytes((18, 5, 20, 6)),    # 6 SWNG - exaggerated lopsided roll
+    bytes((32, 8, 5, 4)),     # 7 FLAM - huge first gap, rapid cascade
 )
 
 STRUM_ARTICULATE_LIST = (

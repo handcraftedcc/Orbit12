@@ -44,6 +44,7 @@ class State:
         self.module_helper = None
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
         self.help_text = "SEL CHAIN ELMT"
+        self.module_load_failed = False
 
     def update_parm_count(self):
         module = self.chain_modules[self.active_chain]
@@ -68,22 +69,49 @@ class State:
         self.update_parm_count()
 
     def set_chain_module(self, slot_id, module_class):
+        self.unload_chain_module(slot_id)
+        self.load_chain_module(slot_id, module_class)
+
+    def load_chain_module(self, slot_id, module_class):
+        self.module_load_failed = False
+        try:
+            self.chain_modules[slot_id] = module_class(self.module_helper, slot_id)
+        except MemoryError:
+            gc.collect()
+            self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
+            self.help_text = "NOT ENOUGH MEM"
+            self.module_load_failed = True
+        self.update_parm_count()
+        self.active_parm = 0
+        gc.collect()
+        return not self.module_load_failed
+
+    def get_fallback_module_class(self, slot_id):
+        if slot_id == ChainElements.IN:
+            try:
+                return InputModuleRegistry.get_module_class("note")
+            except MemoryError:
+                gc.collect()
+        return EmptyModule
+
+    def create_fallback_module(self, slot_id):
+        module_class = self.get_fallback_module_class(slot_id)
+        try:
+            return module_class(self.module_helper, slot_id)
+        except MemoryError:
+            gc.collect()
+            return EmptyModule(self.module_helper, slot_id)
+
+    def unload_chain_module(self, slot_id):
         old_module = self.chain_modules[slot_id]
 
         if old_module is not None:
             old_module.remove()
-
-        self.chain_modules[slot_id]=module_class(self.module_helper, slot_id)
-        self.update_parm_count()
-        self.active_parm=0
-        gc.collect()
+            self.chain_modules[slot_id] = None
+            gc.collect()
 
     def reset_chain_module(self, slot_id):
-        old_module = self.chain_modules[slot_id]
-
-        if old_module is not None:
-            old_module.remove()
-
+        self.unload_chain_module(slot_id)
         self.chain_modules[slot_id] = EmptyModule(self.module_helper, slot_id)
         self.update_parm_count()
         self.active_parm=0
@@ -124,7 +152,20 @@ class State:
         if active_key == selected_key :
             return
         else:
-            self.set_chain_module(self.active_chain, registry.get_module_class(selected_key))
+            slot_id = self.active_chain
+            self.unload_chain_module(slot_id)
+            try:
+                module_class = registry.get_module_class(selected_key)
+            except MemoryError:
+                gc.collect()
+                self.help_text = "NOT ENOUGH MEM"
+                self.module_load_failed = True
+                self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
+                self.update_parm_count()
+                self.active_parm = 0
+                gc.collect()
+                return False
+            return self.load_chain_module(slot_id, module_class)
 
     def stop_all_modules(self):
         for module in self.chain_modules:

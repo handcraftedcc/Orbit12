@@ -239,6 +239,7 @@ class MidiCommander:
 
     def edit_parm(self, delta):
         new_value, new_display_value = self.state.get_active_module_parm().edit(delta)
+        self.refresh_help_text()
         self.ui_manager.parameter_section.queue_parm_value_update(new_display_value)
         self.add_to_ui_queue(self.ui_manager.parameter_section.flush_parm_value_update)
 
@@ -276,9 +277,15 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.module_selector.update_module_name)
 
     def exit_module_selection(self):
-        self.state.module_selector_apply_module_selection()
+        module_loaded = self.state.module_selector_apply_module_selection()
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
         active_module = self.state.chain_modules[self.state.active_chain].name
+        if module_loaded is False:
+            self.state.active_ui_section = UISection.CHAIN
+            self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
+            self.add_to_ui_queue(self.ui_manager.switch_section)
+            return
         if active_module == "empty":
             self.state.active_ui_section = UISection.CHAIN
             self.refresh_help_text()

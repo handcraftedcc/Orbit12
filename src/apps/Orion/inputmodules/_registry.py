@@ -10,6 +10,9 @@ AVAILABLE_MODULE_HELP_TEXTS = [spec[2] for spec in MODULE_SPECS]
 
 
 def get_module_class(module_key):
+    import gc
+    gc.collect()
+
     if module_key == "note":
         from .note import Note
         return Note

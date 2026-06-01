@@ -30,73 +30,73 @@ SCALENAMES = (
 
 SCALES = (
     # CHROMATIC
-    (0,1,2,3,4,5,6,7,8,9,10,11),
+    bytes((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)),
 
     # MAJOR / MINOR SYSTEM
-    (0, 2, 4, 5, 7, 9, 11),           # Major (Ionian)
-    (0, 2, 3, 5, 7, 8, 10),           # Natural Minor (Aeolian)
-    (0, 2, 3, 5, 7, 8, 11),           # Harmonic Minor
-    (0, 2, 3, 5, 7, 9, 11),           # Melodic Minor
+    bytes((0, 2, 4, 5, 7, 9, 11)),           # Major (Ionian)
+    bytes((0, 2, 3, 5, 7, 8, 10)),           # Natural Minor (Aeolian)
+    bytes((0, 2, 3, 5, 7, 8, 11)),           # Harmonic Minor
+    bytes((0, 2, 3, 5, 7, 9, 11)),           # Melodic Minor
 
     # MODES
-    (0, 2, 4, 5, 7, 9, 11),           # Ionian (same as major)
-    (0, 2, 3, 5, 7, 9, 10),           # Dorian
-    (0, 1, 3, 5, 7, 8, 10),           # Phrygian
-    (0, 2, 4, 6, 7, 9, 11),           # Lydian
-    (0, 2, 4, 5, 7, 9, 10),           # Mixolydian
-    (0, 2, 3, 5, 7, 8, 10),           # Aeolian (same as natural minor)
-    (0, 1, 3, 5, 6, 8, 10),           # Locrian
+    bytes((0, 2, 4, 5, 7, 9, 11)),           # Ionian (same as major)
+    bytes((0, 2, 3, 5, 7, 9, 10)),           # Dorian
+    bytes((0, 1, 3, 5, 7, 8, 10)),           # Phrygian
+    bytes((0, 2, 4, 6, 7, 9, 11)),           # Lydian
+    bytes((0, 2, 4, 5, 7, 9, 10)),           # Mixolydian
+    bytes((0, 2, 3, 5, 7, 8, 10)),           # Aeolian (same as natural minor)
+    bytes((0, 1, 3, 5, 6, 8, 10)),           # Locrian
 
     # PENTATONIC
-    (0, 2, 4, 7, 9),                  # Major Pentatonic
-    (0, 3, 5, 7, 10),                 # Minor Pentatonic
-    (0, 2, 5, 7, 10),                 # Suspended Pentatonic
+    bytes((0, 2, 4, 7, 9)),                  # Major Pentatonic
+    bytes((0, 3, 5, 7, 10)),                 # Minor Pentatonic
+    bytes((0, 2, 5, 7, 10)),                 # Suspended Pentatonic
 
     # BLUES
-    (0, 3, 5, 6, 7, 10),              # Blues Scale
+    bytes((0, 3, 5, 6, 7, 10)),              # Blues Scale
 
     # COMMON VARIANTS
-    (0, 2, 3, 5, 7, 9, 10),           # Minor w/ Major 6 (Dorian flavor)
-    (0, 2, 4, 5, 7, 9, 10),           # Major w/ b7 (Mixolydian flavor)
+    bytes((0, 2, 3, 5, 7, 9, 10)),           # Minor w/ Major 6 (Dorian flavor)
+    bytes((0, 2, 4, 5, 7, 9, 10)),           # Major w/ b7 (Mixolydian flavor)
 
     # SYMMETRICAL / JAZZ
-    (0, 2, 4, 6, 8, 10),              # Whole Tone
-    (0, 1, 3, 4, 6, 7, 9, 10),        # Diminished (Half-Whole)
-    (0, 2, 3, 5, 6, 8, 9, 11),        # Diminished (Whole-Half)
+    bytes((0, 2, 4, 6, 8, 10)),              # Whole Tone
+    bytes((0, 1, 3, 4, 6, 7, 9, 10)),        # Diminished (Half-Whole)
+    bytes((0, 2, 3, 5, 6, 8, 9, 11)),        # Diminished (Whole-Half)
 )
 
 
 PENTATONIC_IDS = (SCALENAMES.index("MAJP"), SCALENAMES.index("MINP"), SCALENAMES.index("SPEN"))
 
-AUTOBORROWRELATIONSHIP = {
-    0: 0,   # CHR   -> CHR
+AUTOBORROWRELATIONSHIP = bytes((
+    0,   # CHR   -> CHR
 
-    1: 2,   # MAJ   -> MIN
-    2: 1,   # MIN  -> MAJ
-    3: 2,   # HMIN  -> MIN
-    4: 6,   # MMIN  -> DOR
+    2,   # MAJ   -> MIN
+    1,   # MIN  -> MAJ
+    2,   # HMIN  -> MIN
+    6,   # MMIN  -> DOR
 
-    5: 2,   # ION   -> MIN
-    6: 2,   # DOR   -> MIN
-    7: 2,   # PHR   -> MIN
-    8: 5,   # LYD   -> ION
-    9: 5,   # MIX   -> ION
-    10: 5,  # AEO  -> ION
-    11: 7,  # LOC   -> PHR
+    2,   # ION   -> MIN
+    2,   # DOR   -> MIN
+    2,   # PHR   -> MIN
+    5,   # LYD   -> ION
+    5,   # MIX   -> ION
+    5,   # AEO  -> ION
+    7,   # LOC   -> PHR
 
-    12: 1,  # MPEN  -> MAJ
-    13: 2,  # mPEN  -> MIN
-    14: 6,  # SPEN  -> DOR
+    1,   # MPEN  -> MAJ
+    2,   # mPEN  -> MIN
+    6,   # SPEN  -> DOR
 
-    15: 13, # BLU   -> mPEN
+    13,  # BLU   -> mPEN
 
-    16: 2,  # m6    -> MIN
-    17: 1,  # M7b   -> MAJ
+    2,   # m6    -> MIN
+    1,   # M7b   -> MAJ
 
-    18: 9,  # WT    -> MIX
-    19: 3,  # DIMh  -> HMIN
-    20: 2,  # DIMw  -> MIN
-}
+    9,   # WT    -> MIX
+    3,   # DIMh  -> HMIN
+    2,   # DIMw  -> MIN
+))
 
 def note_num_to_name(note_num):
     note_octave = note_num // 12 - 1
@@ -105,31 +105,25 @@ def note_num_to_name(note_num):
 
 
 RATE_LABELS= ("1/1", "1/1T", "1/2", "1/2T", "1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T")
-RATE_VALUES = (16, 16 * (2/3), 8, 8 * (2/3), 4, 4 * (2/3), 2, 2 * (2/3), 1, 1 * (2/3), 0.5, 0.5 * (2/3))
-
-def text_to_bit_pattern(patterns_text):
-    patterns_bit = []
-    patterns_len = []
-
-    for text in patterns_text:
-        pattern = 0
-
-        for i, char in enumerate(text):
-            if char == "X":
-                pattern |= 1 << i
-            elif char != "O":
-                raise ValueError("Pattern can only contain X or O")
-
-        patterns_bit.append(pattern)
-        patterns_len.append(len(text))
-
-    return patterns_bit, patterns_len
+RATE_MIDI_TICKS = bytes((96, 64, 48, 32, 24, 16, 12, 8, 6, 4, 3, 2))
 
 #Arp patterns
 
 def get_pattern_step(pattern_bit, pattern_len, step):
     step = step % pattern_len
-    return (pattern_bit >> step) & 1
+    bit_index = pattern_len - step - 1
+    return (pattern_bit >> bit_index) & 1
+
+def pattern_to_text(pattern_bit, pattern_len):
+    text = ""
+
+    for step in range(pattern_len):
+        if get_pattern_step(pattern_bit, pattern_len, step):
+            text += "X"
+        else:
+            text += "O"
+
+    return text
 
 def get_pattern_empty_steps(pattern_bit, pattern_len):
     empty_steps = 0
@@ -140,46 +134,72 @@ def get_pattern_empty_steps(pattern_bit, pattern_len):
 
     return empty_steps
 
-patterns_text = (
+patterns_bit = bytes((
     # 2
-    "XX",
-    "XO",
+    0b11,
+    0b10,
 
     # 3
-    "XXO",
-    "XOO",
+    0b110,
+    0b100,
 
     # 4
-    "XXXO",
-    "XXOO",
-    "XOOO",
+    0b1110,
+    0b1100,
+    0b1000,
 
     # 5
-    "XXXXO",
-    "XXXOO",
-    "XXOOO",
-    "XOXOX",
-    "XOXOO",
+    0b11110,
+    0b11100,
+    0b11000,
+    0b10101,
+    0b10100,
 
     # 6
-    "XXXXXO",
-    "XXXXOO",
-    "XXXOOO",
-    "XXOXOX",
-    "XOXOOX",
+    0b111110,
+    0b111100,
+    0b111000,
+    0b110101,
+    0b101001,
 
     # 8
-    "XXXXXXXO",
-    "XXXXXXOO",
-    "XXXXXOOO",
-    "XXXXOOOO",
-    "XXXOOOOO",
-    "XOXXXXOX",
-    "XOOXOXOO",
-    "XOXXOOXO",
-)
+    0b11111110,
+    0b11111100,
+    0b11111000,
+    0b11110000,
+    0b11100000,
+    0b10111101,
+    0b10010100,
+    0b10110010,
+))
 
-patterns_bit, patterns_len = text_to_bit_pattern(patterns_text)
+patterns_len = bytes((
+    2,
+    2,
+    3,
+    3,
+    4,
+    4,
+    4,
+    5,
+    5,
+    5,
+    5,
+    5,
+    6,
+    6,
+    6,
+    6,
+    6,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+))
 
 
 ### HELPER FUNCTIONS ###
