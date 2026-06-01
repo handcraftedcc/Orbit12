@@ -32,7 +32,8 @@ from .core._modules._transport import Transport as TransportModule
 from .core._modules._output import Output as OutputModule
 from .core._modules._settings import Settings as SettingsModule
 
-SCREENREFRESHRATE = 4
+SCREEN_REFRESH_RATE = 4
+SCREEN_SLEEP_TIME = 60000
 SWAP_CHAIN_MIN = ChainElements.SLOT1
 SWAP_CHAIN_MAX = ChainElements.SLOT6
 
@@ -74,6 +75,8 @@ class MidiCommander:
         self.last_gc_ms = ticks.ticks_ms()
         self.knob_hold_down_start = None
         self.chain_swap_mode = 0 #0 = False, 1 = is pending, 2 = active
+        self.last_screen_activity_ms = ticks.ticks_ms()
+        self.screen_sleeping = False
         #self.ui_rebuild_pending = False
 
         self.note_ons = NoteOnArray()
@@ -138,6 +141,22 @@ class MidiCommander:
             if safe:
                 gc.collect()
                 self.last_gc_ms = now
+
+    def wake_screen(self):
+        self.last_screen_activity_ms = ticks.ticks_ms()
+        if self.screen_sleeping:
+            self.macropad.display_sleep = False
+            self.screen_sleeping = False
+            self.screen_update_needed = True
+
+    def maybe_sleep_screen(self):
+        if self.screen_sleeping:
+            return
+        if self.ui_queue or self.screen_update_needed:
+            return
+        if ticks.ticks_diff(ticks.ticks_ms(), self.last_screen_activity_ms) > SCREEN_SLEEP_TIME:
+            self.macropad.display_sleep = True
+            self.screen_sleeping = True
 
     def update_help_text(self, text):
         text = help_text.normalize_help_text(text)
@@ -295,6 +314,9 @@ class MidiCommander:
 
             ### Get input
             pressed,released,knob_delta,downstate = self.input_manager.get_inputs()
+
+            if any(pressed) or any(released) or knob_delta != 0:
+                self.wake_screen()
 
             ### Process inputs ###
             ## Process encoder knob turn ##
@@ -551,7 +573,9 @@ class MidiCommander:
                 # mark refresh, but don't flush display immediately
                 self.screen_update_needed = True
 
-            if self.screen_update_needed and self.run_tick % SCREENREFRESHRATE == 0 and self.can_do_ui_work(min_slack_ms=12):
+            self.maybe_sleep_screen()
+
+            if not self.screen_sleeping and self.screen_update_needed and self.run_tick % SCREEN_REFRESH_RATE == 0 and self.can_do_ui_work(min_slack_ms=12):
                 self.ui_manager.screen.update()
                 self.screen_update_needed = False
 

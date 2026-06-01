@@ -204,9 +204,9 @@ class Chords(Input):
             if self.bass_mode == BassModes.Second:
                 bass = self.temp_chord.notes[1]-12
             if self.bass_mode == BassModes.Lowest:
-                bass = self.temp_chord.get_min_note() - 12
+                bass = self.temp_chord.get_min_note()[0] - 12
             if self.bass_mode == BassModes.Highest:
-                bass = self.temp_chord.get_max_note() - 12
+                bass = self.temp_chord.get_max_note()[0] - 12
             if bass is not None:
                 self.temp_chord.insert_value_at_index(bass,0)
 
