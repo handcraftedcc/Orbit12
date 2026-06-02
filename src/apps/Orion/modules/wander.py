@@ -13,7 +13,6 @@ RETRIGGER_OPTIONS = (
 )
 
 RETRIGGER_STABLE = 0
-RETRIGGER_CONTINUOUS = 1
 RETRIGGER_RETRIGGER = 2
 
 
@@ -31,11 +30,9 @@ class Wander(Module):
         self.gravity = 50
         self.min_step = 1
         self.max_step = 2
-        self.step_bias = 0.5
         self.max_deviation = 8
         self.tension = 0
         self.random_seed_user = 0
-        self.pattern_length = 0
         self.retrigger_mode = RETRIGGER_STABLE
         self.selected_pattern = 0
         self.active_pattern = music.patterns_bit[self.selected_pattern]
@@ -92,15 +89,6 @@ class Wander(Module):
         ))
 
         parms.append(Parms.Parm(
-            name="step_bias", label="BIAS", default=self.step_bias,
-            parm_type=Parms.PercentParmType,
-            minmax=(0, 1),
-            increment=0.05,
-            bind_object=self,
-            bind_attribute="step_bias"
-        ))
-
-        parms.append(Parms.Parm(
             name="max_deviation", label="DEV", default=self.max_deviation,
             parm_type=Parms.IntParmType,
             minmax=(0, 24),
@@ -122,15 +110,6 @@ class Wander(Module):
             minmax=(0, 10000),
             bind_object=self,
             bind_attribute="random_seed_user"
-        ))
-
-        parms.append(Parms.Parm(
-            name="pattern_length", label="RND LEN",
-            default=self.pattern_length,
-            parm_type=Parms.IntParmType,
-            minmax=(0, 128),
-            bind_object=self,
-            bind_attribute="pattern_length"
         ))
 
         parms.append(Parms.Parm(
@@ -208,6 +187,8 @@ class Wander(Module):
         if got_note_on and self.retrigger_mode == RETRIGGER_RETRIGGER:
             self.reset_walk()
 
+        return got_note_on
+
     def closest_held_note(self, note):
         if self.held_notes.length == 0:
             return self.center_note
@@ -222,86 +203,6 @@ class Wander(Module):
                 best_distance = distance
         return best
 
-    def choose_step_size(self, seed):
-        low = min(self.min_step, self.max_step)
-        high = max(self.min_step, self.max_step)
-        span = high - low
-        if span <= 0:
-            return low
-
-        a = utils.random_int(seed, span, 0)
-        b = utils.random_int(seed + 1, span, 0)
-        bias = int(self.step_bias * 100)
-        if utils.random_int(seed + 2, 99, 0) < bias:
-            if b > a:
-                a = b
-        elif b < a:
-            a = b
-        return low + a
-
-    def choose_direction(self, seed):
-        max_deviation = self.max_deviation
-        if max_deviation > 0 and abs(self.current_offset) >= max_deviation:
-            if self.current_offset > 0:
-                self.direction = -1
-            else:
-                self.direction = 1
-            return
-
-        if self.current_offset != 0 and utils.random_int(seed, 99, 0) < self.gravity:
-            if self.current_offset > 0:
-                self.direction = -1
-            else:
-                self.direction = 1
-        elif utils.random_int(seed + 1, 1, 0) == 0:
-            self.direction = -1
-        else:
-            self.direction = 1
-
-    def move_offset(self, seed):
-        self.choose_direction(seed)
-        step = self.choose_step_size(seed + 10)
-        max_deviation = self.max_deviation
-
-        if max_deviation <= 0:
-            self.current_offset = 0
-            return
-
-        next_offset = self.current_offset + (self.direction * step)
-        if next_offset > max_deviation:
-            self.direction = -1
-            next_offset = self.current_offset - step
-        elif next_offset < -max_deviation:
-            self.direction = 1
-            next_offset = self.current_offset + step
-
-        if next_offset > max_deviation:
-            next_offset = max_deviation
-        elif next_offset < -max_deviation:
-            next_offset = -max_deviation
-
-        self.current_offset = next_offset
-
-    def current_step(self, timing_step):
-        if self.retrigger_mode == RETRIGGER_STABLE:
-            return timing_step
-        return self.step_index
-
-    def step_seed(self, step):
-        if self.pattern_length > 0:
-            step = step % self.pattern_length
-        return self.random_seed_user + step
-
-    def rhythm_on(self, step):
-        return music.get_pattern_step(self.active_pattern, self.active_pattern_length, step)
-
-    def offset_to_note(self, seed):
-        scale = music.SCALES[self.module_helper.state.scale]
-        note = music.transpose(self.center_note, self.current_offset, 0, True, self.state.key, scale)
-        if self.tension > 0 and utils.random_int(seed + 40, 99, 0) < self.tension:
-            note += self.direction
-        return self.clamp_note(note)
-
     def process_active_note_off(self, force=False):
         if self.active_note is None:
             return
@@ -309,7 +210,49 @@ class Wander(Module):
             self.note_offs_out.append_value(self.active_note)
             self.active_note = None
 
-    def emit_note(self, note):
+    def generate_note(self, timing_step):
+        if self.retrigger_mode == RETRIGGER_STABLE:
+            step = timing_step
+        else:
+            step = self.step_index
+            self.step_index += 1
+
+        if not music.get_pattern_step(self.active_pattern, self.active_pattern_length, step):
+            return
+
+        seed = self.random_seed_user + step
+        max_deviation = self.max_deviation
+
+        if max_deviation <= 0:
+            self.current_offset = 0
+        else:
+            if abs(self.current_offset) >= max_deviation:
+                self.direction = -1 if self.current_offset > 0 else 1
+            elif self.current_offset != 0 and utils.random_int(seed, 99, 0) < self.gravity:
+                self.direction = -1 if self.current_offset > 0 else 1
+            elif utils.random_int(seed + 1, 1, 0) == 0:
+                self.direction = -1
+            else:
+                self.direction = 1
+
+            low = min(self.min_step, self.max_step)
+            high = max(self.min_step, self.max_step)
+            step_size = low + utils.random_int(seed + 2, high - low, 0)
+            self.current_offset += self.direction * step_size
+
+            if self.current_offset > max_deviation:
+                self.current_offset = max_deviation
+                self.direction = -1
+            elif self.current_offset < -max_deviation:
+                self.current_offset = -max_deviation
+                self.direction = 1
+
+        scale = music.SCALES[self.module_helper.state.scale]
+        note = music.transpose(self.center_note, self.current_offset, 0, True, self.state.key, scale)
+        if self.tension > 0 and utils.random_int(seed + 3, 99, 0) < self.tension:
+            note += self.direction
+        note = self.clamp_note(note)
+
         if self.active_note is not None:
             self.note_offs_out.append_value(self.active_note)
 
@@ -322,34 +265,28 @@ class Wander(Module):
             self.center_note = center
             self.current_offset = 0
 
-    def process_step(self, timing_step):
-        step = self.current_step(timing_step)
-        if self.retrigger_mode != RETRIGGER_STABLE:
-            self.step_index += 1
-
-        if not self.rhythm_on(step):
-            return
-
-        seed = self.step_seed(step)
-        self.move_offset(seed)
-        self.emit_note(self.offset_to_note(seed))
-
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
+        running = self.transport.running
+        was_running = self.was_transport_running
+        got_note_on = False
+
         if note_ons.length > 0 or note_offs.length > 0:
-            self.update_held_notes(note_ons, note_offs)
+            got_note_on = self.update_held_notes(note_ons, note_offs)
+
+        if got_note_on and running and was_running:
+            self.last_grid_bin = self.transport.midi_tick // self.rate_ticks
 
         if self.held_notes.length == 0:
             self.process_active_note_off(force=True)
-            self.was_transport_running = self.transport.running
+            self.was_transport_running = running
             return self.note_ons_out, self.note_offs_out
 
         self.process_active_note_off()
 
-        running = self.transport.running
-        if running and not self.was_transport_running:
+        if running and not was_running:
             self.last_grid_bin = -1
             if self.retrigger_mode == RETRIGGER_RETRIGGER:
                 self.reset_walk()
@@ -361,14 +298,8 @@ class Wander(Module):
                 self.last_grid_bin = -1
 
             if current_bin != self.last_grid_bin:
-                if self.last_grid_bin < 0:
-                    start_bin = current_bin
-                else:
-                    start_bin = self.last_grid_bin + 1
                 self.last_grid_bin = current_bin
-
-                for timing_step in range(start_bin, current_bin + 1):
-                    self.process_step(timing_step)
+                self.generate_note(current_bin)
 
         self.was_transport_running = running
         return self.note_ons_out, self.note_offs_out
