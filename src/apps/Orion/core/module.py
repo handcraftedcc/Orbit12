@@ -1,4 +1,3 @@
-from . import state
 from . import parms as Parms
 import gc
 
@@ -37,7 +36,7 @@ class Module:
     label = None
     help_text = None
     version = 1
-    def __init__(self, module_helper : ModuleHelper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
+    def __init__(self, module_helper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
         self.parms = None
         self.label_length = len(self.label)
         self.module_helper = module_helper
@@ -93,10 +92,6 @@ class Module:
         parms.append(source_mode_parm)
         return parms
 
-    def process_outs(self, note_ons, note_offs):
-        if self.operation_mode == 0:
-            return
-
     def set_out_channel(self, value):
         self.out_channel = value-1
 
@@ -130,17 +125,13 @@ class Module:
                 return parm
         return None
     
-    def get_parm_value(self, parm_id):
-        return self.get_parms()[parm_id].value
-    
-    def set_parm_value(self, parm_id, parm_value):
-        self.get_parms()[parm_id].value = parm_value
-
     def release_parms(self):
         if self.parms is None:
             return
 
         for parm in self.parms:
+            parm.bind_object = None
+            parm.bind_attribute = None
             parm.enter_callback_function = None
             parm.edit_callback_function = None
             parm.exit_callback_function = None
@@ -165,7 +156,7 @@ class Module:
         if self.source_mode != 0 and self.source_mode < self.slot_id:
             source = None
             if self.source_mode == 2:
-                source = self.state.chain_modules[state.ChainElements.IN]
+                source = self.state.chain_modules[0]
             else:
                 source = self.state.chain_modules[self.source_mode]
             if hasattr(source,"note_ons_out") and hasattr(source,"note_offs_out"):

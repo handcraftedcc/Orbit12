@@ -1,7 +1,6 @@
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.timing_clock import TimingClock
-from adafruit_midi.control_change import ControlChange
 from .constants import POLYPHONY
 from .note_array import NoteArray, NoteOnArray, NoteOffArray
 
@@ -70,7 +69,7 @@ class OutputManager:
     def schedule_midi_stop(self):
         self.macropad.midi.send(Stop())
 
-    def all_notes_off(self, send_cc=True):
+    def all_notes_off(self):
         self.note_ons_out.clear()
 
         for i in range(self.held_notes.length):
@@ -80,16 +79,6 @@ class OutputManager:
                 self.macropad.midi.send(self.macropad.NoteOff(held_note, 0), channel=held_channel)
 
         self.held_notes.clear()
-
-        #if send_cc:
-        #    for channel in range(16):
-        #        self.macropad.midi.send(ControlChange(123, 0), channel=channel)
-
-    def panic(self):
-        for channel in range(16):
-            for note in range(127):
-                self.macropad.midi.send(self.macropad.NoteOff(note, 0), channel=channel)
-                self.process_midi_out()
 
     def process_midi_out(self):
         # Send Midi Notes

@@ -81,7 +81,7 @@ class Chords(Input):
         parms.append(borrow_scale_parm)
         return parms
 
-    def color_pixels(self, color_overrides: dict = None):
+    def color_pixels(self, color_overrides = None):
         # set special color
         overrides = {}
         for i in range(6):
@@ -210,7 +210,7 @@ class Chords(Input):
             if bass is not None:
                 self.temp_chord.insert_value_at_index(bass,0)
 
-    def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         self.note_ons.clear()

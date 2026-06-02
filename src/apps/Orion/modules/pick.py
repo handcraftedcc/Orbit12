@@ -1,6 +1,6 @@
 from ..core.module import Module
 from ..core import parms as Parms
-from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
+from ..core.note_array import NoteArray
 
 PICK_MODE_OPTIONS = (
     "1ST",
@@ -42,7 +42,7 @@ class Pick(Module):
 
         return parms
 
-    def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.held_notes_in.append_values(note_ons)
         self.note_ons_out.clear()
         self.note_offs_out.clear()

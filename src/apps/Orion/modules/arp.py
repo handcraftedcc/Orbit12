@@ -1,5 +1,4 @@
 from ..core import music
-from ..core.constants import POLYPHONY
 from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks

@@ -98,12 +98,6 @@ AUTOBORROWRELATIONSHIP = bytes((
     2,   # DIMw  -> MIN
 ))
 
-def note_num_to_name(note_num):
-    note_octave = note_num // 12 - 1
-    note_name = NOTES[note_num%12]
-    return str(note_octave)+note_name
-
-
 RATE_LABELS= ("1/1", "1/1T", "1/2", "1/2T", "1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T")
 RATE_MIDI_TICKS = bytes((96, 64, 48, 32, 24, 16, 12, 8, 6, 4, 3, 2))
 
@@ -202,24 +196,17 @@ patterns_len = bytes((
 ))
 
 
-### HELPER FUNCTIONS ###
-
-def find_closest(values, target):
-    def distance_from_target(index):
-        return abs(values[index] - target)
-
-    index = min(range(len(values)), key=distance_from_target)
-    value = values[index]
-
-    return value, index
-
-## FUNCTIONS ##
-
 def transpose(note, semitones, octaves = 0, scale_aware = True, root = 0, scale = SCALES[1]):
     if scale_aware:
         normalized_note = (note - root + 12) % 12
         octave = (note - root) // 12
-        closest_note, closest_index = find_closest(scale, normalized_note)
+        closest_index = 0
+        closest_distance = abs(scale[0] - normalized_note)
+        for index in range(1, len(scale)):
+            distance = abs(scale[index] - normalized_note)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_index = index
         new_index = closest_index + semitones
         scale_notes = len(scale)
         octave_shift = new_index // scale_notes

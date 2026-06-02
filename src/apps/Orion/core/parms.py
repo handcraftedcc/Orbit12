@@ -1,8 +1,5 @@
 # Creates parm templates
 from . import music as Music
-from .music import NOTES
-from .music import RATE_LABELS
-from .music import RATE_MIDI_TICKS
 
 class Parm:
 
@@ -184,10 +181,10 @@ class PatternParmType(ParmType):
         return (parm.value + delta) % count
 
 class RateParmType(ParmType):
-    rates_labels = RATE_LABELS
-    rates_midi_ticks = RATE_MIDI_TICKS
+    rates_labels = Music.RATE_LABELS
+    rates_midi_ticks = Music.RATE_MIDI_TICKS
     bar_count = 16
-    len_rates = len(RATE_MIDI_TICKS)
+    len_rates = len(Music.RATE_MIDI_TICKS)
 
     @classmethod
     def edit(cls, parm, delta):
@@ -244,7 +241,7 @@ class RateParmType(ParmType):
         return rate
 
 class NoteParmType(ParmType):
-    notes = NOTES
+    notes = Music.NOTES
 
     @classmethod
     def edit(cls, parm, delta):

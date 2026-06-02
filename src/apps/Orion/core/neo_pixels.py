@@ -1,35 +1,20 @@
 from rainbowio import colorwheel
 
-COLORS = {
-    "black": 0x000000,
-    "white": 0xFFFFFF,
-    "red":  colorwheel(0),
-    "orange":  colorwheel(21),
-    "yellow":  colorwheel(42),
-    "lime":  colorwheel(64),
-    "green":  colorwheel(85),
-    "cyan":  colorwheel(128),
-    "blue":  colorwheel(150),
-    "purple":  colorwheel(191),
-    "magenta":  colorwheel(213),
-    "pink":  colorwheel(235),
-}
+KEYCOLORBASE = colorwheel(128)
+KEYCOLORROOT = colorwheel(64)
+KEYCOLORDRUMS = colorwheel(0)
 
-KEYCOLORBASE = COLORS["cyan"]
-KEYCOLORROOT = COLORS["lime"]
-KEYCOLORDRUMS = COLORS["red"]
+KEYCOLORNAVNOTE = colorwheel(150)
+KEYCOLORNAVPARMS = colorwheel(21)
+KEYCOLORENTER = colorwheel(42)
 
-KEYCOLORNAVNOTE = COLORS["blue"]
-KEYCOLORNAVPARMS = COLORS["orange"]
-KEYCOLORENTER = COLORS["yellow"]
+KEYCOLORSTOP = colorwheel(0)
+KEYCOLORSTART = colorwheel(85)
+KEYCOLORCHAIN = 0xFFFFFF
+KEYCOLORMODULESWAP = colorwheel(191)
 
-KEYCOLORSTOP = COLORS["red"]
-KEYCOLORSTART = COLORS["green"]
-KEYCOLORCHAIN = COLORS["white"]
-KEYCOLORMODULESWAP = COLORS["purple"]
-
-KEYOFF = COLORS["black"]
-KEYWHITE = COLORS["white"]
+KEYOFF = 0x000000
+KEYWHITE = 0xFFFFFF
 
 KEYBRIGHTNESSDEFAULT = 0.3
 KEYBRIGHTNESSHELD = 1
@@ -89,20 +74,7 @@ class NeoPixels:
         color = combine_color_and_brightness(color,brightness*self.brightness_multiplier)
         self.pixels[pad] = color
 
-    def set_key_colors_simple(self, key_bytearray: bytearray):
-        """key_bytearray needs to be 12 long. root keys are true, Others are false"""
-        if len(key_bytearray) == 12:
-            for idx, key in enumerate(key_bytearray):
-                if key:
-                    self.pixel_colors[idx] = KEYCOLORROOT
-                else:
-                    self.pixel_colors[idx] = KEYCOLORBASE
-            self.paint_pixels()
-        else:
-            raise RuntimeError("Array wrong length (should be 12 bytes)")
-
-
-    def set_key_colors(self, key_color_list : list):
+    def set_key_colors(self, key_color_list):
         """List of new key colors. Key color list needs to be 12 items long"""
         if len(key_color_list) == 12:
             for idx, key in enumerate(key_color_list):

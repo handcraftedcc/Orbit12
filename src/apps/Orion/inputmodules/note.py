@@ -1,5 +1,4 @@
 from ..core._modules._input import Input
-from ..core.note_array import NoteOnArray, NoteOffArray
 
 from ..core import music as Music
 
@@ -12,7 +11,7 @@ class Note(Input):
     def __init__(self, module_helper, slot_id):
         super().__init__(module_helper, slot_id, include_musical_parms=True)
 
-    def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 

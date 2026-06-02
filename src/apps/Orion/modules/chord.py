@@ -3,14 +3,6 @@ from ..core import parms as Parms
 from ..core import music
 from ..core.note_array import NoteRelationshipArray, NoteOnArray, NoteOffArray
 
-def find_closest(values, target):
-    def distance_from_target(index):
-        return abs(values[index] - target)
-
-    index = min(range(len(values)), key=distance_from_target)
-    value = values[index]
-    return value, index
-
 class Chord(Module):
     name = "chord"
     label = "CHRD"
@@ -57,7 +49,7 @@ class Chord(Module):
     def set_offset(self, index, value):
         self.offsets[index] = value
 
-    def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 

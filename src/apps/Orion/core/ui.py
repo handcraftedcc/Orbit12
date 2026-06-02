@@ -2,7 +2,7 @@
 from .music import SCALENAMES, NOTES
 import displayio
 import vectorio
-from .state import State, ChainModes, UISection, ChainElements
+from .state import ChainModes, UISection, ChainElements
 from .constants import PARMSPERPAGE
 
 from ..modules import _registry as ModuleRegistry
@@ -128,7 +128,7 @@ class UIManager:
 
 
 class Screen:
-    def __init__(self,macropad: MacroPad,main_group):
+    def __init__(self,macropad,main_group):
         self.display = macropad.display
         self.display.root_group = main_group
         macropad.display.refresh()
@@ -138,14 +138,14 @@ class Screen:
 
 
 class Section:
-    def __init__(self,state: State):
+    def __init__(self,state):
         self.visible = True
         self.group = displayio.Group()
         self.state = state
         pass
 
 class HeaderFooter(Section):
-    def __init__(self, state: State, transport, main_group):
+    def __init__(self, state, transport, main_group):
         super().__init__(state)
 
         self.transport = transport
@@ -397,14 +397,6 @@ class Chain(Section):
     def rebuild_chain_section(self):
         #TODO: Remove references
         self.set_cursor(self.state.active_chain)
-
-    def highlight_chain(self):
-        #TODO: Remove references
-        pass
-
-    def clear_chain_highlights(self):
-        #TODO: Remove references
-        pass
 
 class ParameterSection(Section):
     def __init__(self,state,main_group):

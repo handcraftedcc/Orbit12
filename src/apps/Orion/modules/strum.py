@@ -1,10 +1,8 @@
-from ..core import music
-from ..core.constants import POLYPHONY
 from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks
 from ..core import utils
-from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
+from ..core.note_array import NoteOnArray,NoteOffArray
 
 ORDER_LIST = (
     "ORD",
@@ -59,6 +57,7 @@ def get_tilt_multiplier(strum_position, tilt, note_count=5):
 def get_tilt_velocity(velocity, strum_position, tilt, note_count=5):
     tilt_velocity = int(velocity * get_tilt_multiplier(strum_position, tilt, note_count))
     return max(0, min(127, tilt_velocity))
+
 
 class Strum(Module):
     name = "strum"
@@ -120,7 +119,7 @@ class Strum(Module):
 
         return parms
 
-    def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 

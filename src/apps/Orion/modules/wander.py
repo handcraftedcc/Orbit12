@@ -314,7 +314,7 @@ class Wander(Module):
             else:
                 i += 1
 
-    def process(self, note_ons: NoteOnArray, note_offs: NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 

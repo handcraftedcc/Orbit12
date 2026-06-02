@@ -1,7 +1,6 @@
 from ..core import parms as Parms
 from ..core import neo_pixels
 from ..core._modules._input import Input, PADMAP
-from ..core.note_array import NoteOnArray, NoteOffArray
 
 from ..core import music as Music
 
@@ -50,7 +49,7 @@ class Drum(Input):
         self.layout = layout_id
         self.module_helper.output_manager.all_notes_off()
 
-    def color_pixels(self, color_overrides: dict = None):
+    def color_pixels(self, color_overrides = None):
         color_array = [neo_pixels.KEYCOLORDRUMS]*12
 
         try:
@@ -77,7 +76,7 @@ class Drum(Input):
         return pad_note+Music.DRUMBASENOTE+self.state.key_offset
 
 
-    def process(self, note_ons:NoteOnArray, note_offs:NoteOffArray):
+    def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 

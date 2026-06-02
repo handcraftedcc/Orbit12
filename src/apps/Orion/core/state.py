@@ -110,13 +110,6 @@ class State:
             self.chain_modules[slot_id] = None
             gc.collect()
 
-    def reset_chain_module(self, slot_id):
-        self.unload_chain_module(slot_id)
-        self.chain_modules[slot_id] = EmptyModule(self.module_helper, slot_id)
-        self.update_parm_count()
-        self.active_parm=0
-        gc.collect()
-
     def get_active_chain_module(self):
         return self.chain_modules[self.active_chain]
 

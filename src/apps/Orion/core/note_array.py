@@ -77,7 +77,7 @@ class NoteArray:
             if has_times: self.times[j + 1] = time
             if has_channels: self.channels[j + 1] = channel
             
-    def swap_notes(self, index_1: int, index_2: int):
+    def swap_notes(self, index_1, index_2):
         note = self.notes[index_1]
         self.notes[index_1] = self.notes[index_2]
         self.notes[index_2] = note
@@ -102,7 +102,7 @@ class NoteArray:
             left += 1
             right -= 1
             
-    def remove_index(self, index: int):
+    def remove_index(self, index):
         if index < 0 or index >= self.length:
             return False
         for i in range(index, self.length-1):
@@ -134,25 +134,7 @@ class NoteArray:
 
         return None
 
-    def remove_value_all(self, value, order=0, channel=None):
-        notes = self.notes
-        channels = self.channels
-        match_any_channel = channel is None
-        if order == 1:
-            i = self.length - 1
-            while i >= 0:
-                if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
-                    self.remove_index(i)
-                i -= 1
-        else:
-            i = 0
-            while i < self.length:
-                if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
-                    self.remove_index(i)
-                else:
-                    i += 1
-
-    def append_value(self, value: int, velocity=127, time = 0, channel = 0):
+    def append_value(self, value, velocity=127, time = 0, channel = 0):
         if self.length >= self.max_length:
             return False
         self.notes[self.length] = value
@@ -162,7 +144,7 @@ class NoteArray:
         self.length += 1
         return True
 
-    def append_values(self, note_array: "NoteArray"):
+    def append_values(self, note_array):
         for idx in range(note_array.length):
             note = note_array.notes[idx]
 
@@ -183,7 +165,7 @@ class NoteArray:
 
         return True
 
-    def insert_value_at_index(self, value, index: int, velocity = 127, time = 0, channel = 0):
+    def insert_value_at_index(self, value, index, velocity = 127, time = 0, channel = 0):
         if self.length >= self.max_length:
             return False
 
@@ -229,13 +211,6 @@ class NoteRelationshipArray:
         self.out_array = NoteArray(length)
         self.return_array = NoteArray(length)
 
-    def has_in_note(self, in_note):
-        for i in range(self.in_array.length):
-            note = self.in_array.notes[i]
-            if in_note == note:
-                return True,i
-        return False,None
-
     def has_out_note(self, out_note):
         for i in range(self.out_array.length):
             note = self.out_array.notes[i]
@@ -249,9 +224,6 @@ class NoteRelationshipArray:
         self.in_array.append_value(in_note)
         self.out_array.append_value(out_note)
         return True
-
-    def replace_note_in_index(self, in_note, index):
-        self.in_array.notes[index] = in_note
 
     def remove_note_single(self, in_note, first_in_first_out=True):
         index = self.in_array.remove_value_first(in_note, order= not first_in_first_out)

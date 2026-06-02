@@ -2,7 +2,7 @@ from ..module import Module
 from .. import neo_pixels
 from .. import parms as Parms
 from .. import music as Music
-from ..note_array import NoteArray, NoteOnArray, NoteOffArray
+from ..note_array import NoteOnArray, NoteOffArray
 
 PADMAP = (9,10,11,6,7,8,3,4,5,0,1,2)
 INPUT_OPERATION_OPTIONS = ("NEXT", "OUT+N")
@@ -92,7 +92,7 @@ class Input(Module):
         self.module_helper.output_manager.all_notes_off()
         self.color_pixels()
 
-    def color_pixels(self, color_overrides: dict = None):
+    def color_pixels(self, color_overrides = None):
         color_array = [neo_pixels.KEYCOLORBASE]*12
         scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)

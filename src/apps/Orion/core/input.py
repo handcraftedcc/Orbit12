@@ -1,8 +1,5 @@
-import adafruit_macropad as MacroPad
-
-
 class InputManager:
-    def __init__(self, macropad: MacroPad):
+    def __init__(self, macropad):
         self.macropad = macropad
         self.last_knob_pos = macropad.encoder
         self.downstate = bytearray(13)
