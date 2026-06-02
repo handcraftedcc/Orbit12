@@ -33,6 +33,7 @@ class Wander(Module):
         self.max_deviation = 8
         self.tension = 0
         self.random_seed_user = 0
+        self.loop_length = 0
         self.retrigger_mode = RETRIGGER_STABLE
         self.selected_pattern = 0
         self.active_pattern = music.patterns_bit[self.selected_pattern]
@@ -113,6 +114,14 @@ class Wander(Module):
         ))
 
         parms.append(Parms.Parm(
+            name="loop_length", label="LOOP", default=self.loop_length,
+            parm_type=Parms.IntParmType,
+            minmax=(0, 128),
+            bind_object=self,
+            bind_attribute="loop_length"
+        ))
+
+        parms.append(Parms.Parm(
             name="retrigger_mode", label="RTRG", default=self.retrigger_mode,
             parm_type=Parms.EnumParmType,
             options=RETRIGGER_OPTIONS,
@@ -160,16 +169,60 @@ class Wander(Module):
         self.step_index = 0
         self.last_grid_bin = -1
 
+    def note_from_offset(self, center_note, offset):
+        scale = music.SCALES[self.module_helper.state.scale]
+        return self.clamp_note(music.transpose(center_note, offset, 0, True, self.state.key, scale))
+
+    def offset_for_note(self, center_note, note):
+        max_deviation = self.max_deviation
+        if max_deviation <= 0:
+            return None
+
+        best_offset = 0
+        best_distance = 128
+        for offset in range(-max_deviation, max_deviation + 1):
+            distance = abs(self.note_from_offset(center_note, offset) - note)
+            if distance < best_distance:
+                best_offset = offset
+                best_distance = distance
+                if distance == 0:
+                    break
+
+        if best_distance <= 1:
+            return best_offset
+        return None
+
+    def current_note(self):
+        if self.active_note is not None:
+            return self.active_note
+        return self.note_from_offset(self.center_note, self.current_offset)
+
+    def move_center(self, note, keep_current_note):
+        self.center_note = note
+        offset = self.offset_for_note(note, keep_current_note)
+        if offset is None:
+            self.current_offset = 0
+        else:
+            self.current_offset = offset
+
     def update_held_notes(self, note_ons, note_offs):
         got_note_on = False
 
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            if not self.held_notes.contains(note):
-                self.held_notes.append_value(note)
-            self.center_note = note
-            self.current_offset = 0
-            got_note_on = True
+            had_notes = self.held_notes.length > 0
+            keep_note = self.current_note()
+
+            if self.held_notes.contains(note):
+                self.held_notes.remove_value_first(note)
+
+            if self.held_notes.append_value(note):
+                if had_notes:
+                    self.move_center(note, keep_note)
+                else:
+                    self.center_note = note
+                    self.current_offset = 0
+                got_note_on = True
 
             if note_ons.velocities is not None:
                 self.last_velocity = note_ons.velocities[i]
@@ -181,27 +234,13 @@ class Wander(Module):
             self.held_notes.remove_value_first(note)
 
         if self.held_notes.length > 0 and not self.held_notes.contains(self.center_note):
-            self.center_note = self.held_notes.notes[self.held_notes.length - 1]
-            self.current_offset = 0
+            self.move_center(self.held_notes.notes[self.held_notes.length - 1], self.current_note())
 
         if got_note_on and self.retrigger_mode == RETRIGGER_RETRIGGER:
-            self.reset_walk()
+            self.step_index = 0
+            self.last_grid_bin = -1
 
         return got_note_on
-
-    def closest_held_note(self, note):
-        if self.held_notes.length == 0:
-            return self.center_note
-
-        best = self.held_notes.notes[0]
-        best_distance = abs(note - best)
-        for i in range(1, self.held_notes.length):
-            held = self.held_notes.notes[i]
-            distance = abs(note - held)
-            if distance < best_distance:
-                best = held
-                best_distance = distance
-        return best
 
     def process_active_note_off(self, force=False):
         if self.active_note is None:
@@ -217,10 +256,17 @@ class Wander(Module):
             step = self.step_index
             self.step_index += 1
 
+        loop_step = step
+        if self.loop_length > 0:
+            loop_step = step % self.loop_length
+            if loop_step == 0:
+                self.current_offset = 0
+                self.direction = 1
+
         if not music.get_pattern_step(self.active_pattern, self.active_pattern_length, step):
             return
 
-        seed = self.random_seed_user + step
+        seed = self.random_seed_user + loop_step
         max_deviation = self.max_deviation
 
         if max_deviation <= 0:
@@ -247,8 +293,7 @@ class Wander(Module):
                 self.current_offset = -max_deviation
                 self.direction = 1
 
-        scale = music.SCALES[self.module_helper.state.scale]
-        note = music.transpose(self.center_note, self.current_offset, 0, True, self.state.key, scale)
+        note = self.note_from_offset(self.center_note, self.current_offset)
         if self.tension > 0 and utils.random_int(seed + 3, 99, 0) < self.tension:
             note += self.direction
         note = self.clamp_note(note)
@@ -259,11 +304,6 @@ class Wander(Module):
         self.note_ons_out.append_value(note, velocity=self.last_velocity)
         self.active_note = note
         self.active_off_time = ticks.ticks_add(self.transport.now, self.gate)
-
-        center = self.closest_held_note(note)
-        if center != self.center_note:
-            self.center_note = center
-            self.current_offset = 0
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
