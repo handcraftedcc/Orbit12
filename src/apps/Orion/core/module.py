@@ -155,14 +155,15 @@ class Module:
     def process_super(self, note_ons, note_offs):
         if self.source_mode != 0 and self.source_mode < self.slot_id:
             source = None
-            if self.source_mode == 2:
+            if self.source_mode == 1:
                 source = self.state.chain_modules[0]
             else:
                 source = self.state.chain_modules[self.source_mode]
-            if hasattr(source,"note_ons_out") and hasattr(source,"note_offs_out"):
+            if (hasattr(source,"note_ons_out") and hasattr(source,"note_offs_out") and
+                    source.note_ons_out is not None and source.note_offs_out is not None):
                 note_ons,note_offs = source.note_ons_out,source.note_offs_out
 
-        elif self.operation_mode == 1: # Additive
+        if self.operation_mode == 1: # Additive
             note_ons_in, note_offs_in = note_ons, note_offs
             note_ons, note_offs = self.process(note_ons, note_offs)
             note_ons.append_values(note_ons_in)

@@ -102,13 +102,26 @@ class State:
             gc.collect()
             return EmptyModule(self.module_helper, slot_id)
 
+    def module_key_in_use(self, module_key):
+        for module in self.chain_modules:
+            if module is not None and module.name == module_key:
+                return True
+        return False
+
     def unload_chain_module(self, slot_id):
         old_module = self.chain_modules[slot_id]
 
         if old_module is not None:
+            old_key = old_module.name
             old_module.remove()
             self.chain_modules[slot_id] = None
             gc.collect()
+            if not self.module_key_in_use(old_key):
+                if slot_id == ChainElements.IN:
+                    InputModuleRegistry.unload_module_class(old_key)
+                else:
+                    ModuleRegistry.unload_module_class(old_key)
+                gc.collect()
 
     def get_active_chain_module(self):
         return self.chain_modules[self.active_chain]
