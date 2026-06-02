@@ -5,26 +5,6 @@ from .music import RATE_LABELS
 from .music import RATE_MIDI_TICKS
 
 class Parm:
-    __slots__ = (
-        "name",
-        "label",
-        "type",
-        "value",
-        "minmax",
-        "jog_increment",
-        "options",
-        "include_bars",
-        "include_rates",
-        "multiple_octaves",
-        "octave_range",
-        "bind_object",
-        "bind_attribute",
-        "edit_callback_function",
-        "enter_callback_function",
-        "exit_callback_function",
-        "display_value",
-        "help_text"
-    )
 
     def __init__(
             self,

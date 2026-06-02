@@ -16,21 +16,38 @@ from .core.state import UISection, ChainElements
 microcontroller.cpu.frequency = 250_000_000
 
 from .core import ui
+gc.collect()
 from .core import neo_pixels
+gc.collect()
 from .core import transport
+gc.collect()
 from .core import input
+gc.collect()
 from .core import state
+gc.collect()
 from .core import output
+gc.collect()
 from .core import parms as Parms
+gc.collect()
 from .core import module
+gc.collect()
 from .core import help_text
+gc.collect()
 from .core.note_array import NoteOnArray, NoteOffArray
+gc.collect()
 
 from .inputmodules.note import Note as InputModule
+gc.collect()
 from .core._modules._empty import Empty as EmptyModule
+gc.collect()
 from .core._modules._transport import Transport as TransportModule
+gc.collect()
 from .core._modules._output import Output as OutputModule
+gc.collect()
 from .core._modules._settings import Settings as SettingsModule
+gc.collect()
+print("allocated import:",gc.mem_alloc())
+print("free:",gc.mem_free())
 
 SCREEN_REFRESH_RATE = 4
 SCREEN_SLEEP_TIME = 60000
