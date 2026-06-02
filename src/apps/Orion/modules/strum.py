@@ -62,7 +62,6 @@ def get_tilt_velocity(velocity, strum_position, tilt, note_count=5):
 class Strum(Module):
     name = "strum"
     label = "STRUM"
-    help_text = "CHORD STRUM GEN"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.module_helper = module_helper
@@ -91,26 +90,26 @@ class Strum(Module):
         parms = []
         # Strum amount
         amount_parm = Parms.Parm(name="amount", label="AMOUNT", default=self.amount, parm_type=Parms.IntParmType,
-                               bind_object=self, bind_attribute="amount", help_text="STRUM AMOUNT MS", minmax = (0,1000000))
+                               bind_object=self, bind_attribute="amount", minmax = (0,1000000))
         parms.append(amount_parm)
 
         order_parm = Parms.Parm(name="order", label="ORDER", default=self.order, parm_type=Parms.EnumParmType,
-                                 bind_object=self, bind_attribute="order", help_text="STRUM ORDER", options = ORDER_LIST,
+                                 bind_object=self, bind_attribute="order", options = ORDER_LIST,
                                 minmax = (0,len(ORDER_LIST)))
         parms.append(order_parm)
 
         tilt_parm = Parms.Parm(name="tilt", label="TILT", default=self.tilt, parm_type=Parms.PercentParmType,
-                                 bind_object=self, bind_attribute="tilt", help_text="TILT AMOUNT", minmax = (-1,1),
+                                 bind_object=self, bind_attribute="tilt", minmax = (-1,1),
                                increment= 0.05)
         parms.append(tilt_parm)
 
         tilt_note_count_parm = Parms.Parm(name="tilt_note_count", label="COUNT", default=self.tilt_note_count, parm_type=Parms.IntParmType,
-                               bind_object=self, bind_attribute="tilt_note_count", help_text="TILT NOTE COUNT", minmax=(1, 12),
+                               bind_object=self, bind_attribute="tilt_note_count", minmax=(1, 12),
                                increment=1)
         parms.append(tilt_note_count_parm)
 
         articulate_parm = Parms.Parm(name="articulate", label="ARTC", default=self.articulate, parm_type=Parms.EnumParmType,
-                                bind_object=self, bind_attribute="articulate", help_text="ARTICULATE TIMING",
+                                bind_object=self, bind_attribute="articulate",
                                 options= STRUM_ARTICULATE_LIST)
         parms.append(articulate_parm)
 

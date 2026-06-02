@@ -1,17 +1,17 @@
 MODULE_SPECS = (
-    ("empty", "EMPTY", "EMPTY MODULE SLOT"),
-    ("arp", "ARP", "ADV ARPEGGIATOR"),
-    ("transpose", "TRNS", "SCL AWARE TRNSP"),
-    ("pick", "PICK", "PICK SINGLE NOTE"),
-    ("chord", "CHRD", "ADD CHORD TONES"),
-    ("randomize", "RND", "RAND VEL/OCT/NTE"),
-    ("strum", "STRUM", "CHORD STRUM GEN"),
-    ("wander", "WANDR", "SCALE MELODY WALK")
+    ("empty", "EMPTY"),
+    ("arp", "ARP"),
+    ("transpose", "TRNS"),
+    ("pick", "PICK"),
+    ("chord", "CHRD"),
+    ("randomize", "RND"),
+    ("strum", "STRUM"),
+    ("wander", "WANDR")
 )
 
 AVAILABLE_MODULE_NAMES = [spec[0] for spec in MODULE_SPECS]
 AVAILABLE_MODULE_LABELS = [spec[1] for spec in MODULE_SPECS]
-AVAILABLE_MODULE_HELP_TEXTS = [spec[2] for spec in MODULE_SPECS]
+AVAILABLE_MODULE_HELP_TEXTS = ()
 
 MODULE_IMPORT_NAMES = {
     "arp": ".arp",

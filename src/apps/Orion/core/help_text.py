@@ -57,7 +57,7 @@ def active_parameter_help_text(state, fallback):
     if parm is None:
         return fallback
 
-    return normalize_help_text(parm.help_text or parm.label or fallback)
+    return normalize_help_text(parm.get_help_text() or fallback)
 
 
 def contextual_help_text(state):

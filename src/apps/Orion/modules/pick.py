@@ -14,7 +14,6 @@ PICK_MODE_OPTIONS = (
 class Pick(Module):
     name = "pick"
     label = "PICK"
-    help_text = "PICKS SINGLE NOTE"
     version = 1
     def __init__(self, module_helper, slot_id):
         self.pick_mode = 0
@@ -31,12 +30,10 @@ class Pick(Module):
         parms = []
         # Pick Mode
         mode_parm = Parms.Parm(name="pick_mode", label="MDE", default=self.pick_mode, parm_type=Parms.EnumParmType,
-                               help_text="NOTE PICK MODE",
                                options=PICK_MODE_OPTIONS, bind_object=self, bind_attribute="pick_mode")
         parms.append(mode_parm)
 
         octaves_parm = Parms.Parm(name="octaves", label="OCT", default=self.octaves, parm_type=Parms.IntParmType,
-                                  help_text="PICK OCT SHIFT",
                                   increment=1, bind_object=self, bind_attribute="octaves")
         parms.append(octaves_parm)
 

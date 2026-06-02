@@ -4,7 +4,6 @@ from .. import parms as Parms
 class Empty(Module.Module):
     name = "empty"
     label = "EMPTY"
-    help_text = "EMPTY MODULE SLOT"
     version = 1
     def __init__(self, module_helper, slot_id):
         super().__init__(module_helper, slot_id, include_default_parms=True, include_out_parms=False, include_source_parms=False)
@@ -13,7 +12,6 @@ class Empty(Module.Module):
         parms = []
         # Key
         pick_module_parm = Parms.Parm(name="pick", label="EMPTY", parm_type=Parms.ButtonParmType, default=0,
-                              help_text="PICK MODULE",
                               enter_callback_function=self.enter_module_picker)
         parms.append(pick_module_parm)
         return parms

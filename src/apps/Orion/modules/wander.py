@@ -34,7 +34,6 @@ WILD_SHAPES = (
 class Wander(Module):
     name = "wander"
     label = "WANDR"
-    help_text = "SCALE MELODY WALK"
     version = 1
 
     def __init__(self, module_helper, slot_id):
@@ -78,14 +77,12 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="rate", label="RATE", default=self.rate_value,
             parm_type=Parms.RateParmType,
-            help_text="STEP RATE",
             edit_callback_function=self.set_rate
         ))
 
         parms.append(Parms.Parm(
             name="wander", label="WNDR", default=self.wander,
             parm_type=Parms.IntParmType,
-            help_text="STEP SIZE",
             minmax=(0, 100),
             bind_object=self,
             bind_attribute="wander"
@@ -94,7 +91,6 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="range", label="RNG", default=self.range,
             parm_type=Parms.IntParmType,
-            help_text="SCALE STEP RANGE",
             minmax=(1, 16),
             bind_object=self,
             bind_attribute="range"
@@ -103,7 +99,6 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="density", label="DENS", default=self.density,
             parm_type=Parms.IntParmType,
-            help_text="NOTE CHANCE",
             minmax=(0, 100),
             bind_object=self,
             bind_attribute="density"
@@ -112,7 +107,6 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="tension", label="TENS", default=self.tension,
             parm_type=Parms.IntParmType,
-            help_text="CHROMATIC CHANCE",
             minmax=(0, 100),
             bind_object=self,
             bind_attribute="tension"
@@ -121,7 +115,6 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="gate", label="GATE", default=self.gate,
             parm_type=Parms.FloatParmType,
-            help_text="NOTE GATE MS",
             increment=5,
             bind_object=self,
             bind_attribute="gate"
@@ -130,7 +123,6 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="polyphony", label="POLY", default=self.polyphony,
             parm_type=Parms.IntParmType,
-            help_text="MAX HELD NOTES",
             minmax=(1, POLYPHONY),
             bind_object=self,
             bind_attribute="polyphony"
@@ -141,7 +133,6 @@ class Wander(Module):
             default=self.random_pattern_length,
             parm_type=Parms.IntParmType,
             minmax=(0, 128),
-            help_text="RAND LOOP LEN",
             bind_object=self,
             bind_attribute="random_pattern_length"
         ))
@@ -149,7 +140,6 @@ class Wander(Module):
         parms.append(Parms.Parm(
             name="rand_seed", label="SEED", default=self.random_seed_user,
             parm_type=Parms.IntParmType,
-            help_text="RAND SEED",
             minmax=(0, 10000),
             bind_object=self,
             bind_attribute="random_seed_user"

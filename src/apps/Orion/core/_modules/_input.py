@@ -10,7 +10,6 @@ INPUT_OPERATION_OPTIONS = ("NEXT", "OUT+N")
 class Input(Module):
     name = "input"
     label = "IN"
-    help_text = "INPUT MIDI NOTES"
     def __init__(self, module_helper, slot_id, include_musical_parms=True):
 
         ## Init Attributes ##
@@ -36,30 +35,26 @@ class Input(Module):
         if self.include_musical_parms:
             # Key
             key_parm = Parms.Parm(name="key", label="KEY", parm_type=Parms.NoteParmType, default=self.state.key,
-                                  help_text="ROOT NOTE",
                                   edit_callback_function=self.set_key)
             parms.append(key_parm)
 
             #Scale
             scale_parm = Parms.Parm(name="scale", label="SCL", parm_type=Parms.EnumParmType, default=self.state.scale,
-                                    options=Music.SCALENAMES, help_text="ACTIVE SCALE",
+                                    options=Music.SCALENAMES,
                                     edit_callback_function=self.set_scale)
             parms.append(scale_parm)
             # Octave
             octave_parm = Parms.Parm(name="octave", label="OCT", parm_type=Parms.IntParmType, default=self.state.octave,
-                                  help_text="PAD OCTAVE",
                                   edit_callback_function=self.set_octave)
             parms.append(octave_parm)
 
             # Key Offset
             key_offset_parm = Parms.Parm(name="key_offset", label="PADOFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
-                                     help_text="PAD KEY OFFSET",
                                      edit_callback_function=self.set_key_offset)
             parms.append(key_offset_parm)
 
             # Velocity
             velocity_parm = Parms.Parm(name="velocity", label="VEL", parm_type=Parms.IntParmType, default=self.velocity,
-                                       help_text="NOTE VELOCITY",
                                        minmax = (0,127), bind_object=self, bind_attribute="velocity")
             parms.append(velocity_parm)
 
