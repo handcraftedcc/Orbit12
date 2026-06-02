@@ -4,6 +4,9 @@ from ..core import parms as Parms
 import adafruit_ticks as ticks
 from ..core import utils
 from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
+import gc
+
+gc.collect()
 
 MODE_LIST = (
     "UP",

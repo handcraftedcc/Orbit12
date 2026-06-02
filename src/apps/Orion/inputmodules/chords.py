@@ -230,9 +230,9 @@ class Chords(Input):
         for i in range(self.note_offs.length):
             pad_note = self.note_offs.notes[i]
             chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
-            if chord.length > 0:
-                for j in range(chord.length):
-                    note = chord.notes[j]
+            if chord.return_length > 0:
+                for j in range(chord.return_length):
+                    note = chord.return_notes[j]
                     has_out_note, _ = self.held_note_relationship.has_out_note(note)
                     if not has_out_note:
                         self.note_offs_out.append_value(note)
@@ -254,7 +254,7 @@ class Chords(Input):
             self.build_chord(pad_note)
             for j in range(self.temp_chord.length):
                 chord_note = self.temp_chord.notes[j]
-                if self.held_note_relationship.in_array.length < self.held_note_relationship.in_array.max_length:
+                if self.held_note_relationship.length < self.held_note_relationship.max_length:
                     has_out_note, _ = self.held_note_relationship.has_out_note(chord_note)
                     if has_out_note:
                         self.note_offs_out.append_value(chord_note)
@@ -262,7 +262,7 @@ class Chords(Input):
                     self.note_ons_out.append_value(chord_note, velocity=self.velocity)
 
         #if note_ons.length > 0 or note_offs.length > 0:
-            #print("Held Notes Relationship: ", self.held_note_relationship.in_array.notes, self.held_note_relationship.out_array.notes)
+            #print("Held Notes Relationship: ", self.held_note_relationship.in_notes, self.held_note_relationship.out_notes)
 
         return self.note_ons_out, self.note_offs_out
 

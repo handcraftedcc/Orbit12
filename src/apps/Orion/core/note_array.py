@@ -207,45 +207,68 @@ class NoteOffArray(NoteArray):
 class NoteRelationshipArray:
 
     def __init__(self, length = POLYPHONY):
-        self.in_array = NoteArray(length)
-        self.out_array = NoteArray(length)
-        self.return_array = NoteArray(length)
+        self.in_notes = bytearray(length)
+        self.out_notes = bytearray(length)
+        self.return_notes = bytearray(length)
+        self.length = 0
+        self.return_length = 0
+        self.max_length = length
 
     def has_out_note(self, out_note):
-        for i in range(self.out_array.length):
-            note = self.out_array.notes[i]
+        for i in range(self.length):
+            note = self.out_notes[i]
             if out_note == note:
                 return True,i
         return False,None
 
     def add_note(self, in_note, out_note):
-        if self.in_array.length >= self.in_array.max_length:
+        if self.length >= self.max_length:
             return False
-        self.in_array.append_value(in_note)
-        self.out_array.append_value(out_note)
+        self.in_notes[self.length] = in_note
+        self.out_notes[self.length] = out_note
+        self.length += 1
+        return True
+
+    def remove_index(self, index):
+        if index < 0 or index >= self.length:
+            return False
+        for i in range(index, self.length - 1):
+            self.in_notes[i] = self.in_notes[i + 1]
+            self.out_notes[i] = self.out_notes[i + 1]
+        self.length -= 1
         return True
 
     def remove_note_single(self, in_note, first_in_first_out=True):
-        index = self.in_array.remove_value_first(in_note, order= not first_in_first_out)
-        if index is None:
-            return None
-        out_note = self.out_array.notes[index]
-        self.out_array.remove_index(index)
-        return out_note
+        if first_in_first_out:
+            i = 0
+            while i < self.length:
+                if self.in_notes[i] == in_note:
+                    out_note = self.out_notes[i]
+                    self.remove_index(i)
+                    return out_note
+                i += 1
+        else:
+            i = self.length - 1
+            while i >= 0:
+                if self.in_notes[i] == in_note:
+                    out_note = self.out_notes[i]
+                    self.remove_index(i)
+                    return out_note
+                i -= 1
+        return None
 
     def remove_note_all(self, in_note):
-        self.return_array.clear()
+        self.return_length = 0
         i = 0
-        while i < self.in_array.length:
-            if self.in_array.notes[i] == in_note:
-                self.return_array.append_value(self.out_array.notes[i])
-                self.in_array.remove_index(i)
-                self.out_array.remove_index(i)
+        while i < self.length:
+            if self.in_notes[i] == in_note:
+                self.return_notes[self.return_length] = self.out_notes[i]
+                self.return_length += 1
+                self.remove_index(i)
             else:
                 i += 1
-        return self.return_array
+        return self
 
     def clear(self):
-        self.in_array.clear()
-        self.out_array.clear()
-        self.return_array.clear()
+        self.length = 0
+        self.return_length = 0

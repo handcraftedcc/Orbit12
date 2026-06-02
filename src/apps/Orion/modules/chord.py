@@ -61,8 +61,8 @@ class Chord(Module):
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             off_notes = self.note_relationship.remove_note_all(note)
-            for j in range(off_notes.length):
-                off_note = off_notes.notes[j]
+            for j in range(off_notes.return_length):
+                off_note = off_notes.return_notes[j]
                 has_out_note, _ = self.note_relationship.has_out_note(off_note)
                 if not has_out_note:
                     self.note_offs_out.append_value(off_note)
@@ -84,12 +84,7 @@ class Chord(Module):
                     continue  # skip duplicate notes
                 new_note = music.transpose(note, offset, 0, self.scale_aware, self.state.key, scale)
                 append = False
-                if self.note_relationship.in_array.length < self.note_relationship.in_array.max_length:
-                    append = True
-                elif (self.note_relationship.in_array.length == self.note_relationship.in_array.max_length and
-                    self.note_relationship.out_array.length < self.note_relationship.out_array.max_length):
-                    off_note = self.note_relationship.remove_note_single(self.note_relationship.in_array.notes[0])
-                    self.note_offs_out.append_value(off_note)
+                if self.note_relationship.length < self.note_relationship.max_length:
                     append = True
 
                 if append:

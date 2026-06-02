@@ -157,7 +157,10 @@ class Randomize(Module):
                                                  self.velocity_range, self.velocity_mode)
 
             note = note_ons.notes[i]
-            new_note = music.transpose(note, note_offset, octave_offset, self.scale_aware, self.state.key, scale)
+            if note_offset != 0:
+                new_note = music.transpose(note, note_offset, octave_offset, self.scale_aware, self.state.key, scale)
+            else:
+                new_note = note+octave_offset*12
 
             velocity = 127
             if note_ons.velocities is not None:

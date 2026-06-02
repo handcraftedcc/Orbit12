@@ -37,6 +37,7 @@ class Module:
     help_text = None
     version = 1
     def __init__(self, module_helper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
+        gc.collect()
         self.parms = None
         self.label_length = len(self.label)
         self.module_helper = module_helper

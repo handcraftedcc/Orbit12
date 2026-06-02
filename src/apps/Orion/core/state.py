@@ -74,6 +74,7 @@ class State:
 
     def load_chain_module(self, slot_id, module_class):
         self.module_load_failed = False
+        gc.collect()
         try:
             self.chain_modules[slot_id] = module_class(self.module_helper, slot_id)
         except MemoryError:
