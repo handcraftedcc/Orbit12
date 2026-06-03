@@ -1,7 +1,27 @@
 #!/bin/zsh
 set -e
 
-python3 tools/build_mpy.py
+NO_LIB=""
+SYNC_LIB=true
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-lib)
+            NO_LIB="--no-lib"
+            SYNC_LIB=false
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+if [ -n "$NO_LIB" ]; then
+    python3 tools/build_mpy.py --no-lib
+else
+    python3 tools/build_mpy.py
+fi
 
 rsync -avh --itemize-changes --progress \
   --exclude=.git \
@@ -17,8 +37,10 @@ rsync -avh --itemize-changes --progress \
   --exclude=apps/Orion/ \
   src/ /Volumes/CIRCUITPY/
 
-rsync -avh --delete --itemize-changes --progress \
-  src_mpy/lib/ /Volumes/CIRCUITPY/lib/
+if $SYNC_LIB; then
+    rsync -avh --delete --itemize-changes --progress \
+      src_mpy/lib/ /Volumes/CIRCUITPY/lib/
+fi
 
 rsync -avh --delete --itemize-changes --progress \
   src_mpy/apps/Orion/ /Volumes/CIRCUITPY/apps/Orion/

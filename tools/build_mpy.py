@@ -212,6 +212,11 @@ def parse_args(argv):
         action="store_true",
         help="Recompile every .py file, ignoring timestamps.",
     )
+    parser.add_argument(
+        "--no-lib",
+        action="store_true",
+        help="Skip the lib/ build tree. Only build the app.",
+    )
     return parser.parse_args(argv)
 
 
@@ -248,15 +253,16 @@ def main(argv=None):
     if app_result != 0:
         return app_result
 
-    lib_result = build_tree(
-        "LIB",
-        DEFAULT_LIB_SOURCE_ROOT,
-        DEFAULT_LIB_OUTPUT_ROOT,
-        mpy_cross,
-        args.force,
-    )
-    if lib_result != 0:
-        return lib_result
+    if not args.no_lib:
+        lib_result = build_tree(
+            "LIB",
+            DEFAULT_LIB_SOURCE_ROOT,
+            DEFAULT_LIB_OUTPUT_ROOT,
+            mpy_cross,
+            args.force,
+        )
+        if lib_result != 0:
+            return lib_result
 
     print("MPY build complete")
     return 0
