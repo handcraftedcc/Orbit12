@@ -45,8 +45,7 @@ class Wander(Module):
         self.note_offs_out = NoteOffArray()
 
         self.center_note = 60
-        self.current_offset = 0
-        self.direction = 1
+        self.current_note = 60
         self.step_index = 0
         self.last_grid_bin = -1
         self.last_velocity = 127
@@ -164,46 +163,14 @@ class Wander(Module):
         return note
 
     def reset_walk(self):
-        self.current_offset = 0
-        self.direction = 1
+        self.current_note = self.center_note
         self.step_index = 0
         self.last_grid_bin = -1
 
-    def note_from_offset(self, center_note, offset):
+    def transpose_current_note(self, steps):
         scale = music.SCALES[self.module_helper.state.scale]
-        return self.clamp_note(music.transpose(center_note, offset, 0, True, self.state.key, scale))
-
-    def offset_for_note(self, center_note, note):
-        max_deviation = self.max_deviation
-        if max_deviation <= 0:
-            return None
-
-        best_offset = 0
-        best_distance = 128
-        for offset in range(-max_deviation, max_deviation + 1):
-            distance = abs(self.note_from_offset(center_note, offset) - note)
-            if distance < best_distance:
-                best_offset = offset
-                best_distance = distance
-                if distance == 0:
-                    break
-
-        if best_distance <= 1:
-            return best_offset
-        return None
-
-    def current_note(self):
-        if self.active_note is not None:
-            return self.active_note
-        return self.note_from_offset(self.center_note, self.current_offset)
-
-    def move_center(self, note, keep_current_note):
-        self.center_note = note
-        offset = self.offset_for_note(note, keep_current_note)
-        if offset is None:
-            self.current_offset = 0
-        else:
-            self.current_offset = offset
+        note = music.transpose(self.current_note, steps, 0, True, self.state.key, scale)
+        return self.clamp_note(note)
 
     def update_held_notes(self, note_ons, note_offs):
         got_note_on = False
@@ -211,17 +178,14 @@ class Wander(Module):
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             had_notes = self.held_notes.length > 0
-            keep_note = self.current_note()
 
             if self.held_notes.contains(note):
                 self.held_notes.remove_value_first(note)
 
             if self.held_notes.append_value(note):
-                if had_notes:
-                    self.move_center(note, keep_note)
-                else:
-                    self.center_note = note
-                    self.current_offset = 0
+                self.center_note = note
+                if not had_notes:
+                    self.current_note = note
                 got_note_on = True
 
             if note_ons.velocities is not None:
@@ -234,7 +198,7 @@ class Wander(Module):
             self.held_notes.remove_value_first(note)
 
         if self.held_notes.length > 0 and not self.held_notes.contains(self.center_note):
-            self.move_center(self.held_notes.notes[self.held_notes.length - 1], self.current_note())
+            self.center_note = self.held_notes.notes[self.held_notes.length - 1]
 
         if got_note_on and self.retrigger_mode == RETRIGGER_RETRIGGER:
             self.step_index = 0
@@ -260,42 +224,45 @@ class Wander(Module):
         if self.loop_length > 0:
             loop_step = step % self.loop_length
             if loop_step == 0:
-                self.current_offset = 0
-                self.direction = 1
+                self.current_note = self.center_note
 
-        if not music.get_pattern_step(self.active_pattern, self.active_pattern_length, step):
+        if not music.get_pattern_step(self.active_pattern, self.active_pattern_length, loop_step):
             return
 
         seed = self.random_seed_user + loop_step
         max_deviation = self.max_deviation
+        direction = 1
 
         if max_deviation <= 0:
-            self.current_offset = 0
+            self.current_note = self.center_note
         else:
-            if abs(self.current_offset) >= max_deviation:
-                self.direction = -1 if self.current_offset > 0 else 1
-            elif self.current_offset != 0 and utils.random_int(seed, 99, 0) < self.gravity:
-                self.direction = -1 if self.current_offset > 0 else 1
+            distance = self.current_note - self.center_note
+            if abs(distance) >= max_deviation:
+                direction = -1 if distance > 0 else 1
+            elif distance != 0 and utils.random_int(seed, 99, 0) < self.gravity:
+                direction = -1 if distance > 0 else 1
             elif utils.random_int(seed + 1, 1, 0) == 0:
-                self.direction = -1
-            else:
-                self.direction = 1
+                direction = -1
 
             low = min(self.min_step, self.max_step)
             high = max(self.min_step, self.max_step)
             step_size = low + utils.random_int(seed + 2, high - low, 0)
-            self.current_offset += self.direction * step_size
+            next_note = self.transpose_current_note(direction * step_size)
 
-            if self.current_offset > max_deviation:
-                self.current_offset = max_deviation
-                self.direction = -1
-            elif self.current_offset < -max_deviation:
-                self.current_offset = -max_deviation
-                self.direction = 1
+            if abs(next_note - self.center_note) > max_deviation:
+                if distance > 0:
+                    direction = -1
+                elif distance < 0:
+                    direction = 1
+                else:
+                    direction = -1 if next_note > self.center_note else 1
+                next_note = self.transpose_current_note(direction * step_size)
 
-        note = self.note_from_offset(self.center_note, self.current_offset)
+            self.current_note = next_note
+
+        note = self.current_note
         if self.tension > 0 and utils.random_int(seed + 3, 99, 0) < self.tension:
-            note += self.direction
+            note += direction
         note = self.clamp_note(note)
 
         if self.active_note is not None:
