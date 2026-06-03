@@ -97,6 +97,7 @@ class MidiCommander:
         self.note_offs = NoteOffArray()
 
         self.module_helper.neo_pixels = self.neo_pixels
+        self.load_user_settings()
 
         #Init modules
         self.create_stock_chain_modules()
@@ -195,16 +196,10 @@ class MidiCommander:
         self.state.unload_chain_module(slot_id)
         gc.collect()
 
-        module_class = None
-        for _ in range(3):
+        try:
+            module_class = registry.get_module_class(module_key)
+        except MemoryError:
             gc.collect()
-            try:
-                module_class = registry.get_module_class(module_key)
-                break
-            except MemoryError:
-                gc.collect()
-
-        if module_class is None and module_key in registry.MODULE_IMPORT_NAMES:
             self.state.chain_modules[slot_id] = self.state.create_fallback_module(slot_id)
             self.state.module_load_failed = True
             return self.state.chain_modules[slot_id]
@@ -226,13 +221,28 @@ class MidiCommander:
             if loaded is None:
                 self.reset_scene()
                 scenes.save_scene(self.state, self.state.active_scene)
-                loaded = True
             elif loaded is not True:
                 self.reset_scene()
             scenes.write_active_scene(self.state.active_scene)
         finally:
             _unload_module(scenes.__name__)
         return loaded
+
+    def load_user_settings(self):
+        from .core import user_settings
+        try:
+            loaded = user_settings.load_user_settings(self.neo_pixels)
+        finally:
+            _unload_module(user_settings.__name__)
+        return loaded
+
+    def save_user_settings(self):
+        from .core import user_settings
+        try:
+            saved = user_settings.save_user_settings(self.neo_pixels)
+        finally:
+            _unload_module(user_settings.__name__)
+        return saved
 
     def save_scene(self):
         from .core import scenes
@@ -248,30 +258,22 @@ class MidiCommander:
 
         from .core import scenes
         try:
+            next_scene = scenes.clamp_scene(scene)
             scenes.save_scene(self.state, self.state.active_scene)
-            self.state.stop_all_modules()
-            gc.collect()
-            self.unload_scene_modules()
-            self.restore_stock_state_values()
-            self.create_stock_chain_modules()
-            self.state.active_scene = scenes.clamp_scene(scene)
-            loaded = scenes.load_scene(self, self.state.active_scene)
-            if loaded is None:
-                self.reset_scene()
-                scenes.save_scene(self.state, self.state.active_scene)
-                loaded = True
-            elif loaded is not True:
-                self.reset_scene()
+            self.state.active_scene = next_scene
             scenes.write_active_scene(self.state.active_scene)
+            self.save_user_settings()
         finally:
             _unload_module(scenes.__name__)
-        self.state.update_parm_count()
-        self.state.active_ui_section = UISection.CHAIN
-        self.state.active_parm = 0
-        self.state.active_parm_page = 0
-        self.queue_full_ui_refresh()
-        self.neo_pixels.paint_pixels()
-        return loaded
+
+        self.state.stop_all_modules()
+        self.transport.running = 0
+        self.output_manager.pending_midi_clock_ticks = 0
+        gc.collect()
+
+        import supervisor
+        supervisor.reload()
+        return True
 
     def can_do_ui_work(self, min_slack_ms=10):
         if self.state.transport_mode == 1:

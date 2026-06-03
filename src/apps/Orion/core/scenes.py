@@ -23,6 +23,7 @@ SCENE_UI_PARMS = (
     "active_scene",
     "save_scene",
     "reset_scene",
+    "key_brightness",
 )
 
 
@@ -196,6 +197,8 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
                     return False
 
             elif record_type == "P" and len(parts) >= 3 and current_module is not None:
+                if parts[1] in SCENE_UI_PARMS:
+                    continue
                 parm = current_module.get_parm_by_name(parts[1])
                 if parm is not None:
                     parm.set_value(parse_parm_value(parm, parts[2]))

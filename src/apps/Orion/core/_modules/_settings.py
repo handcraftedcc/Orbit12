@@ -46,7 +46,8 @@ class Settings(Module):
         print_ram_usage_parm = Parms.Parm("print_ram", "RAM", Parms.ButtonParmType, None,
                                           enter_callback_function=print_ram_usage)
         parms.append(print_ram_usage_parm)
-        key_brightness_parm = Parms.Parm("key_brightness", "KEYBRI", Parms.FloatParmType, 1,
+        key_brightness_parm = Parms.Parm("key_brightness", "KEYBRI", Parms.FloatParmType,
+                                          self.module_helper.neo_pixels.brightness_multiplier,
                                           minmax=(0,1), increment=0.05,
                                           edit_callback_function=self.change_key_brightness)
         parms.append(key_brightness_parm)
@@ -67,4 +68,5 @@ class Settings(Module):
     def change_key_brightness(self, value):
         self.module_helper.neo_pixels.brightness_multiplier = value
         self.module_helper.neo_pixels.paint_pixels()
+        self.module_helper.orion.save_user_settings()
         return value
