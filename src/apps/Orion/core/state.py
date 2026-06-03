@@ -33,6 +33,7 @@ class State:
         self.module_helper = None
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
         self.module_load_failed = False
+        self.active_scene = 0
 
     def reset_to_defaults(self):
         self.key = NOTES.index("C")

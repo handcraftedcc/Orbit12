@@ -17,8 +17,6 @@ class Drum(Input):
         self.velocity = 127
         super().__init__(module_helper, slot_id, include_musical_parms=False)
 
-        self.state.octave = 0
-        self.state.key_offset = 0
         self.state.key_custom_text = "DRUM"
 
         self.ui_manager.header_footer.update_header_key_info()

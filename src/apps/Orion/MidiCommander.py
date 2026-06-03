@@ -96,6 +96,8 @@ class MidiCommander:
         self.note_ons = NoteOnArray()
         self.note_offs = NoteOffArray()
 
+        self.module_helper.neo_pixels = self.neo_pixels
+
         #Init modules
         self.create_stock_chain_modules()
         self.state.update_parm_count()
@@ -104,9 +106,11 @@ class MidiCommander:
         self.ui_manager = ui.UIManager(self.macropad,self.state, self.transport)
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
+        self.load_active_scene()
+        self.state.update_parm_count()
+        self.queue_full_ui_refresh()
 
         # Update Pixels
-        self.module_helper.neo_pixels = self.neo_pixels
         self.state.chain_modules[0].color_pixels()
         self.neo_pixels.paint_pixels()
 
@@ -121,21 +125,26 @@ class MidiCommander:
         self.state.chain_modules[ChainElements.OUT] = OutputModule(self.module_helper, ChainElements.OUT)
         self.state.chain_modules[ChainElements.SETTINGS] = SettingsModule(self.module_helper, ChainElements.SETTINGS)
 
+    def unload_scene_modules(self):
+        for slot in range(state.TOTALSLOTCOUNT):
+            self.state.unload_chain_module(slot)
+        gc.collect()
+
     def restore_stock_state_values(self):
+        active_scene = self.state.active_scene
         self.state.reset_to_defaults()
+        self.state.active_scene = active_scene
         self.transport.update_bpm(self.state.bpm)
         self.transport.update_swing(self.state.swing)
         self.transport.running = 0
         self.transport.reset()
         self.output_manager.pending_midi_clock_ticks = 0
 
-    def restore_stock_setup(self):
+    def reset_scene(self, refresh=True):
         self.state.stop_all_modules()
         gc.collect()
 
-        for slot in range(state.TOTALSLOTCOUNT):
-            self.state.unload_chain_module(slot)
-        gc.collect()
+        self.unload_scene_modules()
 
         self.restore_stock_state_values()
         self.create_stock_chain_modules()
@@ -149,9 +158,10 @@ class MidiCommander:
         self.chain_swap_mode = 0
         self.note_ons.clear()
         self.note_offs.clear()
-        self.queue_full_ui_refresh()
-        self.state.chain_modules[ChainElements.IN].color_pixels()
-        self.neo_pixels.paint_pixels()
+        if refresh:
+            self.queue_full_ui_refresh()
+            self.state.chain_modules[ChainElements.IN].color_pixels()
+            self.neo_pixels.paint_pixels()
         gc.collect()
 
     def add_to_ui_queue(self, callback):
@@ -160,14 +170,16 @@ class MidiCommander:
         #self.ui_rebuild_pending = True
 
     def queue_full_ui_refresh(self):
+        self.add_to_ui_queue(self.ui_manager.switch_section)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_scene_info)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
 
-    def load_preset_module(self, slot_id, module_key):
+    def load_scene_module(self, slot_id, module_key):
         current_module = self.state.chain_modules[slot_id]
         if current_module is not None and current_module.name == module_key:
             current_module.stop()
@@ -200,36 +212,53 @@ class MidiCommander:
 
         return self.state.chain_modules[slot_id]
 
-    def preset_slot_label(self, slot):
-        return "P" + str(slot + 1)
-
-    def save_current_preset(self, slot=0):
-        from .core import presets
+    def load_active_scene(self):
+        from .core import scenes
         try:
-            filename = presets.save_preset(self.state, slot)
+            self.state.active_scene = scenes.read_active_scene()
+            loaded = scenes.load_scene(self, self.state.active_scene)
+            if loaded is not True:
+                self.reset_scene()
+                scenes.save_scene(self.state, self.state.active_scene)
+                loaded = True
+            scenes.write_active_scene(self.state.active_scene)
         finally:
-            _unload_module(presets.__name__)
-        if filename is None:
-            self.queue_full_ui_refresh()
-            return None
+            _unload_module(scenes.__name__)
+        return loaded
 
-        self.queue_full_ui_refresh()
+    def save_scene(self):
+        from .core import scenes
+        try:
+            filename = scenes.save_scene(self.state, self.state.active_scene)
+        finally:
+            _unload_module(scenes.__name__)
         return filename
 
-    def load_preset_slot(self, slot=0):
-        from .core import presets
+    def switch_scene(self, scene):
+        if scene == self.state.active_scene:
+            return True
+
+        from .core import scenes
         try:
+            scenes.save_scene(self.state, self.state.active_scene)
             self.state.stop_all_modules()
             gc.collect()
-            for s in range(SWAP_CHAIN_MIN, SWAP_CHAIN_MAX + 1):
-                self.state.unload_chain_module(s)
-            self.state.unload_chain_module(ChainElements.IN)
-            gc.collect()
-            loaded = presets.load_preset(self, slot)
+            self.unload_scene_modules()
+            self.restore_stock_state_values()
+            self.create_stock_chain_modules()
+            self.state.active_scene = scenes.clamp_scene(scene)
+            loaded = scenes.load_scene(self, self.state.active_scene)
+            if loaded is not True:
+                self.reset_scene()
+                scenes.save_scene(self.state, self.state.active_scene)
+                loaded = True
+            scenes.write_active_scene(self.state.active_scene)
         finally:
-            _unload_module(presets.__name__)
+            _unload_module(scenes.__name__)
         self.state.update_parm_count()
+        self.state.active_ui_section = UISection.CHAIN
         self.state.active_parm = 0
+        self.state.active_parm_page = 0
         self.queue_full_ui_refresh()
         self.neo_pixels.paint_pixels()
         return loaded
@@ -346,6 +375,9 @@ class MidiCommander:
         """Apply current parm setting and go back to parm selection mode"""
         active_parm = self.state.get_active_module_parm()
         active_parm.exit()
+        if self.state.active_ui_section != UISection.PARMEDIT:
+            self.add_to_ui_queue(self.ui_manager.switch_section)
+            return
         self.state.active_ui_section = UISection.PARMSELECTION
 
 

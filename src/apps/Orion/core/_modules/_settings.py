@@ -3,17 +3,17 @@ from .. import parms as Parms
 
 import gc
 
-PRESET_SLOT_OPTIONS = (
-    "P1",
-    "P2",
-    "P3",
-    "P4",
-    "P5",
-    "P6",
-    "P7",
-    "P8",
-    "P9",
-    "P10",
+SCENE_OPTIONS = (
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
 )
 
 def print_ram_usage(value):
@@ -27,26 +27,21 @@ class Settings(Module):
     def __init__(self, module_helper, slot_id, macropad = None):
         super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
         self.macropad = self.state.macropad
-        self.preset_slot = 0
 
     def create_main_parms(self):
         parms = []
-        preset_slot_parm = Parms.Parm("preset_slot", "PRSLOT", Parms.EnumParmType, self.preset_slot,
-                                      options=PRESET_SLOT_OPTIONS,
-                                      bind_object=self, bind_attribute="preset_slot")
-        parms.append(preset_slot_parm)
+        active_scene_parm = Parms.Parm("active_scene", "SCENE", Parms.EnumParmType, self.state.active_scene,
+                                       options=SCENE_OPTIONS,
+                                       exit_callback_function=self.switch_scene)
+        parms.append(active_scene_parm)
 
-        save_preset_parm = Parms.Parm("save_preset", "PRSAVE", Parms.ButtonParmType, 0,
-                                      enter_callback_function=self.save_preset)
-        parms.append(save_preset_parm)
+        save_scene_parm = Parms.Parm("save_scene", "SAVSCN", Parms.ButtonParmType, 0,
+                                     enter_callback_function=self.save_scene)
+        parms.append(save_scene_parm)
 
-        load_preset_parm = Parms.Parm("load_preset", "PRLOAD", Parms.ButtonParmType, 0,
-                                      enter_callback_function=self.load_preset)
-        parms.append(load_preset_parm)
-
-        reset_parm = Parms.Parm("reset", "RESET", Parms.ButtonParmType, 0,
-                                      enter_callback_function=self.restore_stock_setup)
-        parms.append(reset_parm)
+        reset_scene_parm = Parms.Parm("reset_scene", "RSTSCN", Parms.ButtonParmType, 0,
+                                      enter_callback_function=self.reset_scene)
+        parms.append(reset_scene_parm)
 
         print_ram_usage_parm = Parms.Parm("print_ram", "RAM", Parms.ButtonParmType, None,
                                           enter_callback_function=print_ram_usage)
@@ -57,16 +52,16 @@ class Settings(Module):
         parms.append(key_brightness_parm)
         return parms
 
-    def save_preset(self, value):
-        self.module_helper.orion.save_current_preset(self.preset_slot)
+    def save_scene(self, value):
+        self.module_helper.orion.save_scene()
         return value
 
-    def load_preset(self, value):
-        self.module_helper.orion.load_preset_slot(self.preset_slot)
+    def switch_scene(self, value):
+        self.module_helper.orion.switch_scene(value)
         return value
 
-    def restore_stock_setup(self, value):
-        self.module_helper.orion.restore_stock_setup()
+    def reset_scene(self, value): #Reset scene but don't save yet
+        self.module_helper.orion.reset_scene()
         return value
 
     def change_key_brightness(self, value):
