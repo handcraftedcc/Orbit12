@@ -18,3 +18,13 @@ if not any_key_held():
     storage.remount("/", readonly=False)
 else:
     print("USB Mode")
+
+import sys
+if "storage" in sys.modules:
+    del sys.modules["storage"]
+del storage
+del sys
+
+import gc
+gc.collect()
+del gc

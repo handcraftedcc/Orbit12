@@ -157,7 +157,7 @@ class Arp(Module):
     def generate_notes(self):
         #Calculate timing
         current = self.transport.now
-        scheduled = ticks.ticks_add(current, self.gate)
+        gate = int(self.gate)
         midi_tick = self.transport.midi_tick
         timing_tick = midi_tick // (self.rate_to_midi_ticks())
         rand_seed_time_temp = timing_tick
@@ -180,9 +180,9 @@ class Arp(Module):
                     velocity = self.note_register.velocities[i]
                 else:
                     velocity = 127
-                random_gate = self.gate + utils.random_int(self.random_seed_user + rand_seed_time_temp + i, self.gate_random, 0)
+                random_gate = gate + utils.random_int(self.random_seed_user + rand_seed_time_temp + i, self.gate_random, 0)
                 self.note_ons_out.append_value(note,velocity=velocity)
-                self.scheduled_offs.append_value(note, time=scheduled + random_gate)
+                self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, random_gate))
 
         else:
             register_note_count = self.note_register.length
@@ -220,9 +220,9 @@ class Arp(Module):
                 velocity = self.note_register.velocities[index]
             else:
                 velocity = 127
-            random_gate = self.gate+utils.random_int(rand_seed_time_temp + self.random_seed_user,self.gate_random,0)
+            random_gate = gate + utils.random_int(rand_seed_time_temp + self.random_seed_user,self.gate_random,0)
             self.note_ons_out.append_value(note, velocity=velocity)
-            self.scheduled_offs.append_value(note, time=scheduled+random_gate)
+            self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, random_gate))
             self.note_register_position = (self.note_register_position+1) % register_note_count
 
         #print("Note Register", self.note_register.notes)

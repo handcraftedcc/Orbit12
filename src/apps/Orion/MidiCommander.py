@@ -1,8 +1,8 @@
 # Main app manager
-from adafruit_macropad import MacroPad
 import keypad
 import adafruit_ticks as ticks
 import gc
+from .core.orion_macropad import OrionMacroPad as MacroPad
 
 gc.collect()
 print("START")

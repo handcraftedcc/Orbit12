@@ -270,7 +270,7 @@ class Wander(Module):
 
         self.note_ons_out.append_value(note, velocity=self.last_velocity)
         self.active_note = note
-        self.active_off_time = ticks.ticks_add(self.transport.now, self.gate)
+        self.active_off_time = ticks.ticks_add(self.transport.now, int(self.gate))
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
