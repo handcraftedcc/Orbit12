@@ -43,6 +43,10 @@ SWAP_CHAIN_MAX = ChainElements.SLOT6
 
 def _unload_module(module_path):
     import sys
+    package_name, _, attr_name = module_path.rpartition(".")
+    package = sys.modules.get(package_name)
+    if package is not None and hasattr(package, attr_name):
+        delattr(package, attr_name)
     if module_path in sys.modules:
         del sys.modules[module_path]
         gc.collect()
@@ -168,7 +172,7 @@ class MidiCommander:
         try:
             filename = presets.save_preset(self.state, slot)
         finally:
-            _unload_module("apps.Orion.core.presets")
+            _unload_module(presets.__name__)
         if filename is None:
             self.queue_full_ui_refresh()
             return None
@@ -187,7 +191,7 @@ class MidiCommander:
             gc.collect()
             loaded = presets.load_preset(self, slot)
         finally:
-            _unload_module("apps.Orion.core.presets")
+            _unload_module(presets.__name__)
         self.state.update_parm_count()
         self.state.active_parm = 0
         self.queue_full_ui_refresh()
