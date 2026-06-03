@@ -16,6 +16,8 @@ SCENE_OPTIONS = (
     "10",
 )
 
+RESET_OPTIONS = (">", "YES")
+
 def print_ram_usage(value):
     gc.collect()
     print("allocated:",gc.mem_alloc())
@@ -27,6 +29,7 @@ class Settings(Module):
     def __init__(self, module_helper, slot_id, macropad = None):
         super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
         self.macropad = self.state.macropad
+        self.reset_scene_parm = None
 
     def create_main_parms(self):
         parms = []
@@ -39,8 +42,11 @@ class Settings(Module):
                                      enter_callback_function=self.save_scene)
         parms.append(save_scene_parm)
 
-        reset_scene_parm = Parms.Parm("reset_scene", "RSTSCN", Parms.ButtonParmType, 0,
-                                      enter_callback_function=self.reset_scene)
+        reset_scene_parm = Parms.Parm("reset_scene", "RSTSCN", Parms.EnumParmType, 0,
+                                      options=RESET_OPTIONS,
+                                      enter_callback_function=self.arm_reset_scene,
+                                      exit_callback_function=self.reset_scene)
+        self.reset_scene_parm = reset_scene_parm
         parms.append(reset_scene_parm)
 
         print_ram_usage_parm = Parms.Parm("print_ram", "RAM", Parms.ButtonParmType, None,
@@ -61,8 +67,24 @@ class Settings(Module):
         self.module_helper.orion.switch_scene(value)
         return value
 
-    def reset_scene(self, value): #Reset scene but don't save yet
-        self.module_helper.orion.reset_scene()
+    def queue_parm_rebuild(self):
+        orion = self.module_helper.orion
+        orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
+
+    def arm_reset_scene(self, value):
+        if self.reset_scene_parm is not None:
+            self.reset_scene_parm.display_value = "SURE?"
+            self.queue_parm_rebuild()
+        return value
+
+    def reset_scene(self, value):
+        if value == 1:
+            self.module_helper.orion.reset_scene_and_reload()
+            return value
+
+        if self.reset_scene_parm is not None:
+            self.reset_scene_parm.set_value(0)
+            self.queue_parm_rebuild()
         return value
 
     def change_key_brightness(self, value):

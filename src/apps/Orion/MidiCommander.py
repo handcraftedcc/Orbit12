@@ -252,6 +252,21 @@ class MidiCommander:
             _unload_module(scenes.__name__)
         return filename
 
+    def reload_app(self):
+        self.state.stop_all_modules()
+        self.transport.running = 0
+        self.output_manager.pending_midi_clock_ticks = 0
+        gc.collect()
+
+        import supervisor
+        supervisor.reload()
+
+    def reset_scene_and_reload(self):
+        self.reset_scene(refresh=False)
+        self.save_scene()
+        self.save_user_settings()
+        self.reload_app()
+
     def switch_scene(self, scene):
         if scene == self.state.active_scene:
             return True
@@ -266,13 +281,7 @@ class MidiCommander:
         finally:
             _unload_module(scenes.__name__)
 
-        self.state.stop_all_modules()
-        self.transport.running = 0
-        self.output_manager.pending_midi_clock_ticks = 0
-        gc.collect()
-
-        import supervisor
-        supervisor.reload()
+        self.reload_app()
         return True
 
     def can_do_ui_work(self, min_slack_ms=10):
