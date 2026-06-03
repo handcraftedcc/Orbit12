@@ -103,11 +103,11 @@ class Chords(Input):
         #Check Pentatonic State
         pentatonic_state = [False, False]
 
-        if (self.state.scale == Music.SCALENAMES.index("MAJP") or
-                self.state.scale == Music.SCALENAMES.index("SPEN")):
+        if (self.state.scale == Music.IDX_MAJP or
+                self.state.scale == Music.IDX_SPEN):
             pentatonic_state[0] = True
 
-        if self.state.scale == Music.SCALENAMES.index("MINP"):
+        if self.state.scale == Music.IDX_MINP:
             pentatonic_state[1] = True
 
         #TODO: Extract octave and add to final octave as currently the keys just wrap in same octave

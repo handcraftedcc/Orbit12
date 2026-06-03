@@ -65,8 +65,11 @@ SCALES = (
     bytes((0, 2, 3, 5, 6, 8, 9, 11)),        # Diminished (Whole-Half)
 )
 
+IDX_MAJP = SCALENAMES.index("MAJP")
+IDX_MINP = SCALENAMES.index("MINP")
+IDX_SPEN = SCALENAMES.index("SPEN")
 
-PENTATONIC_IDS = (SCALENAMES.index("MAJP"), SCALENAMES.index("MINP"), SCALENAMES.index("SPEN"))
+PENTATONIC_IDS = (IDX_MAJP, IDX_MINP, IDX_SPEN)
 
 AUTOBORROWRELATIONSHIP = bytes((
     0,   # CHR   -> CHR
@@ -107,17 +110,6 @@ def get_pattern_step(pattern_bit, pattern_len, step):
     step = step % pattern_len
     bit_index = pattern_len - step - 1
     return (pattern_bit >> bit_index) & 1
-
-def pattern_to_text(pattern_bit, pattern_len):
-    text = ""
-
-    for step in range(pattern_len):
-        if get_pattern_step(pattern_bit, pattern_len, step):
-            text += "X"
-        else:
-            text += "O"
-
-    return text
 
 def get_pattern_empty_steps(pattern_bit, pattern_len):
     empty_steps = 0
