@@ -9,18 +9,7 @@ import gc
 class State:
     """ Handles general state of the App. See parameter list below """
     def __init__(self, macropad):
-        # Music State
-        self.key = NOTES.index("C")
-        self.scale = 1
-        self.octave = 3
-        self.key_offset = 0
-        self.key_custom_text = None
-
-        # Timing State
-        self.bpm = 120
-        self.swing = 0.0
-        self.timing_step = TimingSteps.One16th
-        self.transport_mode = 0
+        self.reset_to_defaults()
 
         # Chain State
         self.chain_modules = []
@@ -44,6 +33,18 @@ class State:
         self.module_helper = None
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
         self.module_load_failed = False
+
+    def reset_to_defaults(self):
+        self.key = NOTES.index("C")
+        self.scale = 1
+        self.octave = 3
+        self.key_offset = 0
+        self.key_custom_text = None
+
+        self.bpm = 120
+        self.swing = 0.0
+        self.timing_step = TimingSteps.One16th
+        self.transport_mode = 0
 
     def update_parm_count(self):
         module = self.chain_modules[self.active_chain]

@@ -97,13 +97,7 @@ class MidiCommander:
         self.note_offs = NoteOffArray()
 
         #Init modules
-        self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
-        self.state.chain_modules[0] = InputModule(self.module_helper,0)
-        self.state.chain_modules[1] = TransportModule(self.module_helper,1)
-        for slot in range (2,state.TOTALSLOTCOUNT-1):
-            self.state.chain_modules[slot] = EmptyModule(self.module_helper,slot)
-        self.state.chain_modules[state.TOTALSLOTCOUNT-2] = OutputModule(self.module_helper,state.TOTALSLOTCOUNT-2)
-        self.state.chain_modules[state.TOTALSLOTCOUNT-1] = SettingsModule(self.module_helper,state.TOTALSLOTCOUNT-1)
+        self.create_stock_chain_modules()
         self.state.update_parm_count()
 
         # Init UI
@@ -117,6 +111,48 @@ class MidiCommander:
         self.neo_pixels.paint_pixels()
 
         #gc.disable()
+
+    def create_stock_chain_modules(self):
+        self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
+        self.state.chain_modules[ChainElements.IN] = InputModule(self.module_helper, ChainElements.IN)
+        self.state.chain_modules[ChainElements.TRANSPORT] = TransportModule(self.module_helper, ChainElements.TRANSPORT)
+        for slot in range(SWAP_CHAIN_MIN, SWAP_CHAIN_MAX + 1):
+            self.state.chain_modules[slot] = EmptyModule(self.module_helper, slot)
+        self.state.chain_modules[ChainElements.OUT] = OutputModule(self.module_helper, ChainElements.OUT)
+        self.state.chain_modules[ChainElements.SETTINGS] = SettingsModule(self.module_helper, ChainElements.SETTINGS)
+
+    def restore_stock_state_values(self):
+        self.state.reset_to_defaults()
+        self.transport.update_bpm(self.state.bpm)
+        self.transport.update_swing(self.state.swing)
+        self.transport.running = 0
+        self.transport.reset()
+        self.output_manager.pending_midi_clock_ticks = 0
+
+    def restore_stock_setup(self):
+        self.state.stop_all_modules()
+        gc.collect()
+
+        for slot in range(state.TOTALSLOTCOUNT):
+            self.state.unload_chain_module(slot)
+        gc.collect()
+
+        self.restore_stock_state_values()
+        self.create_stock_chain_modules()
+        self.state.active_chain = ChainElements.IN
+        self.state.active_ui_section = UISection.CHAIN
+        self.state.active_parm = 0
+        self.state.active_parm_page = 0
+        self.state.module_selector_active_module = 0
+        self.state.update_parm_count()
+
+        self.chain_swap_mode = 0
+        self.note_ons.clear()
+        self.note_offs.clear()
+        self.queue_full_ui_refresh()
+        self.state.chain_modules[ChainElements.IN].color_pixels()
+        self.neo_pixels.paint_pixels()
+        gc.collect()
 
     def add_to_ui_queue(self, callback):
         if callback not in self.ui_queue:

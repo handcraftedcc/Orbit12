@@ -44,6 +44,10 @@ class Settings(Module):
                                       enter_callback_function=self.load_preset)
         parms.append(load_preset_parm)
 
+        reset_parm = Parms.Parm("reset", "RESET", Parms.ButtonParmType, 0,
+                                      enter_callback_function=self.restore_stock_setup)
+        parms.append(reset_parm)
+
         print_ram_usage_parm = Parms.Parm("print_ram", "RAM", Parms.ButtonParmType, None,
                                           enter_callback_function=print_ram_usage)
         parms.append(print_ram_usage_parm)
@@ -59,6 +63,10 @@ class Settings(Module):
 
     def load_preset(self, value):
         self.module_helper.orion.load_preset_slot(self.preset_slot)
+        return value
+
+    def restore_stock_setup(self, value):
+        self.module_helper.orion.restore_stock_setup()
         return value
 
     def change_key_brightness(self, value):
