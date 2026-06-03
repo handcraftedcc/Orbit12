@@ -150,7 +150,6 @@ class HeaderFooter(Section):
 
         self.transport = transport
         self.key_info_custom_text = None
-        self.current_help_text = None
         white_palette = displayio.Palette(1)
         white_palette[0] = 0xFFFFFF
 
@@ -182,6 +181,19 @@ class HeaderFooter(Section):
         self.group.append(self.header_chain_id)
         self.header_chain_id[0] = tile_for_char("I")
 
+        self.header_chain_arrow = displayio.TileGrid(
+            STATEINDICATORSBITMAP,
+            pixel_shader=text_palette,
+            width=1,  # number of visible tile cells
+            height=1,
+            tile_width=STATEINDICATORSBITMAP_DIMENSIONS[0],
+            tile_height=STATEINDICATORSBITMAP_DIMENSIONS[1],
+            x=9, y=3
+        )
+
+        self.group.append(self.header_chain_arrow)
+        self.header_chain_arrow[0] = 0
+
         self.header_chain_preview = displayio.TileGrid(
             CHAINPREVIEWBITMAP,
             pixel_shader=text_palette,
@@ -189,7 +201,7 @@ class HeaderFooter(Section):
             height=2,
             tile_width=CHAINPREVIEWBITMAP_DIMENSIONS[0],
             tile_height=CHAINPREVIEWBITMAP_DIMENSIONS[1],
-            x=10, y=3
+            x=110, y=3
         )
 
         self.group.append(self.header_chain_preview)
@@ -203,24 +215,11 @@ class HeaderFooter(Section):
             height=1,
             tile_width=FONTBITMAP_DIMENSIONS[0],
             tile_height=FONTBITMAP_DIMENSIONS[1],
-            x=26, y=3
+            x=17, y=3
         )
 
         self.group.append(self.header_chain_module)
         set_text(self.header_chain_module,"INPUT")
-
-        self.header_key_info = displayio.TileGrid(
-            FONTBITMAP,
-            pixel_shader=text_palette,
-            width=KEYCHARS,  # number of visible tile cells
-            height=1,
-            tile_width=FONTBITMAP_DIMENSIONS[0],
-            tile_height=FONTBITMAP_DIMENSIONS[1],
-            x=89, y=3
-        )
-
-        self.group.append(self.header_key_info)
-        set_text(self.header_key_info, "A#MIN3", align_right=True)
 
         self.footer_bg = vectorio.Rectangle(
             pixel_shader=white_palette,
@@ -232,18 +231,18 @@ class HeaderFooter(Section):
 
         self.group.append(self.footer_bg)
 
-        self.footer_help_text = displayio.TileGrid(
+        self.footer_key_info = displayio.TileGrid(
             FONTBITMAP,
             pixel_shader=text_palette,
-            width=HELPERCHARS,  # number of visible tile cells
+            width=KEYCHARS,  # number of visible tile cells
             height=1,
             tile_width=FONTBITMAP_DIMENSIONS[0],
             tile_height=FONTBITMAP_DIMENSIONS[1],
             x=4, y=56
         )
 
-        self.group.append(self.footer_help_text)
-        set_text(self.footer_help_text, ":HELP TEXT HERE")
+        self.group.append(self.footer_key_info)
+        set_text(self.footer_key_info, "A#MIN3", align_right=False)
 
         self.footer_state_icons = displayio.TileGrid(
             STATEINDICATORSBITMAP,
@@ -264,7 +263,7 @@ class HeaderFooter(Section):
         self.update_header_module_label()
         self.update_footer_state_icons()
         self.update_header_chain_preview()
-        self.update_footer_help_text()
+        self.update_footer_state_icons()
 
         main_group.append(self.group)
 
@@ -284,7 +283,7 @@ class HeaderFooter(Section):
             new_text = key+octave+scale
         else:
             new_text = self.state.key_custom_text
-        set_text(self.header_key_info, new_text, align_right=True)
+        set_text(self.footer_key_info, new_text, align_right=False)
 
     def update_footer_state_icons(self):
         if self.state.transport_mode == 1:
@@ -297,15 +296,6 @@ class HeaderFooter(Section):
             self.footer_state_icons[1] = 3
         else:
             self.footer_state_icons[1] = 4
-
-    def update_footer_help_text(self):
-        if self.state.help_text == self.current_help_text:
-            return
-        elif self.state.help_text:
-            set_text(self.footer_help_text, self.state.help_text)
-        else:
-            set_text(self.footer_help_text, " ")
-        self.current_help_text = self.state.help_text
 
     def update_header_chain_preview(self):
         for i in range(10):
@@ -563,7 +553,7 @@ class ParameterSection(Section):
             self.cursor.pixel_shader = self.black_palette
         elif self.state.active_parm == -1: #Module Selection
             label_length = self.state.chain_modules[self.state.active_chain].label_length
-            self.cursor.x = 64 - (6-label_length)*6
+            self.cursor.x = 55 - (6-label_length)*6
             self.cursor.height = 5
             self.cursor.y = 3
             self.cursor.pixel_shader = self.black_palette

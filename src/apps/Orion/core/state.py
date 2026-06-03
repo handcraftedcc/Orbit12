@@ -43,7 +43,6 @@ class State:
         self.macropad = macropad
         self.module_helper = None
         self.nav_keys_state = 0 # 0 is notes, 1 is parms
-        self.help_text = "SEL CHAIN ELMT"
         self.module_load_failed = False
 
     def update_parm_count(self):
@@ -80,7 +79,6 @@ class State:
         except MemoryError:
             gc.collect()
             self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
-            self.help_text = "NOT ENOUGH MEM"
             self.module_load_failed = True
         self.update_parm_count()
         self.active_parm = 0
@@ -165,7 +163,6 @@ class State:
                 module_class = registry.get_module_class(selected_key)
             except MemoryError:
                 gc.collect()
-                self.help_text = "NOT ENOUGH MEM"
                 self.module_load_failed = True
                 self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
                 self.update_parm_count()

@@ -20,8 +20,7 @@ class Parm:
             bind_attribute = None,
             edit_callback_function = None,
             enter_callback_function = None,
-            exit_callback_function = None,
-            help_text = None
+            exit_callback_function = None
         ):
 
         self.name = name
@@ -40,7 +39,6 @@ class Parm:
         self.edit_callback_function = edit_callback_function
         self.enter_callback_function = enter_callback_function
         self.exit_callback_function = exit_callback_function
-        self.help_text = help_text
 
         self.display_value = self.get_display_value()
 
@@ -50,9 +48,6 @@ class Parm:
 
     def get_actual_value(self):
         return self.type.get_actual_value(self)
-
-    def get_help_text(self):
-        return self.type.get_help_text(self)
 
     def edit(self,delta):
         self.value = self.type.edit(self,delta*self.jog_increment)
@@ -93,10 +88,6 @@ class ParmType:
     @classmethod
     def get_actual_value(cls, parm):
         return parm.value
-
-    @classmethod
-    def get_help_text(cls, parm):
-        return parm.help_text
 
     @classmethod
     def edit(cls, parm, delta):
@@ -176,12 +167,6 @@ class PatternParmType(ParmType):
     @classmethod
     def get_display_value(cls, parm):
         return "PTN" + str(parm.value + 1)
-
-    @classmethod
-    def get_help_text(cls, parm):
-        label = "PTN" + str(parm.value + 1)
-        pattern = Music.pattern_to_text(Music.patterns_bit[parm.value], Music.patterns_len[parm.value])
-        return label + ": " + pattern
 
     @classmethod
     def edit(cls, parm, delta):

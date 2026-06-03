@@ -24,7 +24,6 @@ gc.collect()
 from .core import output
 from .core import parms as Parms
 from .core import module
-from .core import help_text
 from .core.note_array import NoteOnArray, NoteOffArray
 gc.collect()
 
@@ -107,7 +106,6 @@ class MidiCommander:
         self.ui_manager = ui.UIManager(self.macropad,self.state, self.transport)
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
-        self.refresh_help_text()
 
         # Update Pixels
         self.module_helper.neo_pixels = self.neo_pixels
@@ -126,7 +124,6 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
-        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
 
@@ -173,11 +170,9 @@ class MidiCommander:
         finally:
             _unload_module("apps.Orion.core.presets")
         if filename is None:
-            self.update_help_text("SAVE FAILED")
             self.queue_full_ui_refresh()
             return None
 
-        self.update_help_text("SAVED " + self.preset_slot_label(slot))
         self.queue_full_ui_refresh()
         return filename
 
@@ -195,12 +190,6 @@ class MidiCommander:
             _unload_module("apps.Orion.core.presets")
         self.state.update_parm_count()
         self.state.active_parm = 0
-        if loaded:
-            self.update_help_text("LOADED " + self.preset_slot_label(slot))
-        elif loaded is None:
-            self.update_help_text("SLOT EMPTY")
-        else:
-            self.update_help_text("LOAD FAILED")
         self.queue_full_ui_refresh()
         self.neo_pixels.paint_pixels()
         return loaded
@@ -253,15 +242,6 @@ class MidiCommander:
             self.macropad.display_sleep = True
             self.screen_sleeping = True
 
-    def update_help_text(self, text):
-        text = help_text.normalize_help_text(text)
-        if self.state.help_text != text:
-            self.state.help_text = text
-            self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
-
-    def refresh_help_text(self):
-        self.update_help_text(help_text.contextual_help_text(self.state))
-
     def move_active_chain_element(self, delta):
         if self.chain_swap_mode == 2: #Swap instead of move active
             if self.state.active_chain < SWAP_CHAIN_MIN:
@@ -291,7 +271,7 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
-        self.refresh_help_text()
+
 
     def move_active_parm_element(self, delta):
         self.state.move_active_parm_elem(delta)
@@ -299,12 +279,12 @@ class MidiCommander:
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
         else:
             self.add_to_ui_queue(self.ui_manager.parameter_section.update_parm_selection)
-        self.refresh_help_text()
+
 
     def enter_parm_edit(self):
         if self.state.active_parm == -2: #Check if on chain selection -> Switch back to chain selection
             self.state.active_ui_section = UISection.CHAIN
-            self.refresh_help_text()
+    
             self.add_to_ui_queue(self.ui_manager.switch_section)
 
         elif self.state.active_parm == -1: #Check if on chain selection -> Switch to module selection
@@ -312,17 +292,13 @@ class MidiCommander:
             return
         else:  # Go into parm edit
             self.state.active_ui_section = UISection.PARMEDIT
-            self.refresh_help_text()
+
             active_parm = self.state.get_active_module_parm()
-            help_text_before_enter = self.state.help_text
             enter_result = active_parm.enter()
-            help_text_changed_by_enter = self.state.help_text != help_text_before_enter
             if self.state.active_ui_section != UISection.PARMEDIT:
                 return
             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                 self.state.active_ui_section = UISection.PARMSELECTION
-                if not help_text_changed_by_enter:
-                    self.refresh_help_text()
 
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
 
@@ -331,13 +307,13 @@ class MidiCommander:
         active_parm = self.state.get_active_module_parm()
         active_parm.exit()
         self.state.active_ui_section = UISection.PARMSELECTION
-        self.refresh_help_text()
+
 
         self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
 
     def edit_parm(self, delta):
         new_value, new_display_value = self.state.get_active_module_parm().edit(delta)
-        self.refresh_help_text()
+
         self.ui_manager.parameter_section.queue_parm_value_update(new_display_value)
         self.add_to_ui_queue(self.ui_manager.parameter_section.flush_parm_value_update)
 
@@ -350,14 +326,14 @@ class MidiCommander:
         else:
             self.state.active_ui_section = UISection.PARMSELECTION
             self.state.active_parm = 0
-            self.refresh_help_text()
+    
             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
     def enter_chain_view(self):
         self.state.active_ui_section = UISection.CHAIN
         self.state.active_parm = 0
-        self.refresh_help_text()
+
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
     def enter_module_selection(self):
@@ -365,13 +341,13 @@ class MidiCommander:
             return
         self.state.active_ui_section = UISection.MODULESELECTION
         self.state.module_selector_enter()
-        self.refresh_help_text()
+
         self.add_to_ui_queue(self.ui_manager.module_selector.update_module_name)
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
     def move_module_selection(self, delta):
         self.state.module_selector_change_module_selection(delta)
-        self.refresh_help_text()
+
         self.add_to_ui_queue(self.ui_manager.module_selector.update_module_name)
 
     def exit_module_selection(self):
@@ -381,12 +357,11 @@ class MidiCommander:
         active_module = self.state.chain_modules[self.state.active_chain].name
         if module_loaded is False:
             self.state.active_ui_section = UISection.CHAIN
-            self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
             self.add_to_ui_queue(self.ui_manager.switch_section)
             return
         if active_module == "empty":
             self.state.active_ui_section = UISection.CHAIN
-            self.refresh_help_text()
+    
             self.add_to_ui_queue(self.ui_manager.switch_section)
         else:
             self.enter_parm_selection()
@@ -394,19 +369,19 @@ class MidiCommander:
     def enable_chain_swap_mode(self):
         if self.state.active_chain < SWAP_CHAIN_MIN:
             self.disable_chain_swap_mode()
-            self.refresh_help_text()
+    
             return
         if self.state.active_chain > SWAP_CHAIN_MAX:
             self.disable_chain_swap_mode()
-            self.refresh_help_text()
+    
             return
         self.state.active_chain_mode = state.ChainModes.SWAP
-        self.refresh_help_text()
+
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
 
     def disable_chain_swap_mode(self):
         self.state.active_chain_mode = state.ChainModes.SELECT
-        self.refresh_help_text()
+
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.knob_hold_down_start = None
         self.chain_swap_mode = 0
@@ -469,12 +444,10 @@ class MidiCommander:
 
                     if pressed[2]: # Start Clock
                         self.transport.clock_start()
-                        self.update_help_text(help_text.MSG_TRANSPORT_START)
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
 
                     if pressed[1]: # Stop Clock
                         self.transport.clock_stop()
-                        self.update_help_text(help_text.MSG_TRANSPORT_STOP)
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
 
                     if pressed[4]: # Swap Module
@@ -485,10 +458,6 @@ class MidiCommander:
 
                     if pressed[7]: # Switch Nav State
                         self.state.nav_keys_state = (self.state.nav_keys_state+1) % 2
-                        if self.state.nav_keys_state == 0:
-                            self.update_help_text(help_text.MSG_KEY_NAV_OCT_OFFS)
-                        else:
-                            self.update_help_text(help_text.MSG_KEY_NAV_PARMS)
                         self.neo_pixels.set_nav_state_colors(update=True)
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
 
@@ -507,18 +476,14 @@ class MidiCommander:
                     if self.state.nav_keys_state == 0: #Nav Notes
                         if pressed[8]:
                             self.state.octave+=1
-                            self.update_help_text(help_text.MSG_OCTAVE_UP)
                             self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
                         if pressed[11]:
                             self.state.octave-=1
-                            self.update_help_text(help_text.MSG_OCTAVE_DOWN)
                             self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
                         if pressed[10]:
                             self.state.key_offset -= 1
-                            self.update_help_text(help_text.MSG_KEY_OFFSET_DOWN)
                         if pressed[12]:
                             self.state.key_offset += 1
-                            self.update_help_text(help_text.MSG_KEY_OFFSET_UP)
                         if self.state.active_chain == ChainElements.IN:
                             in_module = self.state.chain_modules[self.state.active_chain]
                             parm_octave = in_module.get_parm_by_name("octave")
