@@ -1,8 +1,20 @@
 from ..module import Module
 from .. import parms as Parms
-from .. import presets
 
 import gc
+
+PRESET_SLOT_OPTIONS = (
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9",
+    "P10",
+)
 
 def print_ram_usage(value):
     gc.collect()
@@ -20,7 +32,7 @@ class Settings(Module):
     def create_main_parms(self):
         parms = []
         preset_slot_parm = Parms.Parm("preset_slot", "PRSLOT", Parms.EnumParmType, self.preset_slot,
-                                      options=presets.PRESET_SLOT_OPTIONS,
+                                      options=PRESET_SLOT_OPTIONS,
                                       bind_object=self, bind_attribute="preset_slot")
         parms.append(preset_slot_parm)
 

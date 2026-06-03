@@ -25,7 +25,6 @@ from .core import output
 from .core import parms as Parms
 from .core import module
 from .core import help_text
-from .core import presets
 from .core.note_array import NoteOnArray, NoteOffArray
 gc.collect()
 
@@ -42,6 +41,12 @@ SCREEN_REFRESH_RATE = 4
 SCREEN_SLEEP_TIME = 60000
 SWAP_CHAIN_MIN = ChainElements.SLOT1
 SWAP_CHAIN_MAX = ChainElements.SLOT6
+
+def _unload_module(module_path):
+    import sys
+    if module_path in sys.modules:
+        del sys.modules[module_path]
+        gc.collect()
 
 class MidiCommander:
     def __init__(self):
@@ -128,6 +133,7 @@ class MidiCommander:
     def load_preset_module(self, slot_id, module_key):
         current_module = self.state.chain_modules[slot_id]
         if current_module is not None and current_module.name == module_key:
+            current_module.stop()
             return current_module
 
         if slot_id == ChainElements.IN:
@@ -161,7 +167,11 @@ class MidiCommander:
         return "P" + str(slot + 1)
 
     def save_current_preset(self, slot=0):
-        filename = presets.save_preset(self.state, slot)
+        from .core import presets
+        try:
+            filename = presets.save_preset(self.state, slot)
+        finally:
+            _unload_module("apps.Orion.core.presets")
         if filename is None:
             self.update_help_text("SAVE FAILED")
             self.queue_full_ui_refresh()
@@ -172,8 +182,17 @@ class MidiCommander:
         return filename
 
     def load_preset_slot(self, slot=0):
-        self.state.stop_all_modules()
-        loaded = presets.load_preset(self, slot)
+        from .core import presets
+        try:
+            self.state.stop_all_modules()
+            gc.collect()
+            for s in range(SWAP_CHAIN_MIN, SWAP_CHAIN_MAX + 1):
+                self.state.unload_chain_module(s)
+            self.state.unload_chain_module(ChainElements.IN)
+            gc.collect()
+            loaded = presets.load_preset(self, slot)
+        finally:
+            _unload_module("apps.Orion.core.presets")
         self.state.update_parm_count()
         self.state.active_parm = 0
         if loaded:

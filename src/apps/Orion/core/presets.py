@@ -196,6 +196,7 @@ def load_preset(orion, slot=0, base_dir=PRESET_DIR):
             elif record_type == "M" and len(parts) >= 4:
                 try:
                     current_module = orion.load_preset_module(int(parts[1]), parts[2])
+                    gc.collect()
                 except MemoryError:
                     gc.collect()
                     return False
