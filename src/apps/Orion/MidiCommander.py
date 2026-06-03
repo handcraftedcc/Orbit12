@@ -25,6 +25,7 @@ from .core import output
 from .core import parms as Parms
 from .core import module
 from .core import help_text
+from .core import presets
 from .core.note_array import NoteOnArray, NoteOffArray
 gc.collect()
 
@@ -114,6 +115,78 @@ class MidiCommander:
         if callback not in self.ui_queue:
             self.ui_queue.append(callback)
         #self.ui_rebuild_pending = True
+
+    def queue_full_ui_refresh(self):
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_key_info)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
+        self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_help_text)
+        self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
+        self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+
+    def load_preset_module(self, slot_id, module_key):
+        current_module = self.state.chain_modules[slot_id]
+        if current_module is not None and current_module.name == module_key:
+            return current_module
+
+        if slot_id == ChainElements.IN:
+            from .inputmodules import _registry as registry
+        elif SWAP_CHAIN_MIN <= slot_id <= SWAP_CHAIN_MAX:
+            from .modules import _registry as registry
+        else:
+            return current_module
+
+        self.state.unload_chain_module(slot_id)
+        gc.collect()
+
+        try:
+            module_class = registry.get_module_class(module_key)
+        except MemoryError:
+            gc.collect()
+            self.state.chain_modules[slot_id] = self.state.create_fallback_module(slot_id)
+            self.state.module_load_failed = True
+            return self.state.chain_modules[slot_id]
+
+        if module_class is None:
+            self.state.chain_modules[slot_id] = self.state.create_fallback_module(slot_id)
+            return self.state.chain_modules[slot_id]
+
+        if not self.state.load_chain_module(slot_id, module_class):
+            return self.state.chain_modules[slot_id]
+
+        return self.state.chain_modules[slot_id]
+
+    def save_current_preset(self):
+        filename = presets.save_preset(self.state)
+        if filename is None:
+            self.update_help_text("SAVE FAILED")
+            self.queue_full_ui_refresh()
+            return None
+
+        settings_module = self.state.chain_modules[ChainElements.SETTINGS]
+        if hasattr(settings_module, "refresh_preset_files"):
+            settings_module.refresh_preset_files(filename)
+        self.update_help_text("SAVED " + filename)
+        self.queue_full_ui_refresh()
+        return filename
+
+    def load_preset(self, filename):
+        if filename is None:
+            self.update_help_text("NO PRESET")
+            return False
+
+        self.state.stop_all_modules()
+        loaded = presets.load_preset(self, filename)
+        self.state.update_parm_count()
+        self.state.active_parm = 0
+        if loaded:
+            self.update_help_text("LOADED " + filename)
+        else:
+            self.update_help_text("LOAD FAILED")
+        self.queue_full_ui_refresh()
+        self.neo_pixels.paint_pixels()
+        return loaded
 
     def can_do_ui_work(self, min_slack_ms=10):
         if self.state.transport_mode == 1:
@@ -224,12 +297,15 @@ class MidiCommander:
             self.state.active_ui_section = UISection.PARMEDIT
             self.refresh_help_text()
             active_parm = self.state.get_active_module_parm()
+            help_text_before_enter = self.state.help_text
             enter_result = active_parm.enter()
+            help_text_changed_by_enter = self.state.help_text != help_text_before_enter
             if self.state.active_ui_section != UISection.PARMEDIT:
                 return
             if enter_result == Parms.ParmEnterResult.RETURN_TO_SELECTION:
                 self.state.active_ui_section = UISection.PARMSELECTION
-                self.refresh_help_text()
+                if not help_text_changed_by_enter:
+                    self.refresh_help_text()
 
             self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
 
