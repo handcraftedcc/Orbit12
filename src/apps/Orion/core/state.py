@@ -75,17 +75,25 @@ class State:
 
     def load_chain_module(self, slot_id, module_class):
         self.module_load_failed = False
-        gc.collect()
-        try:
-            self.chain_modules[slot_id] = module_class(self.module_helper, slot_id)
-        except MemoryError:
+        self.chain_modules[slot_id] = None
+        for _ in range(3):
             gc.collect()
-            self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
-            self.module_load_failed = True
+            try:
+                self.chain_modules[slot_id] = module_class(self.module_helper, slot_id)
+                self.update_parm_count()
+                self.active_parm = 0
+                gc.collect()
+                return True
+            except MemoryError:
+                self.chain_modules[slot_id] = None
+                gc.collect()
+
+        self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
+        self.module_load_failed = True
         self.update_parm_count()
         self.active_parm = 0
         gc.collect()
-        return not self.module_load_failed
+        return False
 
     def get_fallback_module_class(self, slot_id):
         if slot_id == ChainElements.IN:
@@ -97,11 +105,21 @@ class State:
 
     def create_fallback_module(self, slot_id):
         module_class = self.get_fallback_module_class(slot_id)
-        try:
-            return module_class(self.module_helper, slot_id)
-        except MemoryError:
+        for _ in range(2):
             gc.collect()
-            return EmptyModule(self.module_helper, slot_id)
+            try:
+                return module_class(self.module_helper, slot_id)
+            except MemoryError:
+                gc.collect()
+
+        if module_class is not EmptyModule:
+            for _ in range(2):
+                gc.collect()
+                try:
+                    return EmptyModule(self.module_helper, slot_id)
+                except MemoryError:
+                    gc.collect()
+        return None
 
     def module_key_in_use(self, module_key):
         for module in self.chain_modules:
@@ -128,14 +146,18 @@ class State:
         return self.chain_modules[self.active_chain]
 
     def get_active_module_parm(self):
-        return self.get_active_chain_module().get_parm(self.active_parm)
+        module = self.get_active_chain_module()
+        if module is None:
+            return None
+        return module.get_parm(self.active_parm)
 
     def module_selector_enter(self):
         if self.active_chain == ChainElements.IN:
             registry = InputModuleRegistry
         else:
             registry = ModuleRegistry
-        active_key = self.chain_modules[self.active_chain].name
+        active_module = self.chain_modules[self.active_chain]
+        active_key = active_module.name if active_module is not None else ""
         if active_key in registry.AVAILABLE_MODULE_NAMES:
             self.module_selector_active_module = registry.AVAILABLE_MODULE_NAMES.index(active_key)
         else:
@@ -154,17 +176,23 @@ class State:
             registry = InputModuleRegistry
         else:
             registry = ModuleRegistry
-        active_key = self.chain_modules[self.active_chain].name
+        active_module = self.chain_modules[self.active_chain]
+        active_key = active_module.name if active_module is not None else ""
         selected_key = registry.AVAILABLE_MODULE_NAMES[self.module_selector_active_module]
         if active_key == selected_key :
             return
         else:
             slot_id = self.active_chain
             self.unload_chain_module(slot_id)
-            try:
-                module_class = registry.get_module_class(selected_key)
-            except MemoryError:
+            module_class = None
+            for _ in range(3):
                 gc.collect()
+                try:
+                    module_class = registry.get_module_class(selected_key)
+                    break
+                except MemoryError:
+                    gc.collect()
+            if module_class is None:
                 self.module_load_failed = True
                 self.chain_modules[slot_id] = self.create_fallback_module(slot_id)
                 self.update_parm_count()
@@ -175,7 +203,8 @@ class State:
 
     def stop_all_modules(self):
         for module in self.chain_modules:
-            module.stop()
+            if module is not None:
+                module.stop()
         self.output_manager.all_notes_off()
 
     def swap_modules(self, slot_id1, slot_id2):

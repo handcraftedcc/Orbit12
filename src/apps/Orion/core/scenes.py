@@ -23,7 +23,6 @@ SCENE_UI_PARMS = (
     "active_scene",
     "save_scene",
     "reset_scene",
-    "stock_setup",
 )
 
 

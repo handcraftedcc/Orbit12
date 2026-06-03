@@ -195,10 +195,16 @@ class MidiCommander:
         self.state.unload_chain_module(slot_id)
         gc.collect()
 
-        try:
-            module_class = registry.get_module_class(module_key)
-        except MemoryError:
+        module_class = None
+        for _ in range(3):
             gc.collect()
+            try:
+                module_class = registry.get_module_class(module_key)
+                break
+            except MemoryError:
+                gc.collect()
+
+        if module_class is None and module_key in registry.MODULE_IMPORT_NAMES:
             self.state.chain_modules[slot_id] = self.state.create_fallback_module(slot_id)
             self.state.module_load_failed = True
             return self.state.chain_modules[slot_id]
@@ -217,10 +223,12 @@ class MidiCommander:
         try:
             self.state.active_scene = scenes.read_active_scene()
             loaded = scenes.load_scene(self, self.state.active_scene)
-            if loaded is not True:
+            if loaded is None:
                 self.reset_scene()
                 scenes.save_scene(self.state, self.state.active_scene)
                 loaded = True
+            elif loaded is not True:
+                self.reset_scene()
             scenes.write_active_scene(self.state.active_scene)
         finally:
             _unload_module(scenes.__name__)
@@ -248,10 +256,12 @@ class MidiCommander:
             self.create_stock_chain_modules()
             self.state.active_scene = scenes.clamp_scene(scene)
             loaded = scenes.load_scene(self, self.state.active_scene)
-            if loaded is not True:
+            if loaded is None:
                 self.reset_scene()
                 scenes.save_scene(self.state, self.state.active_scene)
                 loaded = True
+            elif loaded is not True:
+                self.reset_scene()
             scenes.write_active_scene(self.state.active_scene)
         finally:
             _unload_module(scenes.__name__)
@@ -363,6 +373,9 @@ class MidiCommander:
             self.state.active_ui_section = UISection.PARMEDIT
 
             active_parm = self.state.get_active_module_parm()
+            if active_parm is None:
+                self.enter_chain_view()
+                return
             enter_result = active_parm.enter()
             if self.state.active_ui_section != UISection.PARMEDIT:
                 return
@@ -374,6 +387,9 @@ class MidiCommander:
     def exit_parm_edit(self):
         """Apply current parm setting and go back to parm selection mode"""
         active_parm = self.state.get_active_module_parm()
+        if active_parm is None:
+            self.enter_chain_view()
+            return
         active_parm.exit()
         if self.state.active_ui_section != UISection.PARMEDIT:
             self.add_to_ui_queue(self.ui_manager.switch_section)
@@ -384,15 +400,19 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.parameter_section.cursor_change_state)
 
     def edit_parm(self, delta):
-        new_value, new_display_value = self.state.get_active_module_parm().edit(delta)
+        active_parm = self.state.get_active_module_parm()
+        if active_parm is None:
+            self.enter_chain_view()
+            return
+        new_value, new_display_value = active_parm.edit(delta)
 
         self.ui_manager.parameter_section.queue_parm_value_update(new_display_value)
         self.add_to_ui_queue(self.ui_manager.parameter_section.flush_parm_value_update)
 
     def enter_parm_selection(self):
         """Switch state to active module"""
-        active_module = self.state.chain_modules[self.state.active_chain].name
-        if active_module == "empty":
+        active_module = self.state.chain_modules[self.state.active_chain]
+        if active_module is None or active_module.name == "empty":
             self.enter_module_selection()
             return
         else:
@@ -426,12 +446,13 @@ class MidiCommander:
         module_loaded = self.state.module_selector_apply_module_selection()
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
         self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
-        active_module = self.state.chain_modules[self.state.active_chain].name
+        active_module = self.state.chain_modules[self.state.active_chain]
+        active_module_name = active_module.name if active_module is not None else "empty"
         if module_loaded is False:
             self.state.active_ui_section = UISection.CHAIN
             self.add_to_ui_queue(self.ui_manager.switch_section)
             return
-        if active_module == "empty":
+        if active_module_name == "empty":
             self.state.active_ui_section = UISection.CHAIN
     
             self.add_to_ui_queue(self.ui_manager.switch_section)

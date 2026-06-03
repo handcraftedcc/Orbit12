@@ -272,7 +272,8 @@ class HeaderFooter(Section):
         self.header_chain_id[0] = tile_for_char(letter)
 
     def update_header_module_label(self):
-        module_label = self.state.chain_modules[self.state.active_chain].label
+        module = self.state.chain_modules[self.state.active_chain]
+        module_label = module.label if module is not None else "EMPTY"
         set_text(self.header_chain_module, module_label)
 
     def update_header_key_info(self):
@@ -305,7 +306,8 @@ class HeaderFooter(Section):
             if i == self.state.active_chain:
                 self.header_chain_preview[i]=3
                 continue
-            if self.state.chain_modules[i].name == "empty":
+            module = self.state.chain_modules[i]
+            if module is None or module.name == "empty":
                 self.header_chain_preview[i] = 1
             else:
                 self.header_chain_preview[i] = 2
@@ -370,7 +372,8 @@ class Chain(Section):
             if i != position:
                 if self.chain_cursor_top[i] != 0:
                     self.chain_cursor_top[i] = 0
-                if self.state.chain_modules[i].name == "empty":
+                module = self.state.chain_modules[i]
+                if module is None or module.name == "empty":
                     if self.chain_cursor_bottom[i] != 1:
                         self.chain_cursor_bottom[i] = 1
                 else:
@@ -571,6 +574,9 @@ class ParameterSection(Section):
 
     def update_parm_selection(self):
         module = self.state.chain_modules[self.state.active_chain]
+        if module is None:
+            self.rebuild_parm_section()
+            return
         parm_count = len(module.get_parms())
         if parm_count == 0:
             self.rebuild_parm_section()
@@ -588,6 +594,13 @@ class ParameterSection(Section):
 
     def rebuild_parm_section(self):
         module = self.state.chain_modules[self.state.active_chain]
+        if module is None:
+            self.parm_count = 0
+            for i in range(PARMSPERPAGE):
+                set_text(self.parm_labels[i], " ")
+                set_text(self.parm_values[i], " ")
+            return
+
         parms = module.get_parms()
         self.parm_count = len(parms)
 
