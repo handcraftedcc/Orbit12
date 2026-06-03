@@ -2,7 +2,7 @@ from ..core.module import Module
 from ..core import parms as Parms
 import adafruit_ticks as ticks
 from ..core import utils
-from ..core.note_array import NoteOnArray,NoteOffArray
+from ..core.note_array import NoteArray, NoteOnArray,NoteOffArray
 
 ORDER_LIST = (
     "ORD",
@@ -132,7 +132,8 @@ class Strum(Module):
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]
-            self.note_register.remove_value_first(note)
+            if not note_ons.contains(note):
+                self.note_register.remove_value_first(note)
         self.note_offs_out.append_values(note_offs)
 
         if self.order in (MODE_UP, MODE_DOWN, MODE_ALTERNATE):
