@@ -157,31 +157,29 @@ class MidiCommander:
 
         return self.state.chain_modules[slot_id]
 
-    def save_current_preset(self):
-        filename = presets.save_preset(self.state)
+    def preset_slot_label(self, slot):
+        return "P" + str(slot + 1)
+
+    def save_current_preset(self, slot=0):
+        filename = presets.save_preset(self.state, slot)
         if filename is None:
             self.update_help_text("SAVE FAILED")
             self.queue_full_ui_refresh()
             return None
 
-        settings_module = self.state.chain_modules[ChainElements.SETTINGS]
-        if hasattr(settings_module, "refresh_preset_files"):
-            settings_module.refresh_preset_files(filename)
-        self.update_help_text("SAVED " + filename)
+        self.update_help_text("SAVED " + self.preset_slot_label(slot))
         self.queue_full_ui_refresh()
         return filename
 
-    def load_preset(self, filename):
-        if filename is None:
-            self.update_help_text("NO PRESET")
-            return False
-
+    def load_preset_slot(self, slot=0):
         self.state.stop_all_modules()
-        loaded = presets.load_preset(self, filename)
+        loaded = presets.load_preset(self, slot)
         self.state.update_parm_count()
         self.state.active_parm = 0
         if loaded:
-            self.update_help_text("LOADED " + filename)
+            self.update_help_text("LOADED " + self.preset_slot_label(slot))
+        elif loaded is None:
+            self.update_help_text("SLOT EMPTY")
         else:
             self.update_help_text("LOAD FAILED")
         self.queue_full_ui_refresh()

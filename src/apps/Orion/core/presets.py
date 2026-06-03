@@ -1,4 +1,3 @@
-import os
 import gc
 
 from . import parms as Parms
@@ -9,6 +8,19 @@ file_open = open
 PRESET_DIR = "/userdata/Orbit12Orion/presets"
 PRESET_PREFIX = "preset"
 PRESET_EXT = ".orp"
+PRESET_COUNT = 10
+PRESET_SLOT_OPTIONS = (
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9",
+    "P10",
+)
 HEADER = "ORP1"
 
 STATE_ATTRS = (
@@ -23,7 +35,7 @@ STATE_ATTRS = (
 
 PRESET_UI_PARMS = (
     "save_preset",
-    "preset_file",
+    "preset_slot",
     "load_preset",
 )
 
@@ -33,60 +45,15 @@ class Presets:
         pass
 
 
-def join_path(base_dir, filename):
+def preset_file_name(slot):
+    return PRESET_PREFIX + str(slot + 1) + PRESET_EXT
+
+
+def preset_filename(slot, base_dir=PRESET_DIR):
+    filename = preset_file_name(slot)
     if base_dir.endswith("/"):
         return base_dir + filename
     return base_dir + "/" + filename
-
-
-def ensure_dir(path):
-    current = ""
-    for part in path.split("/"):
-        if part == "":
-            if current == "":
-                current = "/"
-            continue
-
-        if current == "" or current == "/":
-            current = current + part
-        else:
-            current = current + "/" + part
-
-        try:
-            os.mkdir(current)
-        except OSError:
-            pass
-
-
-def is_preset_file(filename):
-    return (
-        filename.startswith(PRESET_PREFIX)
-        and filename.endswith(PRESET_EXT)
-    )
-
-
-def list_preset_files(base_dir=PRESET_DIR):
-    try:
-        files = os.listdir(base_dir)
-    except OSError:
-        return []
-
-    presets = []
-    for filename in files:
-        if is_preset_file(filename):
-            presets.append(filename)
-    presets.sort()
-    return presets
-
-
-def next_preset_filename(base_dir=PRESET_DIR):
-    files = list_preset_files(base_dir)
-    index = 1
-    while True:
-        filename = PRESET_PREFIX + str(index) + PRESET_EXT
-        if filename not in files:
-            return filename
-        index += 1
 
 
 def value_to_text(value):
@@ -139,13 +106,10 @@ def write_module(file, slot_id, module):
         module.release_parms()
 
 
-def save_preset(state, filename=None, base_dir=PRESET_DIR):
-    ensure_dir(base_dir)
-    if filename is None:
-        filename = next_preset_filename(base_dir)
-
+def save_preset(state, slot=0, base_dir=PRESET_DIR):
+    filename = preset_file_name(slot)
     try:
-        with file_open(join_path(base_dir, filename), "w") as file:
+        with file_open(preset_filename(slot, base_dir), "w") as file:
             file.write(HEADER)
             file.write("\n")
             write_state(file, state)
@@ -198,14 +162,14 @@ def apply_parm_value(module, parm_name, text):
     return True
 
 
-def load_preset(orion, filename, base_dir=PRESET_DIR):
+def load_preset(orion, slot=0, base_dir=PRESET_DIR):
     state = orion.state
     current_module = None
 
     try:
-        file = file_open(join_path(base_dir, filename), "r")
+        file = file_open(preset_filename(slot, base_dir), "r")
     except OSError:
-        return False
+        return None
 
     with file:
         header = file.readline().strip()
