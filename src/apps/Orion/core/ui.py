@@ -558,7 +558,8 @@ class ParameterSection(Section):
             self.cursor.y = 3
             self.cursor.pixel_shader = self.black_palette
         elif self.state.active_parm == -1: #Module Selection
-            label_length = self.state.chain_modules[self.state.active_chain].label_length
+            module = self.state.chain_modules[self.state.active_chain]
+            label_length = module.label_length if module is not None else 6
             self.cursor.x = 64 - (6-label_length)*6
             self.cursor.height = 5
             self.cursor.y = 3

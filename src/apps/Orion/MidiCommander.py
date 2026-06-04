@@ -100,7 +100,7 @@ class MidiCommander:
         self.load_user_settings()
 
         #Init modules
-        self.create_stock_chain_modules()
+        self.create_stock_chain_modules(fill_all=False)
         self.state.update_parm_count()
 
         # Init UI
@@ -108,6 +108,7 @@ class MidiCommander:
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
         self.load_active_scene()
+        self.fill_missing_stock_modules()
         self.state.update_parm_count()
         self.queue_full_ui_refresh()
 
@@ -117,14 +118,20 @@ class MidiCommander:
 
         #gc.disable()
 
-    def create_stock_chain_modules(self):
+    def create_stock_chain_modules(self, fill_all=True):
         self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
-        self.state.chain_modules[ChainElements.IN] = InputModule(self.module_helper, ChainElements.IN)
         self.state.chain_modules[ChainElements.TRANSPORT] = TransportModule(self.module_helper, ChainElements.TRANSPORT)
-        for slot in range(SWAP_CHAIN_MIN, SWAP_CHAIN_MAX + 1):
-            self.state.chain_modules[slot] = EmptyModule(self.module_helper, slot)
         self.state.chain_modules[ChainElements.OUT] = OutputModule(self.module_helper, ChainElements.OUT)
         self.state.chain_modules[ChainElements.SETTINGS] = SettingsModule(self.module_helper, ChainElements.SETTINGS)
+        if fill_all:
+            self.fill_missing_stock_modules()
+
+    def fill_missing_stock_modules(self):
+        if self.state.chain_modules[ChainElements.IN] is None:
+            self.state.chain_modules[ChainElements.IN] = InputModule(self.module_helper, ChainElements.IN)
+        for slot in range(SWAP_CHAIN_MIN, SWAP_CHAIN_MAX + 1):
+            if self.state.chain_modules[slot] is None:
+                self.state.chain_modules[slot] = EmptyModule(self.module_helper, slot)
 
     def unload_scene_modules(self):
         for slot in range(state.TOTALSLOTCOUNT):
@@ -219,10 +226,11 @@ class MidiCommander:
             self.state.active_scene = scenes.read_active_scene()
             loaded = scenes.load_scene(self, self.state.active_scene)
             if loaded is None:
-                self.reset_scene()
+                self.restore_stock_state_values()
+                self.fill_missing_stock_modules()
                 scenes.save_scene(self.state, self.state.active_scene)
             elif loaded is not True:
-                self.reset_scene()
+                self.reset_scene(refresh=False)
             scenes.write_active_scene(self.state.active_scene)
         finally:
             _unload_module(scenes.__name__)

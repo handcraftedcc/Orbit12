@@ -73,7 +73,7 @@ class Settings(Module):
 
     def arm_reset_scene(self, value):
         if self.reset_scene_parm is not None:
-            self.reset_scene_parm.display_value = "SURE?"
+            self.reset_scene_parm.display_value = "SUR?"
             self.queue_parm_rebuild()
         return value
 
