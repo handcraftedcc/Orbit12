@@ -16,6 +16,8 @@ SCENE_OPTIONS = (
     "10",
 )
 
+COPY_SCENE_OPTIONS = (">",) + SCENE_OPTIONS
+
 RESET_OPTIONS = (">", "YES")
 
 def print_ram_usage(value):
@@ -42,6 +44,11 @@ class Settings(Module):
                                      enter_callback_function=self.save_scene)
         parms.append(save_scene_parm)
 
+        copy_scene_parm = Parms.Parm("copy_scene", "CPYSCN", Parms.EnumParmType, 0,
+                                     options=COPY_SCENE_OPTIONS,
+                                     exit_callback_function=self.copy_scene)
+        parms.append(copy_scene_parm)
+
         reset_scene_parm = Parms.Parm("reset_scene", "RSTSCN", Parms.EnumParmType, 0,
                                       options=RESET_OPTIONS,
                                       enter_callback_function=self.arm_reset_scene,
@@ -65,6 +72,11 @@ class Settings(Module):
 
     def switch_scene(self, value):
         self.module_helper.orion.switch_scene(value)
+        return value
+
+    def copy_scene(self, value):
+        if value > 0:
+            self.module_helper.orion.switch_scene(value - 1, copy_current=True)
         return value
 
     def queue_parm_rebuild(self):

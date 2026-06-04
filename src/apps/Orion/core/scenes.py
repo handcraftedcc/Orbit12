@@ -22,6 +22,7 @@ STATE_ATTRS = (
 SCENE_UI_PARMS = (
     "active_scene",
     "save_scene",
+    "copy_scene",
     "reset_scene",
     "key_brightness",
 )

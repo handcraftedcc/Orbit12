@@ -275,14 +275,14 @@ class MidiCommander:
         self.save_user_settings()
         self.reload_app()
 
-    def switch_scene(self, scene):
-        if scene == self.state.active_scene:
+    def switch_scene(self, scene, copy_current=False):
+        if scene == self.state.active_scene and not copy_current:
             return True
 
         from .core import scenes
         try:
             next_scene = scenes.clamp_scene(scene)
-            scenes.save_scene(self.state, self.state.active_scene)
+            scenes.save_scene(self.state, next_scene if copy_current else self.state.active_scene)
             self.state.active_scene = next_scene
             scenes.write_active_scene(self.state.active_scene)
             self.save_user_settings()

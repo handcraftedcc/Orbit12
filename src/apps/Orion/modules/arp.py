@@ -89,12 +89,12 @@ class Arp(Module):
                                   edit_callback_function=self.set_pattern)
         parms.append(pattern_parm)
 
-        pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTN SHFT", default=self.pattern_shift,
+        pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTSHFT", default=self.pattern_shift,
                                         parm_type=Parms.IntParmType, bind_object=self, bind_attribute="pattern_shift")
         parms.append(pattern_shift_parm)
 
         # Gate Randomize
-        gate_random_parm = Parms.Parm(name="gate_random", label="RND GATE", default=self.gate_random,
+        gate_random_parm = Parms.Parm(name="gate_random", label="RND GAT", default=self.gate_random,
                                       parm_type=Parms.IntParmType,
                                       increment=5, bind_object=self, bind_attribute="gate_random")
         parms.append(gate_random_parm)
