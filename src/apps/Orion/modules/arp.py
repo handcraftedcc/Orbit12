@@ -94,13 +94,13 @@ class Arp(Module):
         parms.append(pattern_shift_parm)
 
         # Gate Randomize
-        gate_random_parm = Parms.Parm(name="gate_random", label="RND GAT", default=self.gate_random,
+        gate_random_parm = Parms.Parm(name="gate_random", label="GTRND", default=self.gate_random,
                                       parm_type=Parms.IntParmType,
                                       increment=5, bind_object=self, bind_attribute="gate_random")
         parms.append(gate_random_parm)
 
         # Random Pattern Length
-        random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RND LEN", default=self.random_pattern_length,
+        random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RNDLEN", default=self.random_pattern_length,
                                                 parm_type=Parms.IntParmType, minmax=(0,128),
                                                 bind_object=self, bind_attribute="random_pattern_length")
         parms.append(random_pattern_length_parm)

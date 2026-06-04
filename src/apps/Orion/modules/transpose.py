@@ -30,7 +30,7 @@ class Transpose(Module):
         parms.append(octaves_parm)
 
         # Scale Aware
-        scale_aware_parm = Parms.Parm(name="scale_aware", label="IN SCL", default=self.scale_aware,
+        scale_aware_parm = Parms.Parm(name="scale_aware", label="INSCL", default=self.scale_aware,
                                       parm_type=Parms.BooleanParmType,
                                       bind_object=self, bind_attribute="scale_aware")
         parms.append(scale_aware_parm)

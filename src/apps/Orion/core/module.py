@@ -75,7 +75,7 @@ class Module:
                                         bind_object=self,
                                         bind_attribute="operation_mode")
         parms.append(operation_mode_parm)
-        out_channel_parm = Parms.Parm("out_channel", "OUT CH", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
+        out_channel_parm = Parms.Parm("out_channel", "OUTCH", Parms.IntParmType, self.out_channel+1, minmax = (1,16),
                                          edit_callback_function=self.set_out_channel)
         parms.append(out_channel_parm)
         return parms

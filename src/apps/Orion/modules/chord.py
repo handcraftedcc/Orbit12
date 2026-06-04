@@ -22,7 +22,7 @@ class Chord(Module):
         for i in range(5):
             offset_parm = Parms.Parm(
                 name="offset" + str(i+1),
-                label="OFS " + str(i+1),
+                label="OFS" + str(i+1),
                 default=self.offsets[i],
                 parm_type=Parms.IntParmType,
                 increment=1,
@@ -32,7 +32,7 @@ class Chord(Module):
 
         scale_aware_parm = Parms.Parm(
             name="scale_aware",
-            label="IN SCL",
+            label="INSCL",
             default=self.scale_aware,
             parm_type=Parms.BooleanParmType,
             bind_object=self,

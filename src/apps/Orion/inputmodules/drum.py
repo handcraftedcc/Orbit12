@@ -29,7 +29,7 @@ class Drum(Input):
         parms.append(layout_mode_parm)
 
         # Key Offset
-        key_offset_parm = Parms.Parm(name="key_offset", label="KEY OFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
+        key_offset_parm = Parms.Parm(name="key_offset", label="PADOFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
                                      edit_callback_function=self.set_key_offset)
         parms.append(key_offset_parm)
 

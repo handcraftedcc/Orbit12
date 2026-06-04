@@ -89,11 +89,11 @@ class Strum(Module):
     def create_main_parms(self):
         parms = []
         # Strum amount
-        amount_parm = Parms.Parm(name="amount", label="AMOUNT", default=self.amount, parm_type=Parms.IntParmType,
+        amount_parm = Parms.Parm(name="amount", label="AMT", default=self.amount, parm_type=Parms.IntParmType,
                                bind_object=self, bind_attribute="amount", minmax = (0,1000000))
         parms.append(amount_parm)
 
-        order_parm = Parms.Parm(name="order", label="ORDER", default=self.order, parm_type=Parms.EnumParmType,
+        order_parm = Parms.Parm(name="order", label="ORDR", default=self.order, parm_type=Parms.EnumParmType,
                                  bind_object=self, bind_attribute="order", options = ORDER_LIST,
                                 minmax = (0,len(ORDER_LIST)))
         parms.append(order_parm)
@@ -103,7 +103,7 @@ class Strum(Module):
                                increment= 0.05)
         parms.append(tilt_parm)
 
-        tilt_note_count_parm = Parms.Parm(name="tilt_note_count", label="COUNT", default=self.tilt_note_count, parm_type=Parms.IntParmType,
+        tilt_note_count_parm = Parms.Parm(name="tilt_note_count", label="CNT", default=self.tilt_note_count, parm_type=Parms.IntParmType,
                                bind_object=self, bind_attribute="tilt_note_count", minmax=(1, 12),
                                increment=1)
         parms.append(tilt_note_count_parm)
