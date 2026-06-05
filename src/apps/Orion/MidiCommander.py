@@ -104,13 +104,15 @@ class MidiCommander:
         self.state.update_parm_count()
 
         # Init UI
-        self.ui_manager = ui.UIManager(self.macropad,self.state, self.transport)
+        self.ui_manager = ui.UIManager(self.macropad,self.state, self.transport, defer_refresh=True)
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
         self.load_active_scene()
         self.fill_missing_stock_modules()
         self.state.update_parm_count()
         self.queue_full_ui_refresh()
+        self.flush_ui_queue()
+        self.ui_manager.screen.update()
 
         # Update Pixels
         self.state.chain_modules[0].color_pixels()
@@ -186,6 +188,10 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
+
+    def flush_ui_queue(self):
+        while self.ui_queue:
+            self.ui_queue.pop(0)()
 
     def load_scene_module(self, slot_id, module_key):
         current_module = self.state.chain_modules[slot_id]

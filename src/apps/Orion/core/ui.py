@@ -84,7 +84,7 @@ def set_text(tile_grid, text, align_right=False, write_range=(None,None)):
 
 
 class UIManager:
-    def __init__(self,macropad, state, transport):
+    def __init__(self,macropad, state, transport, defer_refresh=False):
         self.macropad = macropad
         self.main_group = displayio.Group()
         self.state = state
@@ -108,7 +108,7 @@ class UIManager:
         self.module_selector = ModuleSelector(self.state, self.main_group)
         self.module_selector.group.hidden = True
 
-        self.screen = Screen(self.macropad,self.main_group)
+        self.screen = Screen(self.macropad,self.main_group, defer_refresh)
 
     def switch_section(self):
         active_section = self.state.active_ui_section
@@ -128,10 +128,11 @@ class UIManager:
 
 
 class Screen:
-    def __init__(self,macropad,main_group):
+    def __init__(self,macropad,main_group, defer_refresh=False):
         self.display = macropad.display
         self.display.root_group = main_group
-        macropad.display.refresh()
+        if not defer_refresh:
+            self.display.refresh()
 
     def update(self):
         self.display.refresh()
