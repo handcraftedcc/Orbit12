@@ -48,7 +48,6 @@ class Arp(Module):
             "STBL",
         )
         self.gate = 100
-        self.gate_random = 0
         self.arp_state = 0 #0 = Not active, 1 = Active -> When all notes are released we go empty
         self.random_seed_user = 0
         self.random_pattern_length = 0
@@ -92,12 +91,6 @@ class Arp(Module):
         pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTSHFT", default=self.pattern_shift,
                                         parm_type=Parms.IntParmType, bind_object=self, bind_attribute="pattern_shift")
         parms.append(pattern_shift_parm)
-
-        # Gate Randomize
-        gate_random_parm = Parms.Parm(name="gate_random", label="GTRND", default=self.gate_random,
-                                      parm_type=Parms.IntParmType,
-                                      increment=5, bind_object=self, bind_attribute="gate_random")
-        parms.append(gate_random_parm)
 
         # Random Pattern Length
         random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RNDLEN", default=self.random_pattern_length,
@@ -180,9 +173,8 @@ class Arp(Module):
                     velocity = self.note_register.velocities[i]
                 else:
                     velocity = 127
-                random_gate = gate + utils.random_int(self.random_seed_user + rand_seed_time_temp + i, self.gate_random, 0)
                 self.note_ons_out.append_value(note,velocity=velocity)
-                self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, random_gate))
+                self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, gate))
 
         else:
             register_note_count = self.note_register.length
@@ -220,9 +212,8 @@ class Arp(Module):
                 velocity = self.note_register.velocities[index]
             else:
                 velocity = 127
-            random_gate = gate + utils.random_int(rand_seed_time_temp + self.random_seed_user,self.gate_random,0)
             self.note_ons_out.append_value(note, velocity=velocity)
-            self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, random_gate))
+            self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, gate))
             self.note_register_position = (self.note_register_position+1) % register_note_count
 
         #print("Note Register", self.note_register.notes)

@@ -1,11 +1,15 @@
 MODULE_SPECS = (
     ("empty", "EMPTY"),
     ("arp", "ARP"),
-    ("transpose", "TRNS"),
-    ("pick", "PICK"),
+    ("bounce", "BOUNCE"),
     ("chord", "CHRD"),
+    ("delay", "DELAY"),
+    ("gate", "GATE"),
+    ("latch", "LATCH"),
+    ("pick", "PICK"),
     ("randomize", "RND"),
     ("strum", "STRUM"),
+    ("transpose", "TRNS"),
     ("wander", "WANDR")
 )
 
@@ -14,11 +18,15 @@ AVAILABLE_MODULE_LABELS = [spec[1] for spec in MODULE_SPECS]
 
 MODULE_IMPORT_NAMES = {
     "arp": ".arp",
-    "transpose": ".transpose",
-    "pick": ".pick",
+    "bounce": ".bounce",
     "chord": ".chord",
+    "delay": ".delay",
+    "gate": ".gate",
+    "latch": ".latch",
+    "pick": ".pick",
     "randomize": ".randomize",
     "strum": ".strum",
+    "transpose": ".transpose",
     "wander": ".wander",
 }
 
@@ -33,21 +41,33 @@ def get_module_class(module_key):
     if module_key == "arp":
         from .arp import Arp
         return Arp
-    if module_key == "transpose":
-        from .transpose import Transpose
-        return Transpose
-    if module_key == "pick":
-        from .pick import Pick
-        return Pick
+    if module_key == "bounce":
+        from .bounce import Bounce
+        return Bounce
     if module_key == "chord":
         from .chord import Chord
         return Chord
+    if module_key == "delay":
+        from .delay import Delay
+        return Delay
+    if module_key == "gate":
+        from .gate import Gate
+        return Gate
+    if module_key == "latch":
+        from .latch import Latch
+        return Latch
+    if module_key == "pick":
+        from .pick import Pick
+        return Pick
     if module_key == "randomize":
         from .randomize import Randomize
         return Randomize
     if module_key == "strum":
         from .strum import Strum
         return Strum
+    if module_key == "transpose":
+        from .transpose import Transpose
+        return Transpose
     if module_key == "wander":
         from .wander import Wander
         return Wander
