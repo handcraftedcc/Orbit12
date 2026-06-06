@@ -3,12 +3,15 @@ from ..core._modules._input import Input
 from ..core import music as Music
 
 
+### NOTE INPUT ###
 
 class Note(Input):
     name = "note"
     label = "NOTE"
     def __init__(self, module_helper, slot_id):
         super().__init__(module_helper, slot_id, include_musical_parms=True)
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()

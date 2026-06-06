@@ -4,10 +4,14 @@ from ..core._modules._input import Input, PADMAP
 
 from ..core import music as Music
 
+### DRUM LAYOUTS ###
+
 FOURBYFOURBOTTOM3ROWSMAPPING = (3,7,11,2,6,10,1,5,9,0,4,8)
 FOURBYFOURBOTTOM3ROWSMAPPINGFLIPPED = (0,4,8,1,5,9,2,6,10,3,7,11)
 LAYOUT_OPTIONS = ("ORD", "L12", "R12", "B3R", "B3F")
 
+
+### DRUM INPUT ###
 
 class Drum(Input):
     name = "drum"
@@ -20,6 +24,8 @@ class Drum(Input):
         self.state.key_custom_text = "DRUM"
 
         self.ui_manager.header_footer.update_header_key_info()
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = super().create_main_parms()
@@ -43,6 +49,8 @@ class Drum(Input):
         self.layout = layout_id
         self.module_helper.output_manager.all_notes_off()
 
+    ### KEY COLORS ###
+
     def color_pixels(self, color_overrides = None):
         color_array = [neo_pixels.KEYCOLORDRUMS]*12
 
@@ -50,6 +58,8 @@ class Drum(Input):
             self.module_helper.neo_pixels.set_key_colors(color_array)
         except:
             pass
+
+    ### NOTE CONVERSION ###
 
     def convert_note(self, pad_note, scale, scale_notes):
         pad_note = PADMAP.index(pad_note)
@@ -69,6 +79,8 @@ class Drum(Input):
 
         return pad_note+Music.DRUMBASENOTE+self.state.key_offset
 
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()

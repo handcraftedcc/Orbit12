@@ -1,12 +1,16 @@
 from .. import module as Module
 from .. import parms as Parms
 
+### EMPTY SLOT MODULE ###
+
 class Empty(Module.Module):
     name = "empty"
     label = "EMPTY"
     version = 1
     def __init__(self, module_helper, slot_id):
         super().__init__(module_helper, slot_id, include_default_parms=True, include_out_parms=False, include_source_parms=False)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []

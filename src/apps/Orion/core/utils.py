@@ -1,4 +1,8 @@
-# Utility functions used by multiple files
+### RANDOM HELPERS ###
+
+'''
+Deterministic pseudo-random helpers used by timing and note modules.
+'''
 
 def hash_u32(value):
     value = (value ^ 61) ^ (value >> 16)
@@ -12,7 +16,9 @@ def random_float(seed):
     return hash_u32(seed) / 0x100000000
 
 def random_int(seed, max_value, mode):
-    """ Returns a random integer, mode = 0 -> range 0 to max_value, mode = 1 to -max_value to max_value"""
+    """
+    mode 0 returns 0..max_value, mode 1 returns -max_value..max_value.
+    """
     max_value = int(max_value)
     if mode == 0:
         low = min(0, max_value)

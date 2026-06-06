@@ -6,6 +6,8 @@ import rainbowio
 from ..core import music as Music
 from ..core._modules._input import PADMAP
 
+### CHORD INPUT DESIGN ###
+
 '''
 Idea:
 Top 6 buttons are modifiers:
@@ -19,8 +21,11 @@ Top 6 buttons are modifiers:
 Bottom 6 buttons are root notes.
 '''
 
+### CHORD OPTIONS ###
+
 # TODO: Update key color for chords
-class ModifierMap: #What keys do what -> Might turn this into parameters at some point
+class ModifierMap:
+    # What keys do what. Might become parameters later.
     SEV = 0
     ADD9 = 3
     SUS = 1
@@ -39,6 +44,9 @@ BASS_MODE_OPTIONS = ("NONE", "ROOT", "2ND", "LOW", "HIGH")
 SPREAD_MODE_OPTIONS = ("TIGHT", "MED", "WIDE")
 BORROW_SCALE_OPTIONS = ("AUTO",) + Music.SCALENAMES[1:]
 
+
+### CHORD INPUT ###
+
 class Chords(Input):
     name = "chords"
     label = "CHRD"
@@ -55,6 +63,8 @@ class Chords(Input):
         self.note_ons = NoteOnArray(length = 6)
         self.note_offs = NoteOffArray(length = 6)
         self.temp_chord = NoteArray(length = 6)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = super().create_main_parms()
@@ -84,6 +94,8 @@ class Chords(Input):
             overrides[i+6] = rainbowio.colorwheel(i*60)
         super().color_pixels(overrides)
 
+
+    ### CHORD BUILDING ###
 
     def build_chord(self, pad_note):
         if self.held_modifiers.contains(ModifierMap.BORROW):
@@ -205,6 +217,8 @@ class Chords(Input):
                 bass = self.temp_chord.get_max_note()[0] - 12
             if bass is not None:
                 self.temp_chord.insert_value_at_index(bass,0)
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()

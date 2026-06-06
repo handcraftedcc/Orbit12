@@ -3,6 +3,8 @@ from ..core import parms as Parms
 from ..core import music
 from ..core.note_array import NoteRelationshipArray, NoteOnArray, NoteOffArray
 
+### CHORD MODULE ###
+
 class Chord(Module):
     name = "chord"
     label = "CHRD"
@@ -15,6 +17,8 @@ class Chord(Module):
         self.scale_aware = True
 
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -45,6 +49,8 @@ class Chord(Module):
 
     def set_offset(self, index, value):
         self.offsets[index] = value
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
@@ -93,6 +99,8 @@ class Chord(Module):
 
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

@@ -14,6 +14,8 @@ _DISPLAY_SLEEP_COMMAND = 0xAE
 _DISPLAY_WAKE_COMMAND = 0xAF
 
 
+### HARDWARE WRAPPER ###
+
 class OrionMacroPad:
     def __init__(self, rotation=0, midi_in_channel=1, midi_out_channel=1):
         self._pixels = neopixel.NeoPixel(board.NEOPIXEL, 12)
@@ -43,6 +45,9 @@ class OrionMacroPad:
             self._midi = None
 
     def rotate(self, rotation):
+        """
+        Configure physical key order and display rotation.
+        """
         if rotation != 0:
             raise ValueError("OrionMacroPad only supports rotation 0.")
 

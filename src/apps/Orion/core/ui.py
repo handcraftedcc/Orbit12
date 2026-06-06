@@ -1,4 +1,7 @@
-#Handles all UI
+'''
+Display layout and screen update helpers for Orion.
+'''
+
 from .music import SCALENAMES, NOTES
 import displayio
 import vectorio
@@ -8,9 +11,10 @@ from .constants import PARMSPERPAGE
 from ..modules import _registry as ModuleRegistry
 from ..inputmodules import _registry as InputModuleRegistry
 
+### DISPLAY ASSETS ###
+
 DISPLAYRES = (128,64)
 
-### Tilegrid Helpers ###
 FONTCHARS = ''' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?;:\''()[]{}<>+-=*/\\_%&@#$^|~`'''
 FONTBITMAP = displayio.OnDiskBitmap("apps/Orion/imgs/Font_6x6.bmp")
 FONTBITMAP_DIMENSIONS = (6,6)
@@ -35,6 +39,7 @@ CHAINCHARS = 10
 MODULESELECTORCHARS = 10
 
 
+### TEXT HELPERS ###
 
 def tile_for_char(char):
     index = FONTCHARS.find(char)
@@ -82,6 +87,7 @@ def set_text(tile_grid, text, align_right=False, write_range=(None,None)):
                 tile_grid[tile_index] = tile
 
 
+### UI MANAGER ###
 
 class UIManager:
     def __init__(self,macropad, state, transport, defer_refresh=False):
@@ -127,6 +133,8 @@ class UIManager:
         self.screen.update()
 
 
+### SCREEN ###
+
 class Screen:
     def __init__(self,macropad,main_group, defer_refresh=False):
         self.display = macropad.display
@@ -138,12 +146,17 @@ class Screen:
         self.display.refresh()
 
 
+### SECTIONS ###
+
 class Section:
     def __init__(self,state):
         self.visible = True
         self.group = displayio.Group()
         self.state = state
         pass
+
+
+## Header Footer ##
 
 class HeaderFooter(Section):
     def __init__(self, state, transport, main_group):
@@ -314,6 +327,8 @@ class HeaderFooter(Section):
                 self.header_chain_preview[i] = 2
 
 
+## Chain View ##
+
 class Chain(Section):
     def __init__(self,state,main_group):
         super().__init__(state)
@@ -394,6 +409,9 @@ class Chain(Section):
     def rebuild_chain_section(self):
         #TODO: Remove references
         self.set_cursor(self.state.active_chain)
+
+
+## Parameter View ##
 
 class ParameterSection(Section):
     def __init__(self,state,main_group):
@@ -502,6 +520,9 @@ class ParameterSection(Section):
         return row
 
     def get_active_parm_and_scroll(self, parm_count):
+        """
+        Keep the active parm near the scroll direction's preferred row.
+        """
         active_parm = self.state.active_parm
         if active_parm < 0:
             active_parm = 0
@@ -635,6 +656,7 @@ class ParameterSection(Section):
         self.last_active_parm = active_parm
 
 
+## Module Selector ##
 
 class ModuleSelector(Section):
     def __init__(self,state,main_group):

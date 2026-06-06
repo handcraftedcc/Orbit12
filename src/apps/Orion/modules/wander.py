@@ -6,6 +6,8 @@ from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 import adafruit_ticks as ticks
 
 
+### WANDER OPTIONS ###
+
 RETRIGGER_OPTIONS = (
     "STBL",
     "CONT",
@@ -15,6 +17,8 @@ RETRIGGER_OPTIONS = (
 RETRIGGER_STABLE = 0
 RETRIGGER_RETRIGGER = 2
 
+
+### WANDER MODULE ###
 
 class Wander(Module):
     name = "wander"
@@ -54,6 +58,8 @@ class Wander(Module):
         self.was_transport_running = self.transport.running
 
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -155,6 +161,8 @@ class Wander(Module):
         self.active_pattern_length = music.patterns_len[value]
         return value
 
+    ### WALK STATE ###
+
     def clamp_note(self, note):
         if note < 0:
             return 0
@@ -205,6 +213,8 @@ class Wander(Module):
             self.last_grid_bin = -1
 
         return got_note_on
+
+    ### NOTE GENERATION ###
 
     def process_active_note_off(self, force=False):
         if self.active_note is None:
@@ -272,6 +282,8 @@ class Wander(Module):
         self.active_note = note
         self.active_off_time = ticks.ticks_add(self.transport.now, int(self.gate))
 
+    ### PROCESSING ###
+
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
@@ -310,6 +322,8 @@ class Wander(Module):
 
         self.was_transport_running = running
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

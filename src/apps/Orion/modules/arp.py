@@ -8,6 +8,8 @@ import gc
 
 gc.collect()
 
+### ARP MODES ###
+
 MODE_LIST = (
     "UP",
     "DOWN",
@@ -21,6 +23,8 @@ MODE_DOWN = MODE_LIST.index("DOWN")
 MODE_RANDOM = MODE_LIST.index("RND")
 MODE_INORDER = MODE_LIST.index("ORD")
 MODE_REPEAT = MODE_LIST.index("RPT")
+
+### ARP MODULE ###
 
 class Arp(Module):
     name = "arp"
@@ -64,6 +68,8 @@ class Arp(Module):
         self.was_transport_running = self.transport.running
 
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -127,6 +133,8 @@ class Arp(Module):
     def rate_to_midi_ticks(self):
         return self.rate_ticks
 
+    ### NOTE REGISTER ###
+
     def update_note_register(self, note_ons, note_offs):
         for i in range(note_ons.length):
             note = note_ons.notes[i]
@@ -147,8 +155,9 @@ class Arp(Module):
             self.note_register.sort_notes()
             self.note_register.reverse_notes()
 
+    ### NOTE GENERATION ###
+
     def generate_notes(self):
-        #Calculate timing
         current = self.transport.now
         gate = int(self.gate)
         midi_tick = self.transport.midi_tick
@@ -166,6 +175,7 @@ class Arp(Module):
         if check_pattern == 0: #If pattern is 0 on this step, don't emit notes
             return
 
+        # Stable mode derives position from active pattern steps, not note history.
         if self.mode == MODE_REPEAT: #Repeat mode
             for i in range(self.note_register.length):
                 note = self.note_register.notes[i]
@@ -219,6 +229,8 @@ class Arp(Module):
         #print("Note Register", self.note_register.notes)
         #print("Note Register Position", self.note_register_position)
 
+    ### SCHEDULED OFFS ###
+
     def process_note_offs(self, force_all = False):
         #TODO: Maybe build a time removal thing into the note_array directly
         current = self.transport.now
@@ -239,6 +251,8 @@ class Arp(Module):
         for i in range(self.popped_ids.length-1, -1, -1):
             this_id = self.popped_ids.notes[i]
             self.scheduled_offs.remove_index(this_id)
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
@@ -288,6 +302,8 @@ class Arp(Module):
         self.was_transport_running = running
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

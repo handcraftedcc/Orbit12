@@ -3,6 +3,8 @@ import gc
 from . import parms as Parms
 
 
+### SCENE FORMAT ###
+
 SCENE_DIR = "/userdata/Orbit12Orion/scenes"
 SCENE_PREFIX = "Scene"
 ACTIVE_SCENE_FILE = "_activescene"
@@ -27,6 +29,8 @@ SCENE_UI_PARMS = (
     "key_brightness",
 )
 
+
+### FILE HELPERS ###
 
 def clamp_scene(scene):
     if scene < 0:
@@ -53,6 +57,8 @@ def active_scene_filename(base_dir=SCENE_DIR):
     return base_dir + "/" + ACTIVE_SCENE_FILE
 
 
+### ACTIVE SCENE ###
+
 def read_active_scene(base_dir=SCENE_DIR, default_scene=0):
     default_scene = clamp_scene(default_scene)
     try:
@@ -74,6 +80,8 @@ def write_active_scene(scene, base_dir=SCENE_DIR):
         return False
     return True
 
+
+### SAVE HELPERS ###
 
 def value_to_text(value):
     if value is True:
@@ -144,6 +152,8 @@ def save_scene(state, scene=None, base_dir=SCENE_DIR):
 
     return filename
 
+
+### LOAD HELPERS ###
 
 def parse_parm_value(parm, text):
     parm_type = parm.type

@@ -1,6 +1,8 @@
 from ..module import Module
 from .. import parms as Parms
 
+### OUTPUT SLOT MODULE ###
+
 class Output(Module):
     name = "output"
     label = "OUT"
@@ -10,6 +12,8 @@ class Output(Module):
         self.macropad = self.state.macropad
         self.print_state = 0
 
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -23,6 +27,8 @@ class Output(Module):
 
     def set_out_ch(self, value):
         self.out_ch = value-1
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         if note_ons.length>0 or note_offs.length>0:

@@ -5,6 +5,8 @@ from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 import adafruit_ticks as ticks
 
 
+### GATE MODULE ###
+
 class Gate(Module):
     name = "gate"
     label = "GATE"
@@ -22,6 +24,8 @@ class Gate(Module):
         self.popped_ids = NoteArray()
         super().__init__(module_helper, slot_id)
 
+    ### PARMS ###
+
     def create_main_parms(self):
         return [
             Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.IntParmType,
@@ -33,6 +37,8 @@ class Gate(Module):
                        parm_type=Parms.IntParmType, minmax=(0, 128),
                        bind_object=self, bind_attribute="pattern_length"),
         ]
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
@@ -61,6 +67,8 @@ class Gate(Module):
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, random_gate))
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

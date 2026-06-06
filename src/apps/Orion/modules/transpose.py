@@ -3,6 +3,8 @@ from ..core import parms as Parms
 from ..core import music
 from ..core.note_array import NoteRelationshipArray,NoteOnArray,NoteOffArray
 
+### TRANSPOSE MODULE ###
+
 class Transpose(Module):
     name = "transpose"
     label = "TRNS"
@@ -16,6 +18,8 @@ class Transpose(Module):
         self.note_offs_out = NoteOffArray()
 
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -35,6 +39,8 @@ class Transpose(Module):
                                       bind_object=self, bind_attribute="scale_aware")
         parms.append(scale_aware_parm)
         return parms
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
@@ -63,6 +69,8 @@ class Transpose(Module):
                 self.note_offs_out.append_value(off_note)
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

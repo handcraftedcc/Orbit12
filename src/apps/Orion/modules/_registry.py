@@ -1,3 +1,5 @@
+### MODULE REGISTRY ###
+
 MODULE_SPECS = (
     ("empty", "EMPTY"),
     ("arp", "ARP"),
@@ -34,6 +36,8 @@ MODULE_IMPORT_NAMES = {
     "wander": ".wander",
 }
 
+
+### LOAD HELPERS ###
 
 def get_module_class(module_key):
     import gc
@@ -83,6 +87,8 @@ def get_module_class(module_key):
         return Wander
     return None
 
+
+### UNLOAD HELPERS ###
 
 def unload_module_class(module_key):
     import gc

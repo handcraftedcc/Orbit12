@@ -4,6 +4,8 @@ from ..core import parms as Parms
 from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 
 
+### QUANTIZE MODULE ###
+
 class Quantize(Module):
     name = "quantize"
     label = "QNT"
@@ -23,6 +25,8 @@ class Quantize(Module):
         self.popped_ids = NoteArray()
         super().__init__(module_helper, slot_id)
 
+    ### PARMS ###
+
     def create_main_parms(self):
         return [Parms.Parm(name="rate", label="RATE", default=self.rate_value,
                            parm_type=Parms.RateParmType, edit_callback_function=self.set_rate)]
@@ -32,7 +36,12 @@ class Quantize(Module):
         self.rate_ticks = music.RATE_MIDI_TICKS[value]
         return self.rate_ticks
 
+    ### PROCESSING ###
+
     def process(self, note_ons, note_offs):
+        """
+        Hold note-ons until the next grid tick and align note-offs to that delay.
+        """
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
@@ -141,6 +150,8 @@ class Quantize(Module):
             self.scheduled_offs.remove_index(self.popped_ids.notes[i])
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

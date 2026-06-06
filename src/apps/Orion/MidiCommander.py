@@ -1,4 +1,9 @@
-# Main app manager
+'''
+Main app manager for Orion.
+'''
+
+### IMPORTS ###
+
 import keypad
 import adafruit_ticks as ticks
 import gc
@@ -41,7 +46,13 @@ SCREEN_SLEEP_TIME = 60000
 SWAP_CHAIN_MIN = ChainElements.SLOT1
 SWAP_CHAIN_MAX = ChainElements.SLOT6
 
+
+### MODULE UNLOAD HELPER ###
+
 def _unload_module(module_path):
+    """
+    Remove lazily imported modules so CircuitPython can reclaim memory.
+    """
     import sys
     package_name, _, attr_name = module_path.rpartition(".")
     package = sys.modules.get(package_name)
@@ -51,9 +62,13 @@ def _unload_module(module_path):
         del sys.modules[module_path]
         gc.collect()
 
+
+### APP MANAGER ###
+
 class MidiCommander:
     def __init__(self):
-        # Init macropad
+        ## Hardware Setup ##
+
         self.macropad = MacroPad(rotation=0)  # create the macropad object, rotate orientation
         self.macropad.display.auto_refresh = False  # avoid lag
         self.macropad.encoder_switch_debounced.interval = 0.001
@@ -67,7 +82,8 @@ class MidiCommander:
             debounce_threshold=1,
         )
 
-        # Init objects
+        ## Core Managers ##
+
         self.state = state.State(self.macropad)
         self.input_manager = input.InputManager(self.macropad)
         self.output_manager = output.OutputManager(self.macropad, self.state)
@@ -76,12 +92,13 @@ class MidiCommander:
         self.module_helper = module.ModuleHelper(self, self.macropad, self.state, self.input_manager, self.output_manager, self.transport)
 
 
-        # Pass objects to state (Have to do after because of circular dependency)
+        # Wire circular references after managers exist.
         self.state.input = self.input_manager
         self.state.module_helper = self.module_helper
         self.state.output_manager = self.output_manager
 
-        # Init items that get used each loop
+        ## Loop State ##
+
         self.run_tick = 0
         self.encoder_consumed = None
         self.screen_update_needed = False
@@ -99,11 +116,13 @@ class MidiCommander:
         self.module_helper.neo_pixels = self.neo_pixels
         self.load_user_settings()
 
-        #Init modules
+        ## Module Chain ##
+
         self.create_stock_chain_modules(fill_all=False)
         self.state.update_parm_count()
 
-        # Init UI
+        ## UI Setup ##
+
         self.ui_manager = ui.UIManager(self.macropad,self.state, self.transport, defer_refresh=True)
         self.module_helper.ui_manager = self.ui_manager
         self.state.ui_manager = self.ui_manager
@@ -119,6 +138,8 @@ class MidiCommander:
         self.neo_pixels.paint_pixels()
 
         #gc.disable()
+
+    ### CHAIN SETUP ###
 
     def create_stock_chain_modules(self, fill_all=True):
         self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
@@ -150,6 +171,8 @@ class MidiCommander:
         self.transport.reset()
         self.output_manager.pending_midi_clock_ticks = 0
 
+    ### SCENE LIFECYCLE ###
+
     def reset_scene(self, refresh=True):
         self.state.stop_all_modules()
         gc.collect()
@@ -174,6 +197,8 @@ class MidiCommander:
             self.neo_pixels.paint_pixels()
         gc.collect()
 
+    ### UI QUEUE ###
+
     def add_to_ui_queue(self, callback):
         if callback not in self.ui_queue:
             self.ui_queue.append(callback)
@@ -192,6 +217,8 @@ class MidiCommander:
     def flush_ui_queue(self):
         while self.ui_queue:
             self.ui_queue.pop(0)()
+
+    ### SCENE LOADING ###
 
     def load_scene_module(self, slot_id, module_key):
         current_module = self.state.chain_modules[slot_id]
@@ -258,6 +285,8 @@ class MidiCommander:
             _unload_module(user_settings.__name__)
         return saved
 
+    ### APP LIFECYCLE ###
+
     def save_scene(self):
         from .core import scenes
         try:
@@ -298,7 +327,12 @@ class MidiCommander:
         self.reload_app()
         return True
 
+    ### TIMING GUARDS ###
+
     def can_do_ui_work(self, min_slack_ms=10):
+        """
+        Avoid display work too close to scheduled MIDI clock ticks.
+        """
         if self.state.transport_mode == 1:
             return self.output_manager.pending_midi_clock_ticks == 0
         if self.transport.running:
@@ -330,6 +364,8 @@ class MidiCommander:
                 gc.collect()
                 self.last_gc_ms = now
 
+    ### SCREEN POWER ###
+
     def wake_screen(self):
         self.last_screen_activity_ms = ticks.ticks_ms()
         if self.screen_sleeping:
@@ -345,6 +381,8 @@ class MidiCommander:
         if ticks.ticks_diff(ticks.ticks_ms(), self.last_screen_activity_ms) > SCREEN_SLEEP_TIME:
             self.macropad.display_sleep = True
             self.screen_sleeping = True
+
+    ### NAVIGATION ###
 
     def move_active_chain_element(self, delta):
         if self.chain_swap_mode == 2: #Swap instead of move active
@@ -384,6 +422,8 @@ class MidiCommander:
         else:
             self.add_to_ui_queue(self.ui_manager.parameter_section.update_parm_selection)
 
+
+    ### PARAMETER EDITING ###
 
     def enter_parm_edit(self):
         if self.state.active_parm == -2: #Check if on chain selection -> Switch back to chain selection
@@ -453,6 +493,8 @@ class MidiCommander:
 
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
+    ### MODULE SELECTION ###
+
     def enter_module_selection(self):
         if self.state.active_chain == ChainElements.TRANSPORT:
             return
@@ -484,6 +526,8 @@ class MidiCommander:
         else:
             self.enter_parm_selection()
 
+    ### CHAIN SWAP ###
+
     def enable_chain_swap_mode(self):
         if self.state.active_chain < SWAP_CHAIN_MIN:
             self.disable_chain_swap_mode()
@@ -503,6 +547,8 @@ class MidiCommander:
         self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
         self.knob_hold_down_start = None
         self.chain_swap_mode = 0
+
+    ### MAIN LOOP ###
 
     def run(self):
         while True:

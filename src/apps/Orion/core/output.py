@@ -4,6 +4,8 @@ from adafruit_midi.timing_clock import TimingClock
 from .constants import POLYPHONY
 from .note_array import NoteArray, NoteOnArray, NoteOffArray
 
+### MIDI OUTPUT ###
+
 class OutputManager:
     def __init__(self, macropad, state):
         self.macropad = macropad
@@ -17,6 +19,9 @@ class OutputManager:
         self.pending_midi_clock_ticks = 0
 
     def schedule_midi_notes(self, note_ons, note_offs, channel = 0):
+        """
+        Queue notes while tracking held notes to avoid duplicate note-ons.
+        """
 
         if channel is None:
             channel = 0

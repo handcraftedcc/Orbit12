@@ -5,6 +5,8 @@ from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 import adafruit_ticks as ticks
 
 
+### DELAY MODULE ###
+
 class Delay(Module):
     name = "delay"
     label = "DELAY"
@@ -23,6 +25,8 @@ class Delay(Module):
         self.popped_ids = NoteArray()
         super().__init__(module_helper, slot_id)
 
+    ### PARMS ###
+
     def create_main_parms(self):
         return [
             Parms.Parm(name="delay", label="DLY", default=self.delay, parm_type=Parms.IntParmType,
@@ -31,6 +35,8 @@ class Delay(Module):
                        parm_type=Parms.IntParmType, increment=5,
                        bind_object=self, bind_attribute="delay_random"),
         ]
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
@@ -75,6 +81,8 @@ class Delay(Module):
             self.scheduled_offs.remove_index(self.popped_ids.notes[i])
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

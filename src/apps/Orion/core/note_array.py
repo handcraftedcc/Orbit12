@@ -1,8 +1,11 @@
-# Utilities for Note Array Management
 from .constants import POLYPHONY
 from array import array
 
-### Main Class ###
+'''
+Fixed-size note containers for CircuitPython memory control.
+'''
+
+### NOTE ARRAYS ###
 
 class NoteArray:
 
@@ -17,8 +20,8 @@ class NoteArray:
         self.length = 0
         self.max_length = length
 
-    ### Helper Functions ###
     ## Reading ##
+
     def contains(self, value, channel=None):
         for i in range(self.length):
             if self.notes[i] != value:
@@ -203,6 +206,9 @@ class NoteOnArray(NoteArray):
 class NoteOffArray(NoteArray):
     def __init__(self, length = POLYPHONY, channels = False):
         super().__init__(length, channels = channels)
+
+
+### NOTE RELATIONSHIPS ###
 
 class NoteRelationshipArray:
 

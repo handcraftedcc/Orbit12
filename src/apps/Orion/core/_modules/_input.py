@@ -4,8 +4,13 @@ from .. import parms as Parms
 from .. import music as Music
 from ..note_array import NoteOnArray, NoteOffArray
 
+### INPUT MAPPING ###
+
 PADMAP = (9,10,11,6,7,8,3,4,5,0,1,2)
 INPUT_OPERATION_OPTIONS = ("NEXT", "OUT+N")
+
+
+### INPUT BASE MODULE ###
 
 class Input(Module):
     name = "input"
@@ -28,6 +33,8 @@ class Input(Module):
 
         ## Color Pixels ##
         self.color_pixels()
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -87,6 +94,8 @@ class Input(Module):
         self.module_helper.output_manager.all_notes_off()
         self.color_pixels()
 
+    ### KEY COLORS ###
+
     def color_pixels(self, color_overrides = None):
         color_array = [neo_pixels.KEYCOLORBASE]*12
         scale = Music.SCALES[self.state.scale]
@@ -108,6 +117,8 @@ class Input(Module):
             self.module_helper.neo_pixels.set_key_colors(color_array)
         except:
             pass
+
+    ### NOTE CONVERSION ###
 
     def convert_note(self, pad_note, scale, scale_notes):
         pad_map = PADMAP

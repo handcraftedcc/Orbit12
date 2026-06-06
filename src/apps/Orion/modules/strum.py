@@ -4,6 +4,8 @@ import adafruit_ticks as ticks
 from ..core import utils
 from ..core.note_array import NoteArray, NoteOnArray,NoteOffArray
 
+### STRUM OPTIONS ###
+
 ORDER_LIST = (
     "ORD",
     "UP",
@@ -43,6 +45,8 @@ STRUM_ARTICULATE_LIST = (
 STRUM_CHORD_LENGTH = 5
 
 
+### VELOCITY HELPERS ###
+
 def get_tilt_multiplier(strum_position, tilt, note_count=5):
     if note_count <= 1:
         return 1.0
@@ -58,6 +62,8 @@ def get_tilt_velocity(velocity, strum_position, tilt, note_count=5):
     tilt_velocity = int(velocity * get_tilt_multiplier(strum_position, tilt, note_count))
     return max(0, min(127, tilt_velocity))
 
+
+### STRUM MODULE ###
 
 class Strum(Module):
     name = "strum"
@@ -85,6 +91,8 @@ class Strum(Module):
         self.strum_count = 0
 
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -118,7 +126,12 @@ class Strum(Module):
 
         return parms
 
+    ### PROCESSING ###
+
     def process(self, note_ons, note_offs):
+        """
+        Convert a chord input into staggered note-ons.
+        """
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
@@ -181,6 +194,8 @@ class Strum(Module):
 
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

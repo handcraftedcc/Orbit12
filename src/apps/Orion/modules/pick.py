@@ -11,6 +11,8 @@ PICK_MODE_OPTIONS = (
     "HIGH",
 )
 
+### PICK MODULE ###
+
 class Pick(Module):
     name = "pick"
     label = "PICK"
@@ -26,6 +28,8 @@ class Pick(Module):
 
         super().__init__(module_helper, slot_id)
 
+    ### PARMS ###
+
     def create_main_parms(self):
         parms = []
         # Pick Mode
@@ -38,6 +42,8 @@ class Pick(Module):
         parms.append(octaves_parm)
 
         return parms
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.held_notes_in.append_values(note_ons)
@@ -95,6 +101,8 @@ class Pick(Module):
         if old_note: self.note_offs_out.append_value(old_note)
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

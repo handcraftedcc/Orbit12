@@ -1,3 +1,5 @@
+### INPUT POLLING ###
+
 class InputManager:
     def __init__(self, macropad):
         self.macropad = macropad
@@ -12,6 +14,9 @@ class InputManager:
         self.count = 0
 
     def get_inputs(self):
+        """
+        Return pressed, released, encoder delta, and current downstate.
+        """
         for i in range(13):
             self.pressed[i] = 0
             self.released[i] = 0

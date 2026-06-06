@@ -1,6 +1,12 @@
 from . import parms as Parms
 import gc
 
+'''
+Shared base classes for Orion chain modules.
+'''
+
+### ROUTING OPTIONS ###
+
 OPERATION_OPTIONS = (
     "NEXT",
     "ADD",
@@ -19,7 +25,11 @@ SOURCE_OPTIONS = (
     "S5",
 )
 
-class ModuleHelper: #Used to centralize and unify module object access
+
+### SHARED CONTEXT ###
+
+class ModuleHelper:
+    # Centralized object access for modules.
     def __init__(self, Orion, macropad, state, input_manager, output_manager, transport):
         self.orion = Orion
         self.macropad = macropad
@@ -30,7 +40,9 @@ class ModuleHelper: #Used to centralize and unify module object access
         self.neo_pixels = None
         self.transport = transport
 
-# Module base
+
+### MODULE BASE ###
+
 class Module:
     name = None
     label = None
@@ -126,6 +138,7 @@ class Module:
         if self.parms is None:
             return
 
+        # Break callback/object references before unloading modules.
         for parm in self.parms:
             parm.bind_object = None
             parm.bind_attribute = None
@@ -148,8 +161,12 @@ class Module:
         self.state = None
         self.slot_id = None
 
-    ### Process inputs ###
+    ### PROCESSING ###
+
     def process_super(self, note_ons, note_offs):
+        """
+        Apply source and operation routing around the module-specific process step.
+        """
         if self.source_mode != 0 and self.source_mode < self.slot_id:
             source = None
             if self.source_mode == 1:

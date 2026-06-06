@@ -1,5 +1,7 @@
 USER_SETTINGS_FILE = "/userdata/Orbit12Orion/user_settings"
 
+### VALUE HELPERS ###
+
 
 def clamp_float(value, minimum, maximum):
     if value < minimum:
@@ -8,6 +10,8 @@ def clamp_float(value, minimum, maximum):
         return maximum
     return value
 
+
+### USER SETTINGS IO ###
 
 def load_user_settings(neo_pixels, filename=USER_SETTINGS_FILE):
     try:

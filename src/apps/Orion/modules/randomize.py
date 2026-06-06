@@ -6,6 +6,8 @@ from ..core import utils
 
 RANDOMIZE_MODE_OPTIONS = ("UNI", "BI")
 
+### RANDOMIZE MODULE ###
+
 class Randomize(Module):
     name = "randomize"
     label = "RND"
@@ -34,6 +36,8 @@ class Randomize(Module):
 
 
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -106,6 +110,8 @@ class Randomize(Module):
 
         return parms
 
+    ### PROCESSING ###
+
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
@@ -115,7 +121,7 @@ class Randomize(Module):
         else:
             scale = None
 
-        # Set random seed:
+        # Keep random choices repeatable across a transport pattern.
         if self.pattern_length != 0:
             self.random_seed_base = self.module_helper.transport.midi_tick % (self.pattern_length*6)
         else:
@@ -167,6 +173,8 @@ class Randomize(Module):
                 self.note_offs_out.append_value(off_note)
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

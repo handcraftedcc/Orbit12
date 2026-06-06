@@ -4,6 +4,8 @@ from ..core.constants import POLYPHONY
 from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 
 
+### LATCH MODULE ###
+
 class Latch(Module):
     name = "latch"
     label = "LATCH"
@@ -16,10 +18,14 @@ class Latch(Module):
         self.note_offs_out = NoteOffArray()
         super().__init__(module_helper, slot_id)
 
+    ### PARMS ###
+
     def create_main_parms(self):
         return [Parms.Parm(name="polyphony", label="POLY", default=self.polyphony,
                            parm_type=Parms.IntParmType, minmax=(1, POLYPHONY),
                            bind_object=self, bind_attribute="polyphony")]
+
+    ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
@@ -44,6 +50,8 @@ class Latch(Module):
             self.note_ons_out.append_value(note, velocity=velocity)
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.held_notes.clear()

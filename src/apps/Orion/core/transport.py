@@ -6,9 +6,14 @@ from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.midi_continue import Continue
 
+### TIMING CONSTANTS ###
+
 MAX_SWING = 0.6
 SWING_TICKS_PER_HALF = 6
 SWING_TICKS_PER_PAIR = SWING_TICKS_PER_HALF * 2
+
+
+### TRANSPORT CLOCK ###
 
 class Transport:
 	def __init__(self, state,output_manager, macropad):
@@ -48,6 +53,9 @@ class Transport:
 		return 1.0 - self.swing*MAX_SWING
 
 	def update(self):
+		"""
+		Advance internal or external MIDI clock state.
+		"""
 		self.now = ticks.ticks_ms()
 		steps = 0
 

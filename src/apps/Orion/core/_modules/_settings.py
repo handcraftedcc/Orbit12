@@ -3,6 +3,8 @@ from .. import parms as Parms
 
 import gc
 
+### SETTINGS OPTIONS ###
+
 SCENE_OPTIONS = (
     "01",
     "02",
@@ -20,10 +22,16 @@ COPY_SCENE_OPTIONS = (">",) + SCENE_OPTIONS
 
 RESET_OPTIONS = (">", "YES")
 
+
+### DEBUG HELPERS ###
+
 def print_ram_usage(value):
     gc.collect()
     print("allocated:",gc.mem_alloc())
     print("free:",gc.mem_free())
+
+
+### SETTINGS MODULE ###
 
 class Settings(Module):
     name = "settings"
@@ -32,6 +40,8 @@ class Settings(Module):
         super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
         self.macropad = self.state.macropad
         self.reset_scene_parm = None
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -66,6 +76,8 @@ class Settings(Module):
         parms.append(key_brightness_parm)
         return parms
 
+    ### SCENE ACTIONS ###
+
     def save_scene(self, value):
         self.module_helper.orion.save_scene()
         return value
@@ -78,6 +90,8 @@ class Settings(Module):
         if value > 0:
             self.module_helper.orion.switch_scene(value - 1, copy_current=True)
         return value
+
+    ### UI ACTIONS ###
 
     def queue_parm_rebuild(self):
         orion = self.module_helper.orion

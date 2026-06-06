@@ -1,3 +1,5 @@
+### INPUT MODULE REGISTRY ###
+
 MODULE_SPECS = (
     ("note", "NOTE"),
     ("chords", "CHRD"),
@@ -14,6 +16,8 @@ MODULE_IMPORT_NAMES = {
 }
 
 
+### LOAD HELPERS ###
+
 def get_module_class(module_key):
     import gc
     gc.collect()
@@ -29,6 +33,8 @@ def get_module_class(module_key):
         return Drum
     return None
 
+
+### UNLOAD HELPERS ###
 
 def unload_module_class(module_key):
     import gc

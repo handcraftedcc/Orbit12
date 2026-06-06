@@ -1,7 +1,12 @@
 from ..module import Module
 from .. import parms as Parms
 
+### TRANSPORT OPTIONS ###
+
 TRANSPORT_MODE_OPTIONS = ("INT", "EXT")
+
+
+### TRANSPORT UI MODULE ###
 
 class Transport(Module):
     """ This module only handles the UI of the transport.
@@ -16,6 +21,8 @@ class Transport(Module):
             self.bpm = self.state.bpm
 
             super().__init__(module_helper, slot_id, include_default_parms=False, include_out_parms=False, include_source_parms=False)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         parms = []
@@ -36,6 +43,8 @@ class Transport(Module):
 
         return parms
 
+
+    ### CALLBACKS ###
 
     def set_transport_mode(self, value):
         self.state.transport_mode = value

@@ -2,6 +2,8 @@
 
 DRUMBASENOTE = 36
 
+### NOTES AND SCALES ###
+
 NOTES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
 SCALENAMES = (
@@ -101,10 +103,12 @@ AUTOBORROWRELATIONSHIP = bytes((
     2,   # DIMw  -> MIN
 ))
 
+### RATES ###
+
 RATE_LABELS= ("1/1", "1/1T", "1/2", "1/2T", "1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T", "1/64")
 RATE_MIDI_TICKS = bytes((96, 64, 48, 32, 24, 16, 12, 8, 6, 4, 3, 2, 1))
 
-#Arp patterns
+### PATTERNS ###
 
 def get_pattern_step(pattern_bit, pattern_len, step):
     step = step % pattern_len
@@ -188,7 +192,12 @@ patterns_len = bytes((
 ))
 
 
+### NOTE HELPERS ###
+
 def transpose(note, semitones, octaves = 0, scale_aware = True, root = 0, scale = SCALES[1]):
+    """
+    Move by scale degree when scale-aware, otherwise by semitone.
+    """
     if scale_aware:
         normalized_note = (note - root + 12) % 12
         octave = (note - root) // 12

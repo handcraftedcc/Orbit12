@@ -1,5 +1,7 @@
 from rainbowio import colorwheel
 
+### KEY COLORS ###
+
 KEYCOLORBASE = colorwheel(128)
 KEYCOLORROOT = colorwheel(64)
 KEYCOLORDRUMS = colorwheel(0)
@@ -34,12 +36,16 @@ NAV_PARM_COLORS = (
 )
 
 
+### COLOR HELPERS ###
+
 def combine_color_and_brightness(color, brightness):
     r = int(((color >> 16) & 0xFF) * brightness)
     g = int(((color >> 8) & 0xFF) * brightness)
     b = int((color & 0xFF) * brightness)
     return (r << 16) | (g << 8) | b
 
+
+### PIXEL STATE ###
 
 class NeoPixels:
     def __init__(self, macropad, state):

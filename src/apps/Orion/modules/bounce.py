@@ -5,6 +5,8 @@ from ..core import utils
 from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 import adafruit_ticks as ticks
 
+### BOUNCE OPTIONS ###
+
 MODCURVEOPTIONS = (
     "LIN",
     "CUBIC",
@@ -15,6 +17,8 @@ MODEOPTIONS = (
     "MS",
     "RATE",
 )
+
+### BOUNCE MODULE ###
 
 class Bounce(Module):
     name = "bounce"
@@ -42,6 +46,8 @@ class Bounce(Module):
         self.scheduled_offs = NoteArray(times=True)
         self.popped_ids = NoteArray()
         super().__init__(module_helper, slot_id)
+
+    ### PARMS ###
 
     def create_main_parms(self):
         return [
@@ -71,7 +77,12 @@ class Bounce(Module):
         self.interval_rate = music.RATE_MIDI_TICKS[value]
         return self.interval_rate
 
+    ### PROCESSING ###
+
     def process(self, note_ons, note_offs):
+        """
+        Emit the original note immediately, then schedule decaying repeats.
+        """
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
@@ -152,6 +163,8 @@ class Bounce(Module):
             i += 1
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

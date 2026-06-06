@@ -5,12 +5,16 @@ from ..core import utils
 from ..core.note_array import NoteArray, NoteOnArray, NoteOffArray
 
 
+### CHOPPER OPTIONS ###
+
 RETRIGGER_OPTIONS = (
     "STBL",
     "CONT",
     "RTRG",
 )
 
+
+### CHOPPER MODULE ###
 
 class Chopper(Module):
     name = "chopper"
@@ -35,6 +39,8 @@ class Chopper(Module):
         self.last_grid_bin = -1
         super().__init__(module_helper, slot_id)
 
+    ### PARMS ###
+
     def create_main_parms(self):
         return [
             Parms.Parm(name="rate", label="RATE", default=self.rate_value,
@@ -58,7 +64,12 @@ class Chopper(Module):
         self.rate_ticks = music.RATE_MIDI_TICKS[value]
         return self.rate_ticks
 
+    ### PROCESSING ###
+
     def process(self, note_ons, note_offs):
+        """
+        Open or close a rhythmic gate based on deterministic shuffled steps.
+        """
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         had_notes = self.held_notes.length > 0
@@ -137,6 +148,8 @@ class Chopper(Module):
                 self.note_ons_out.append_value(note, velocity=velocity)
 
         return self.note_ons_out, self.note_offs_out
+
+    ### CLEANUP ###
 
     def stop(self):
         self.note_ons_out.clear()

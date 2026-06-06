@@ -1,5 +1,10 @@
-# Creates parm templates
 from . import music as Music
+
+'''
+Parameter objects and edit/display behavior for module controls.
+'''
+
+### PARAMETER MODEL ###
 
 class Parm:
 
@@ -77,6 +82,9 @@ class Parm:
             self.exit_callback_function(self.value)
         return self.type.exit(self)        
 
+
+### PARAMETER TYPES ###
+
 class ParmType:
     label = None
     name = None
@@ -110,6 +118,9 @@ class ParmType:
 class ParmEnterResult:
     STAY_IN_EDIT = 0
     RETURN_TO_SELECTION = 1
+
+
+## Simple Types ##
 
 class IntParmType(ParmType):
     pass
@@ -148,6 +159,9 @@ class ButtonParmType(ParmType):
     def get_display_value(cls, parm):
         return ">"
 
+
+## Selection Types ##
+
 class EnumParmType(ParmType):
     @classmethod
     def get_display_value(cls, parm):
@@ -174,6 +188,9 @@ class PatternParmType(ParmType):
         if count == 0:
             return 0
         return (parm.value + delta) % count
+
+
+## Musical Types ##
 
 class RateParmType(ParmType):
     rates_labels = Music.RATE_LABELS
