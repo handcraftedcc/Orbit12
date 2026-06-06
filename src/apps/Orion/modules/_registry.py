@@ -7,6 +7,7 @@ MODULE_SPECS = (
     ("gate", "GATE"),
     ("latch", "LATCH"),
     ("pick", "PICK"),
+    ("quantize", "QNT"),
     ("randomize", "RND"),
     ("strum", "STRUM"),
     ("transpose", "TRNS"),
@@ -24,6 +25,7 @@ MODULE_IMPORT_NAMES = {
     "gate": ".gate",
     "latch": ".latch",
     "pick": ".pick",
+    "quantize": ".quantize",
     "randomize": ".randomize",
     "strum": ".strum",
     "transpose": ".transpose",
@@ -59,6 +61,9 @@ def get_module_class(module_key):
     if module_key == "pick":
         from .pick import Pick
         return Pick
+    if module_key == "quantize":
+        from .quantize import Quantize
+        return Quantize
     if module_key == "randomize":
         from .randomize import Randomize
         return Randomize

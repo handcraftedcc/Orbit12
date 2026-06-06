@@ -38,7 +38,7 @@ class Bounce(Module):
         return [
             Parms.Parm(name="bounces", label="BOUNCE", default=self.bounces, parm_type=Parms.IntParmType,
                        minmax=(0, 64), increment=1, bind_object=self, bind_attribute="bounces"),
-            Parms.Parm(name="interval", label="INTRV", default=self.interval, parm_type=Parms.IntParmType,
+            Parms.Parm(name="interval", label="INTR", default=self.interval, parm_type=Parms.IntParmType,
                        increment=5, bind_object=self, bind_attribute="interval"),
             Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
                        increment=5, bind_object=self, bind_attribute="gate"),
