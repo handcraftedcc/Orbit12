@@ -3,6 +3,7 @@ MODULE_SPECS = (
     ("arp", "ARP"),
     ("bounce", "BOUNCE"),
     ("chord", "CHRD"),
+    ("chopper", "CHOPPR"),
     ("delay", "DELAY"),
     ("gate", "GATE"),
     ("latch", "LATCH"),
@@ -21,6 +22,7 @@ MODULE_IMPORT_NAMES = {
     "arp": ".arp",
     "bounce": ".bounce",
     "chord": ".chord",
+    "chopper": ".chopper",
     "delay": ".delay",
     "gate": ".gate",
     "latch": ".latch",
@@ -49,6 +51,9 @@ def get_module_class(module_key):
     if module_key == "chord":
         from .chord import Chord
         return Chord
+    if module_key == "chopper":
+        from .chopper import Chopper
+        return Chopper
     if module_key == "delay":
         from .delay import Delay
         return Delay

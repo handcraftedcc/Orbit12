@@ -79,7 +79,7 @@ class Arp(Module):
 
         # Gate
         gate_parm = Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
-                               increment=5, bind_object=self, bind_attribute="gate")
+                               increment=5, minmax = (0,100000), bind_object=self, bind_attribute="gate")
         parms.append(gate_parm)
 
         # Pattern

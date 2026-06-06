@@ -1,3 +1,4 @@
+from ..core import music
 from ..core.module import Module
 from ..core import parms as Parms
 from ..core import utils
@@ -10,6 +11,11 @@ MODCURVEOPTIONS = (
     "RAND",
 )
 
+MODEOPTIONS = (
+    "MS",
+    "RATE",
+)
+
 class Bounce(Module):
     name = "bounce"
     label = "BOUNCE"
@@ -19,7 +25,10 @@ class Bounce(Module):
         self.module_helper = module_helper
         self.transport = self.module_helper.transport
         self.bounces = 3
-        self.interval = 40
+        self.interval_mode = 0
+        self.interval_ms = 40
+        self.interval_rate_value = 8
+        self.interval_rate = music.RATE_MIDI_TICKS[self.interval_rate_value]
         self.interval_mod = 0 # 0 means steady - 1 means goes to 0 by bounces+1 bounces
         self.velocity_mod = 1
         self.mod_curve = 0
@@ -38,8 +47,13 @@ class Bounce(Module):
         return [
             Parms.Parm(name="bounces", label="BOUNCE", default=self.bounces, parm_type=Parms.IntParmType,
                        minmax=(0, 64), increment=1, bind_object=self, bind_attribute="bounces"),
-            Parms.Parm(name="interval", label="INTR", default=self.interval, parm_type=Parms.IntParmType,
-                       increment=5, bind_object=self, bind_attribute="interval"),
+            Parms.Parm(name="interval_mode", label="MODE", default=self.interval_mode,
+                       parm_type=Parms.EnumParmType, options=MODEOPTIONS,
+                       bind_object=self, bind_attribute="interval_mode"),
+            Parms.Parm(name="interval_ms", label="INTMS", default=self.interval_ms, parm_type=Parms.IntParmType,
+                       increment=5, bind_object=self, bind_attribute="interval_ms"),
+            Parms.Parm(name="interval_rate", label="INTRT", default=self.interval_rate_value,
+                       parm_type=Parms.RateParmType, edit_callback_function=self.set_interval_rate),
             Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
                        increment=5, bind_object=self, bind_attribute="gate"),
             Parms.Parm(name="interval_mod", label="INTMOD", default=self.interval_mod, parm_type=Parms.PercentParmType,
@@ -52,11 +66,17 @@ class Bounce(Module):
                        options=MODCURVEOPTIONS, bind_object=self, bind_attribute="mod_curve"),
         ]
 
+    def set_interval_rate(self, value):
+        self.interval_rate_value = value
+        self.interval_rate = music.RATE_MIDI_TICKS[value]
+        return self.interval_rate
+
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
         current = self.transport.now
+        current_tick = self.transport.midi_tick
 
         self.popped_ids.clear()
         for i in range(self.scheduled_offs.length):
@@ -83,13 +103,17 @@ class Bounce(Module):
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, int(self.gate)))
 
             if self.bounces > 0:
+                if self.interval_mode == 1:
+                    time = current_tick + self.interval_rate
+                else:
+                    time = ticks.ticks_add(current, int(self.interval_ms))
                 self.bounce_bounces.append_value(self.bounces)
-                self.bounce_notes.append_value(note, velocity=velocity,
-                                               time=ticks.ticks_add(current, int(self.interval)))
+                self.bounce_notes.append_value(note, velocity=velocity, time=time)
 
         i = 0
         while i < self.bounce_bounces.length:
-            if ticks.ticks_less(self.bounce_notes.times[i], current):
+            if ((self.interval_mode == 1 and self.bounce_notes.times[i] <= current_tick) or
+                    (self.interval_mode == 0 and ticks.ticks_less(self.bounce_notes.times[i], current))):
                 note = self.bounce_notes.notes[i]
                 remaining = self.bounce_bounces.notes[i]
                 progress = (self.bounces - remaining + 1) / (self.bounces + 1)
@@ -115,10 +139,16 @@ class Bounce(Module):
                     self.bounce_bounces.remove_index(i)
                     continue
                 self.bounce_bounces.notes[i] = remaining
-                interval = int(self.interval * (0.01 ** (self.interval_mod * progress)))
+                if self.interval_mode == 1:
+                    interval = int((self.interval_rate * (0.01 ** (self.interval_mod * progress))) + 0.5)
+                else:
+                    interval = int(self.interval_ms * (0.01 ** (self.interval_mod * progress)))
                 if interval < 1:
                     interval = 1
-                self.bounce_notes.times[i] = ticks.ticks_add(current, interval)
+                if self.interval_mode == 1:
+                    self.bounce_notes.times[i] = current_tick + interval
+                else:
+                    self.bounce_notes.times[i] = ticks.ticks_add(current, interval)
             i += 1
 
         return self.note_ons_out, self.note_offs_out
