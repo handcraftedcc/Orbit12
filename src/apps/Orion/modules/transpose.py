@@ -54,10 +54,7 @@ class Transpose(Module):
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             new_note = music.transpose(note, self.semitones, self.octaves, self.scale_aware, self.state.key, scale)
-
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             self.note_ons_out.append_value(new_note, velocity=velocity)
             self.note_relationship.add_note(note, new_note)

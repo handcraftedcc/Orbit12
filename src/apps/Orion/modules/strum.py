@@ -139,9 +139,7 @@ class Strum(Module):
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             if not self.note_register.contains(note):
-                velocity = 127
-                if note_ons.velocities:
-                    velocity = note_ons.velocities[i]
+                velocity = note_ons.velocity_at(i)
                 self.note_register.append_value(note, velocity = velocity)
 
         # Released notes are forwarded and removed from pending strum notes.
@@ -174,7 +172,7 @@ class Strum(Module):
             if self.order == MODE_RANDOM:
                 n = utils.random_int(self.strum_count,self.note_register.length-1,0)
             note = self.note_register.notes[n]
-            velocity = get_tilt_velocity(self.note_register.velocities[n], self.strum_position, self.tilt, STRUM_CHORD_LENGTH)
+            velocity = get_tilt_velocity(self.note_register.velocity_at(n), self.strum_position, self.tilt, STRUM_CHORD_LENGTH)
             self.note_ons_out.append_value(note, velocity = velocity)
             # Remove from register
             self.note_register.remove_index(n)

@@ -74,10 +74,7 @@ class Chord(Module):
         # Generate unique chord tones from offsets and remember their source note.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             for idx,offset in enumerate(self.offsets):
                 duplicate_offset = False

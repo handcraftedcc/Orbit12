@@ -1,5 +1,6 @@
 from .constants import POLYPHONY
 from array import array
+import adafruit_ticks as ticks
 
 '''
 Fixed-size note containers for CircuitPython memory control.
@@ -54,49 +55,61 @@ class NoteArray:
                 max_note_index = i
         return max_note, max_note_index
 
+    def velocity_at(self, index, default=127):
+        if self.velocities is None:
+            return default
+        return self.velocities[index]
+
+    def time_at(self, index, default=None):
+        if self.times is None:
+            return default
+        return self.times[index]
+
+    def channel_at(self, index, default=0):
+        if self.channels is None:
+            return default
+        return self.channels[index]
+
+    def get_value(self, index, default_velocity=127, default_time=None, default_channel=0):
+        return (
+            self.notes[index],
+            self.velocity_at(index, default_velocity),
+            self.time_at(index, default_time),
+            self.channel_at(index, default_channel),
+        )
+
     ## Writing ##
 
     def clear(self):
         self.length = 0
 
+    def set_value_at(self, index, value, velocity=127, time=0, channel=0):
+        self.notes[index] = value
+        if self.velocities is not None: self.velocities[index] = velocity
+        if self.times is not None: self.times[index] = time
+        if self.channels is not None: self.channels[index] = channel
+
+    def copy_index(self, to_index, from_index):
+        self.notes[to_index] = self.notes[from_index]
+        if self.velocities is not None: self.velocities[to_index] = self.velocities[from_index]
+        if self.times is not None: self.times[to_index] = self.times[from_index]
+        if self.channels is not None: self.channels[to_index] = self.channels[from_index]
+
     def sort_notes(self):
         # Insertion sort keeps optional velocity/time/channel arrays aligned.
         for i in range(1, self.length):
-            key = self.notes[i]
-            has_vel = self.velocities is not None
-            has_times = self.times is not None
-            has_channels = self.channels is not None
-            if has_vel: vel = self.velocities[i]
-            if has_times: time = self.times[i]
-            if has_channels: channel = self.channels[i]
+            key, velocity, time, channel = self.get_value(i, default_time=0)
             j = i - 1
             while j >= 0 and self.notes[j] > key:
-                self.notes[j + 1] = self.notes[j]
-                if has_vel: self.velocities[j + 1] = self.velocities[j]
-                if has_times: self.times[j + 1] = self.times[j]
-                if has_channels: self.channels[j + 1] = self.channels[j]
+                self.copy_index(j + 1, j)
                 j -= 1
-            self.notes[j + 1] = key
-            if has_vel: self.velocities[j+1] = vel
-            if has_times: self.times[j + 1] = time
-            if has_channels: self.channels[j + 1] = channel
+            self.set_value_at(j + 1, key, velocity, time, channel)
             
     def swap_notes(self, index_1, index_2):
-        note = self.notes[index_1]
-        self.notes[index_1] = self.notes[index_2]
-        self.notes[index_2] = note
-        if self.velocities is not None:
-            vel = self.velocities[index_1]
-            self.velocities[index_1] = self.velocities[index_2]
-            self.velocities[index_2] = vel
-        if self.times is not None:
-            vel = self.times[index_1]
-            self.times[index_1] = self.times[index_2]
-            self.times[index_2] = vel
-        if self.channels is not None:
-            channel = self.channels[index_1]
-            self.channels[index_1] = self.channels[index_2]
-            self.channels[index_2] = channel
+        note_1, velocity_1, time_1, channel_1 = self.get_value(index_1, default_time=0)
+        note_2, velocity_2, time_2, channel_2 = self.get_value(index_2, default_time=0)
+        self.set_value_at(index_1, note_2, velocity_2, time_2, channel_2)
+        self.set_value_at(index_2, note_1, velocity_1, time_1, channel_1)
             
     def reverse_notes(self):
         left = 0
@@ -111,12 +124,13 @@ class NoteArray:
             return False
         # Shift everything after index left by one slot.
         for i in range(index, self.length-1):
-            self.notes[i] = self.notes[i + 1]
-            if self.velocities is not None: self.velocities[i] = self.velocities[i + 1]
-            if self.times is not None: self.times[i] = self.times[i + 1]
-            if self.channels is not None: self.channels[i] = self.channels[i + 1]
+            self.copy_index(i, i + 1)
         self.length = self.length - 1
         return True
+
+    def remove_indexes(self, indexes):
+        for i in range(indexes.length - 1, -1, -1):
+            self.remove_index(indexes.notes[i])
 
     def remove_value_first(self, value, order=0, channel=None):
         notes = self.notes
@@ -144,34 +158,40 @@ class NoteArray:
     def append_value(self, value, velocity=127, time = 0, channel = 0):
         if self.length >= self.max_length:
             return False
-        self.notes[self.length] = value
-        if self.velocities is not None: self.velocities[self.length] = velocity
-        if self.times is not None: self.times[self.length] = time
-        if self.channels is not None: self.channels[self.length] = channel
+        self.set_value_at(self.length, value, velocity, time, channel)
         self.length += 1
         return True
 
     def append_values(self, note_array):
         # Copy only active entries, preserving optional metadata when present.
         for idx in range(note_array.length):
-            note = note_array.notes[idx]
-
-            velocity = 127
-            if note_array.velocities is not None:
-                velocity = note_array.velocities[idx]
-
-            time = 0
-            if note_array.times is not None:
-                time = note_array.times[idx]
-
-            channel = 0
-            if note_array.channels is not None:
-                channel = note_array.channels[idx]
-
-            if not self.append_value(note, velocity, time, channel):
+            if not self.append_from(note_array, idx):
                 return False
 
         return True
+
+    def append_from(self, note_array, index, default_velocity=127, default_time=0, default_channel=0):
+        return self.append_value(
+            note_array.notes[index],
+            note_array.velocity_at(index, default_velocity),
+            note_array.time_at(index, default_time),
+            note_array.channel_at(index, default_channel),
+        )
+
+    def pop_due(self, current, out_array, popped_ids, include_velocity=False):
+        popped_ids.clear()
+        if self.times is None:
+            return
+
+        for i in range(self.length):
+            if ticks.ticks_less(self.times[i], current):
+                if include_velocity:
+                    out_array.append_value(self.notes[i], velocity=self.velocity_at(i))
+                else:
+                    out_array.append_value(self.notes[i])
+                popped_ids.append_value(i)
+
+        self.remove_indexes(popped_ids)
 
     def insert_value_at_index(self, value, index, velocity = 127, time = 0, channel = 0):
         if self.length >= self.max_length:
@@ -180,28 +200,11 @@ class NoteArray:
         if index < 0 or index > self.length:
             return False
 
-        has_vel = self.velocities is not None
-        has_times = self.times is not None
-        has_channels = self.channels is not None
-
         # Shift active entries right to create an insertion slot.
         for i in range(self.length, index, -1):
-            self.notes[i] = self.notes[i - 1]
-            if has_vel:
-                self.velocities[i] = self.velocities[i - 1]
-            if has_times:
-                self.times[i] = self.times[i - 1]
-            if has_channels:
-                self.channels[i] = self.channels[i - 1]
+            self.copy_index(i, i - 1)
 
-        self.notes[index] = value
-        if has_vel:
-            self.velocities[index] = velocity
-        if has_times:
-            self.times[index] = time
-        if has_channels:
-            self.channels[index] = channel
-
+        self.set_value_at(index, value, velocity, time, channel)
         self.length += 1
         return True
 

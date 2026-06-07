@@ -45,14 +45,8 @@ class Gate(Module):
         self.note_offs_out.clear()
 
         current = self.transport.now
-        self.popped_ids.clear()
         # Expire scheduled note-offs from previous gate events.
-        for i in range(self.scheduled_offs.length):
-            if ticks.ticks_less(self.scheduled_offs.times[i], current):
-                self.note_offs_out.append_value(self.scheduled_offs.notes[i])
-                self.popped_ids.append_value(i)
-        for i in range(self.popped_ids.length - 1, -1, -1):
-            self.scheduled_offs.remove_index(self.popped_ids.notes[i])
+        self.scheduled_offs.pop_due(current, self.note_offs_out, self.popped_ids)
 
         gate = self.gate
         seed_step = self.transport.midi_tick // 6
@@ -61,10 +55,7 @@ class Gate(Module):
         # Incoming notes pass through immediately and schedule their own offs.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
-            self.note_ons_out.append_value(note, velocity=velocity)
+            self.note_ons_out.append_from(note_ons, i)
             random_gate = gate + utils.random_int(seed_step + i, self.gate_random, 0)
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, random_gate))
 

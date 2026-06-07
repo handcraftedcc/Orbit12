@@ -46,10 +46,7 @@ class OutputManager:
         # Queue unique note-ons and mark them held per MIDI channel.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             if not self.held_notes.contains(note, channel=channel):
                 self.held_notes.append_value(note, velocity=velocity, channel=channel)
@@ -96,10 +93,7 @@ class OutputManager:
             self.macropad.midi.send(self.macropad.NoteOff(note, 0), channel = channel)  # send midi note_off
         for i in range(self.note_ons_out.length):
             note = self.note_ons_out.notes[i]
-            if self.note_ons_out.velocities is not None:
-                velocity = self.note_ons_out.velocities[i]
-            else:
-                velocity = 127
+            velocity = self.note_ons_out.velocity_at(i)
             channel = self.note_ons_out.channels[i]
             self.macropad.midi.send(self.macropad.NoteOn(note, velocity), channel = channel)  # send midi note_on
 

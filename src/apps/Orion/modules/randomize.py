@@ -157,9 +157,7 @@ class Randomize(Module):
             else:
                 new_note = note+octave_offset*12
 
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             velocity += velocity_offset
             velocity = min(127, max(0, velocity))

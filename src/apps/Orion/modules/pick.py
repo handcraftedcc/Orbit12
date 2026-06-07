@@ -73,9 +73,7 @@ class Pick(Module):
 
             return_note = self.held_notes_in.notes[index] + self.octaves*12
             if return_note != self.held_note: #New note detected
-                velocity = 127
-                if self.held_notes_in.velocities is not None:
-                    velocity = self.held_notes_in.velocities[index]
+                velocity = self.held_notes_in.velocity_at(index)
                 pass
                 self.note_ons_out.append_value(return_note, velocity=velocity)
                 if self.held_note: old_note = self.held_note

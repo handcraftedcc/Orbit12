@@ -43,11 +43,8 @@ class Latch(Module):
                 self.note_offs_out.append_value(self.held_notes.notes[0])
                 self.held_notes.remove_index(0)
 
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
             self.held_notes.append_value(note)
-            self.note_ons_out.append_value(note, velocity=velocity)
+            self.note_ons_out.append_from(note_ons, i)
 
         return self.note_ons_out, self.note_offs_out
 

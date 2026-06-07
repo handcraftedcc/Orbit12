@@ -196,10 +196,7 @@ class Wander(Module):
                     self.current_note = note
                 got_note_on = True
 
-            if note_ons.velocities is not None:
-                self.last_velocity = note_ons.velocities[i]
-            else:
-                self.last_velocity = 127
+            self.last_velocity = note_ons.velocity_at(i)
 
         for i in range(note_offs.length):
             note = note_offs.notes[i]

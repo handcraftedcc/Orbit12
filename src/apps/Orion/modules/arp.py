@@ -139,8 +139,7 @@ class Arp(Module):
         # Track physical holds separately so duplicate notes release correctly.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = 127
-            if note_ons.velocities is not None: velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
             self.held_notes.append_value(note)
             if not self.note_register.contains(note):
                 self.note_register.append_value(note, velocity=velocity)
@@ -180,10 +179,7 @@ class Arp(Module):
             # Repeat mode emits every held note on each active pattern step.
             for i in range(self.note_register.length):
                 note = self.note_register.notes[i]
-                if self.note_register.velocities:
-                    velocity = self.note_register.velocities[i]
-                else:
-                    velocity = 127
+                velocity = self.note_register.velocity_at(i)
                 self.note_ons_out.append_value(note,velocity=velocity)
                 self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, gate))
 
@@ -220,10 +216,7 @@ class Arp(Module):
                 index = self.note_register_position % register_note_count
             # Non-repeat modes emit one selected note per active pattern step.
             note = self.note_register.notes[index]
-            if self.note_register.velocities:
-                velocity = self.note_register.velocities[index]
-            else:
-                velocity = 127
+            velocity = self.note_register.velocity_at(index)
             self.note_ons_out.append_value(note, velocity=velocity)
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, gate))
             self.note_register_position = (self.note_register_position+1) % register_note_count
@@ -236,23 +229,17 @@ class Arp(Module):
     def process_note_offs(self, force_all = False):
         #TODO: Maybe build a time removal thing into the note_array directly
         current = self.transport.now
-        self.popped_ids.clear()
         if not force_all:
-            for i in range(self.scheduled_offs.length):
-                note_off = self.scheduled_offs.notes[i]
-                off_time = self.scheduled_offs.times[i]
-                if ticks.ticks_less(off_time, current):
-                    self.note_offs_out.append_value(note_off)
-                    self.popped_ids.append_value(i)
+            self.scheduled_offs.pop_due(current, self.note_offs_out, self.popped_ids)
+            return
         else: #Send note offs for all
+            self.popped_ids.clear()
             for i in range(self.scheduled_offs.length):
                 note_off = self.scheduled_offs.notes[i]
                 self.note_offs_out.append_value(note_off)
                 self.popped_ids.append_value(i)
 
-        for i in range(self.popped_ids.length-1, -1, -1):
-            this_id = self.popped_ids.notes[i]
-            self.scheduled_offs.remove_index(this_id)
+        self.scheduled_offs.remove_indexes(self.popped_ids)
 
     ### PROCESSING ###
 

@@ -118,16 +118,14 @@ class Chopper(Module):
                         note = self.held_notes.notes[i]
                         if not self.active_notes.contains(note):
                             self.active_notes.append_value(note)
-                            self.note_ons_out.append_value(note, velocity=self.held_notes.velocities[i])
+                            self.note_ons_out.append_value(note, velocity=self.held_notes.velocity_at(i))
             elif self.retrigger_mode != 0 and self.held_notes.length == 0 and note_ons.length == 0:
                 self.last_grid_bin = current_bin
 
         # Add new held notes and pass them through if the gate is open.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             if self.held_notes.length >= self.held_notes.max_length and not self.held_notes.contains(note):
                 old_note = self.held_notes.notes[0]

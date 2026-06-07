@@ -52,9 +52,7 @@ class Quantize(Module):
         # Incoming note-ons are queued or refreshed for the next grid tick.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             if self.held_notes.contains(note):
                 self.held_notes.remove_value_first(note)
@@ -134,10 +132,9 @@ class Quantize(Module):
                     self.note_offs_out.append_value(self.held_notes.notes[0])
                     self.held_notes.remove_index(0)
                 self.held_notes.append_value(note)
-                self.note_ons_out.append_value(note, velocity=self.pending_ons.velocities[i])
+                self.note_ons_out.append_value(note, velocity=self.pending_ons.velocity_at(i))
                 self.popped_ids.append_value(i)
-        for i in range(self.popped_ids.length - 1, -1, -1):
-            self.pending_ons.remove_index(self.popped_ids.notes[i])
+        self.pending_ons.remove_indexes(self.popped_ids)
 
         # Release held notes once their quantized off tick arrives.
         self.popped_ids.clear()
@@ -150,8 +147,7 @@ class Quantize(Module):
                     self.held_notes.remove_value_first(note)
                     self.note_offs_out.append_value(note)
                 self.popped_ids.append_value(i)
-        for i in range(self.popped_ids.length - 1, -1, -1):
-            self.scheduled_offs.remove_index(self.popped_ids.notes[i])
+        self.scheduled_offs.remove_indexes(self.popped_ids)
 
         return self.note_ons_out, self.note_offs_out
 

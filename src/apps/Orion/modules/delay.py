@@ -47,9 +47,7 @@ class Delay(Module):
         # Store matching on/off delays so note length survives random delay.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
             note_delay = delay + utils.random_int(self.transport.midi_tick + i, self.delay_random, 0)
             self.scheduled_ons.append_value(note, velocity=velocity, time=ticks.ticks_add(current, note_delay))
             self.note_delays.append_value(note, time=note_delay)
@@ -65,24 +63,11 @@ class Delay(Module):
                     break
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, note_delay))
 
-        self.popped_ids.clear()
         # Emit due note-ons and remove them from the pending queue.
-        for i in range(self.scheduled_ons.length):
-            if ticks.ticks_less(self.scheduled_ons.times[i], current):
-                self.note_ons_out.append_value(self.scheduled_ons.notes[i],
-                                               velocity=self.scheduled_ons.velocities[i])
-                self.popped_ids.append_value(i)
-        for i in range(self.popped_ids.length - 1, -1, -1):
-            self.scheduled_ons.remove_index(self.popped_ids.notes[i])
+        self.scheduled_ons.pop_due(current, self.note_ons_out, self.popped_ids, include_velocity=True)
 
-        self.popped_ids.clear()
         # Emit due note-offs after ons so delayed retriggers stay ordered.
-        for i in range(self.scheduled_offs.length):
-            if ticks.ticks_less(self.scheduled_offs.times[i], current):
-                self.note_offs_out.append_value(self.scheduled_offs.notes[i])
-                self.popped_ids.append_value(i)
-        for i in range(self.popped_ids.length - 1, -1, -1):
-            self.scheduled_offs.remove_index(self.popped_ids.notes[i])
+        self.scheduled_offs.pop_due(current, self.note_offs_out, self.popped_ids)
 
         return self.note_ons_out, self.note_offs_out
 

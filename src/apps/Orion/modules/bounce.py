@@ -89,14 +89,8 @@ class Bounce(Module):
         current = self.transport.now
         current_tick = self.transport.midi_tick
 
-        self.popped_ids.clear()
         # Emit due note-offs before adding new bounces.
-        for i in range(self.scheduled_offs.length):
-            if ticks.ticks_less(self.scheduled_offs.times[i], current):
-                self.note_offs_out.append_value(self.scheduled_offs.notes[i])
-                self.popped_ids.append_value(i)
-        for i in range(self.popped_ids.length - 1, -1, -1):
-            self.scheduled_offs.remove_index(self.popped_ids.notes[i])
+        self.scheduled_offs.pop_due(current, self.note_offs_out, self.popped_ids)
 
         # Original note plays immediately and seeds the bounce queue.
         for i in range(note_ons.length):
@@ -108,9 +102,7 @@ class Bounce(Module):
                 self.bounce_bounces.remove_index(0)
 
             note = note_ons.notes[i]
-            velocity = 127
-            if note_ons.velocities is not None:
-                velocity = note_ons.velocities[i]
+            velocity = note_ons.velocity_at(i)
 
             self.note_ons_out.append_value(note, velocity=velocity)
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, int(self.gate)))
@@ -140,7 +132,7 @@ class Bounce(Module):
                 elif self.mod_curve == 2:
                     progress = utils.random_int(self.transport.midi_tick + note + remaining, 100, 0) / 100
                 # Progress fades velocity/gate and can compress repeat spacing.
-                velocity = int(self.bounce_notes.velocities[i] * (1 - (self.velocity_mod * progress)))
+                velocity = int(self.bounce_notes.velocity_at(i) * (1 - (self.velocity_mod * progress)))
                 gate = int(self.gate * (1 - (self.gate_mod * progress)))
                 if velocity < 1:
                     velocity = 1
