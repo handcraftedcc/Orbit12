@@ -74,6 +74,7 @@ class Chopper(Module):
         self.note_offs_out.clear()
         had_notes = self.held_notes.length > 0
 
+        # Remove released notes from both held and currently sounding sets.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             self.held_notes.remove_value_first(note)
@@ -100,6 +101,7 @@ class Chopper(Module):
                 step = step % pattern_length
                 blocked_steps = int((self.chop * pattern_length) + 0.5)
                 rank = 0
+                # Rank this step inside a deterministic shuffled pattern.
                 step_value = utils.random_int(self.random_seed_user + step, 65535, 0)
                 for p in range(pattern_length):
                     value = utils.random_int(self.random_seed_user + p, 65535, 0)
@@ -107,6 +109,7 @@ class Chopper(Module):
                         rank += 1
                 self.blocked = rank < blocked_steps
                 if self.blocked:
+                    # Closing the gate silences all notes that are currently active.
                     for i in range(self.active_notes.length):
                         self.note_offs_out.append_value(self.active_notes.notes[i])
                     self.active_notes.clear()
@@ -119,6 +122,7 @@ class Chopper(Module):
             elif self.retrigger_mode != 0 and self.held_notes.length == 0 and note_ons.length == 0:
                 self.last_grid_bin = current_bin
 
+        # Add new held notes and pass them through if the gate is open.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             velocity = 127

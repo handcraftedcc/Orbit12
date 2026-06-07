@@ -60,6 +60,7 @@ class NoteArray:
         self.length = 0
 
     def sort_notes(self):
+        # Insertion sort keeps optional velocity/time/channel arrays aligned.
         for i in range(1, self.length):
             key = self.notes[i]
             has_vel = self.velocities is not None
@@ -108,6 +109,7 @@ class NoteArray:
     def remove_index(self, index):
         if index < 0 or index >= self.length:
             return False
+        # Shift everything after index left by one slot.
         for i in range(index, self.length-1):
             self.notes[i] = self.notes[i + 1]
             if self.velocities is not None: self.velocities[i] = self.velocities[i + 1]
@@ -122,6 +124,7 @@ class NoteArray:
         match_any_channel = channel is None
         if order == 1:
             i = self.length - 1
+            # Reverse scan removes the most recent matching note.
             while i >= 0:
                 if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
                     self.remove_index(i)
@@ -129,6 +132,7 @@ class NoteArray:
                 i -= 1
         else:
             i = 0
+            # Forward scan removes the oldest matching note.
             while i < self.length:
                 if notes[i] == value and (match_any_channel or (channels is not None and channels[i] == channel)):
                     self.remove_index(i)
@@ -148,6 +152,7 @@ class NoteArray:
         return True
 
     def append_values(self, note_array):
+        # Copy only active entries, preserving optional metadata when present.
         for idx in range(note_array.length):
             note = note_array.notes[idx]
 
@@ -179,6 +184,7 @@ class NoteArray:
         has_times = self.times is not None
         has_channels = self.channels is not None
 
+        # Shift active entries right to create an insertion slot.
         for i in range(self.length, index, -1):
             self.notes[i] = self.notes[i - 1]
             if has_vel:
@@ -247,6 +253,7 @@ class NoteRelationshipArray:
     def remove_note_single(self, in_note, first_in_first_out=True):
         if first_in_first_out:
             i = 0
+            # Return the oldest generated note for this input note.
             while i < self.length:
                 if self.in_notes[i] == in_note:
                     out_note = self.out_notes[i]
@@ -255,6 +262,7 @@ class NoteRelationshipArray:
                 i += 1
         else:
             i = self.length - 1
+            # Return the newest generated note for this input note.
             while i >= 0:
                 if self.in_notes[i] == in_note:
                     out_note = self.out_notes[i]
@@ -266,6 +274,7 @@ class NoteRelationshipArray:
     def remove_note_all(self, in_note):
         self.return_length = 0
         i = 0
+        # Collect all mapped output notes while compacting the relationship list.
         while i < self.length:
             if self.in_notes[i] == in_note:
                 self.return_notes[self.return_length] = self.out_notes[i]

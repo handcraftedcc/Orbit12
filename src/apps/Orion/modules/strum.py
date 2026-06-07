@@ -135,6 +135,7 @@ class Strum(Module):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
+        # Add newly held chord tones to the strum register.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             if not self.note_register.contains(note):
@@ -143,6 +144,7 @@ class Strum(Module):
                     velocity = note_ons.velocities[i]
                 self.note_register.append_value(note, velocity = velocity)
 
+        # Released notes are forwarded and removed from pending strum notes.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             if not note_ons.contains(note):
@@ -150,6 +152,7 @@ class Strum(Module):
         self.note_offs_out.append_values(note_offs)
 
         if self.order in (MODE_UP, MODE_DOWN, MODE_ALTERNATE):
+            # Ordered modes sort the remaining register before each emitted note.
             self.note_register.sort_notes()
             if self.order == MODE_DOWN or (self.order == MODE_ALTERNATE and self.strum_count%2==0):
                 self.note_register.reverse_notes()
@@ -186,7 +189,7 @@ class Strum(Module):
                 articulation_position = min(self.strum_position, len(articulation_pattern) - 1)
                 articulate_modifier = articulation_pattern[articulation_position]
 
-
+            # Articulation changes the delay before the next strummed note.
             strum_delta = int(self.amount * (articulate_modifier/10))
             self.next_strum_scheduled = ticks.ticks_add(self.next_strum_scheduled,strum_delta)
             self.strum_position = (self.strum_position + 1) % STRUM_CHORD_LENGTH

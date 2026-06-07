@@ -26,6 +26,7 @@ class OutputManager:
         if channel is None:
             channel = 0
 
+        # Send note-offs first so same-tick retriggers do not leave stuck notes.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             retrigger = self.note_ons_out.contains(note, channel=channel) or self._contains_note_for_channel(note_ons, note, channel)
@@ -42,6 +43,7 @@ class OutputManager:
             if retrigger and not self.held_notes.contains(note, channel=channel):
                 self.held_notes.append_value(note, channel=channel)
 
+        # Queue unique note-ons and mark them held per MIDI channel.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
 
@@ -77,6 +79,7 @@ class OutputManager:
     def all_notes_off(self):
         self.note_ons_out.clear()
 
+        # Convert every tracked held note into a queued note-off.
         for i in range(self.held_notes.length):
             held_note = self.held_notes.notes[i]
             held_channel = self.held_notes.channels[i]
@@ -86,7 +89,7 @@ class OutputManager:
         self.held_notes.clear()
 
     def process_midi_out(self):
-        # Send Midi Notes
+        # Flush note-offs before note-ons for clean retrigger behavior.
         for i in range(self.note_offs_out.length):
             note = self.note_offs_out.notes[i]
             channel = self.note_offs_out.channels[i]

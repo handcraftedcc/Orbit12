@@ -46,6 +46,7 @@ class Pick(Module):
     ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
+        # Maintain the full held input stack, then emit only the selected note.
         self.held_notes_in.append_values(note_ons)
         self.note_ons_out.clear()
         self.note_offs_out.clear()
@@ -55,6 +56,7 @@ class Pick(Module):
 
         old_note = None
         if self.held_notes_in.length > 0:
+            # Pick mode selects an index from the held stack.
             index = 0
             if self.pick_mode == 0:
                 index = 0
@@ -85,6 +87,7 @@ class Pick(Module):
             pass
 
         length = note_offs.length
+        # If the selected source note releases, release the transposed output note.
         for i in range(length):
             note = note_offs.notes[i]
 

@@ -224,6 +224,7 @@ class Wander(Module):
             self.active_note = None
 
     def generate_note(self, timing_step):
+        # Stable mode follows transport grid; retrigger mode follows held-note history.
         if self.retrigger_mode == RETRIGGER_STABLE:
             step = timing_step
         else:
@@ -236,6 +237,7 @@ class Wander(Module):
             if loop_step == 0:
                 self.current_note = self.center_note
 
+        # Rhythm pattern can skip this step without changing active note state.
         if not music.get_pattern_step(self.active_pattern, self.active_pattern_length, loop_step):
             return
 
@@ -247,6 +249,7 @@ class Wander(Module):
             self.current_note = self.center_note
         else:
             distance = self.current_note - self.center_note
+            # Gravity pulls back toward center; random choice handles free movement.
             if abs(distance) >= max_deviation:
                 direction = -1 if distance > 0 else 1
             elif distance != 0 and utils.random_int(seed, 99, 0) < self.gravity:
@@ -259,6 +262,7 @@ class Wander(Module):
             step_size = low + utils.random_int(seed + 2, high - low, 0)
             next_note = self.transpose_current_note(direction * step_size)
 
+            # If the first step overshoots the allowed range, try the opposite direction.
             if abs(next_note - self.center_note) > max_deviation:
                 if distance > 0:
                     direction = -1

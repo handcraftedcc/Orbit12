@@ -44,6 +44,7 @@ class Delay(Module):
 
         current = self.transport.now
         delay = int(self.delay)
+        # Store matching on/off delays so note length survives random delay.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             velocity = 127
@@ -53,6 +54,7 @@ class Delay(Module):
             self.scheduled_ons.append_value(note, velocity=velocity, time=ticks.ticks_add(current, note_delay))
             self.note_delays.append_value(note, time=note_delay)
 
+        # Use the original note-on delay for its matching note-off when possible.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             note_delay = delay
@@ -64,6 +66,7 @@ class Delay(Module):
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, note_delay))
 
         self.popped_ids.clear()
+        # Emit due note-ons and remove them from the pending queue.
         for i in range(self.scheduled_ons.length):
             if ticks.ticks_less(self.scheduled_ons.times[i], current):
                 self.note_ons_out.append_value(self.scheduled_ons.notes[i],
@@ -73,6 +76,7 @@ class Delay(Module):
             self.scheduled_ons.remove_index(self.popped_ids.notes[i])
 
         self.popped_ids.clear()
+        # Emit due note-offs after ons so delayed retriggers stay ordered.
         for i in range(self.scheduled_offs.length):
             if ticks.ticks_less(self.scheduled_offs.times[i], current):
                 self.note_offs_out.append_value(self.scheduled_offs.notes[i])

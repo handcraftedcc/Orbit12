@@ -136,6 +136,7 @@ class Arp(Module):
     ### NOTE REGISTER ###
 
     def update_note_register(self, note_ons, note_offs):
+        # Track physical holds separately so duplicate notes release correctly.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             velocity = 127
@@ -175,8 +176,8 @@ class Arp(Module):
         if check_pattern == 0: #If pattern is 0 on this step, don't emit notes
             return
 
-        # Stable mode derives position from active pattern steps, not note history.
         if self.mode == MODE_REPEAT: #Repeat mode
+            # Repeat mode emits every held note on each active pattern step.
             for i in range(self.note_register.length):
                 note = self.note_register.notes[i]
                 if self.note_register.velocities:
@@ -217,6 +218,7 @@ class Arp(Module):
                 index = utils.random_int(rand_seed_time_temp + self.random_seed_user, register_note_count-1, 0)
             else:
                 index = self.note_register_position % register_note_count
+            # Non-repeat modes emit one selected note per active pattern step.
             note = self.note_register.notes[index]
             if self.note_register.velocities:
                 velocity = self.note_register.velocities[index]
@@ -281,6 +283,7 @@ class Arp(Module):
             interval = self.rate_to_midi_ticks()  # e.g. 6 for 1/16
             current_bin = self.transport.midi_tick // interval
 
+            # Clock wrap or reset means the grid cursor must restart.
             if current_bin < self.last_grid_bin:
                 self.last_grid_bin = -1
 

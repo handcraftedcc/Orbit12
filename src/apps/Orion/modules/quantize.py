@@ -49,6 +49,7 @@ class Quantize(Module):
         target_tick = ((current_tick // self.rate_ticks) + 1) * self.rate_ticks
         note_delay = target_tick - current_tick
 
+        # Incoming note-ons are queued or refreshed for the next grid tick.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
             velocity = 127
@@ -98,6 +99,7 @@ class Quantize(Module):
             if not found:
                 self.note_delays.append_value(note, time=note_delay)
 
+        # Note-offs keep the same delay as their matching pending note-on.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             note_delay = target_tick - current_tick
@@ -120,6 +122,7 @@ class Quantize(Module):
                     self.scheduled_offs.remove_index(0)
                 self.scheduled_offs.append_value(note, time=off_tick)
 
+        # Promote pending note-ons whose target tick has arrived.
         self.popped_ids.clear()
         for i in range(self.pending_ons.length):
             if self.pending_ons.times[i] <= current_tick:
@@ -136,6 +139,7 @@ class Quantize(Module):
         for i in range(self.popped_ids.length - 1, -1, -1):
             self.pending_ons.remove_index(self.popped_ids.notes[i])
 
+        # Release held notes once their quantized off tick arrives.
         self.popped_ids.clear()
         for i in range(self.scheduled_offs.length):
             if self.scheduled_offs.times[i] <= current_tick:

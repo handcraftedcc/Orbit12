@@ -551,6 +551,7 @@ class ParameterSection(Section):
         return active_parm, scroll_offset
 
     def update_parm_row_layout(self, highlight_row):
+        # Enlarge the highlighted row and make following rows flow around it.
         for i in range(PARMSPERPAGE):
             if i == highlight_row:
                 if self.parm_groups[i].scale != 2:
@@ -638,6 +639,7 @@ class ParameterSection(Section):
 
         highlight_row = active_parm - self.scroll_offset
 
+        # Map visible rows to the scrolled parm window.
         for i in range(visible_rows):
             parm_index = self.scroll_offset + i
 

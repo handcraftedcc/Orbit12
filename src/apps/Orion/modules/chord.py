@@ -61,6 +61,7 @@ class Chord(Module):
         else:
             scale = None
 
+        # Remove every generated chord tone for each released input note.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             off_notes = self.note_relationship.remove_note_all(note)
@@ -70,6 +71,7 @@ class Chord(Module):
                 if not has_out_note:
                     self.note_offs_out.append_value(off_note)
 
+        # Generate unique chord tones from offsets and remember their source note.
         for i in range(note_ons.length):
             note = note_ons.notes[i]
 

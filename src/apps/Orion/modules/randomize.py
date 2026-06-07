@@ -127,6 +127,7 @@ class Randomize(Module):
         else:
             self.random_seed_base = self.module_helper.transport.midi_tick
 
+        # Each note gets deterministic note/octave/velocity offsets from separate seeds.
         for i in range(note_ons.length):
             # Calc Note
             note_offset = 0
@@ -166,6 +167,7 @@ class Randomize(Module):
             self.note_ons_out.append_value(new_note, velocity=velocity)
             self.note_relationship.add_note(note, new_note)
 
+        # Map original note-offs back to the randomized notes.
         for i in range(note_offs.length):
             note = note_offs.notes[i]
             off_note = self.note_relationship.remove_note_single(note)

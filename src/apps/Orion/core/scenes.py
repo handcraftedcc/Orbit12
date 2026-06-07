@@ -181,6 +181,7 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
         if header != HEADER:
             return False
 
+        # Scene records are ordered: state values, module headers, then module parms.
         for line in file:
             line = line.strip()
             if line == "" or line == "END":
@@ -190,6 +191,7 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
             record_type = parts[0]
 
             if record_type == "S" and len(parts) >= 3:
+                # Restore global musical and transport state.
                 attr = parts[1]
                 if attr in STATE_ATTRS:
                     if attr == "swing":
@@ -198,6 +200,7 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
                         setattr(state, attr, int(parts[2]))
 
             elif record_type == "M" and len(parts) >= 4:
+                # Load the current module so following parm records target it.
                 try:
                     current_module = orion.load_scene_module(int(parts[1]), parts[2])
                     gc.collect()
@@ -208,6 +211,7 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
                     return False
 
             elif record_type == "P" and len(parts) >= 3 and current_module is not None:
+                # Apply saved parm values through normal callbacks.
                 if parts[1] in SCENE_UI_PARMS:
                     continue
                 parm = current_module.get_parm_by_name(parts[1])

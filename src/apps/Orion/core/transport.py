@@ -60,6 +60,7 @@ class Transport:
 		steps = 0
 
 		if self.state.transport_mode == 1:
+			# External mode consumes MIDI clock/start/stop from input.
 			max_msgs = 200
 			for _ in range(max_msgs):
 				msg = self.macropad.midi.receive()
@@ -82,9 +83,11 @@ class Transport:
 					pass
 
 		else:
+			# Internal mode ignores incoming MIDI after draining the buffer.
 			self.drain_midi_input()
 
 		if self.state.transport_mode == 0 and self.running == 1:
+			# Internal mode emits one clock tick whenever the scheduled time passes.
 			if ticks.ticks_less(self.midi_tick_scheduled, self.now):
 				self.schedule_next_tick()
 				self.midi_tick += 1
@@ -95,6 +98,7 @@ class Transport:
 
 	def drain_midi_input(self):
 		max_msgs = 200
+		# Prevent stale input messages from building up while using internal clock.
 		for _ in range(max_msgs):
 			msg = self.macropad.midi.receive()
 			if msg is None:

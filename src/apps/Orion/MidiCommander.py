@@ -564,7 +564,7 @@ class MidiCommander:
 
             ### Process inputs ###
             ## Process encoder knob turn ##
-            # -> depends on state - either navbar jogging, parm jogging or parm modification
+            # Route knob movement to the active UI mode.
             if knob_delta!=0:
                 # Active section: Chain #
                 if self.state.active_ui_section == UISection.CHAIN:
@@ -583,7 +583,7 @@ class MidiCommander:
 
 
             ## Process encoder button press ##
-            # -> depends on state - either navbar selection, parm selection, or parm confirmation
+            # Delay knob action until release so key combos can consume it.
             if pressed[0]:
                 self.knob_hold_down_start = ticks.ticks_ms()
                 self.input_manager.encoder_press_consumed = 0 # Since encoder press can either be a modifier or a selection we don't do anything on press and see if it was "consumed" by key presses
@@ -591,6 +591,7 @@ class MidiCommander:
                 self.neo_pixels.set_nav_state_colors()
 
             ## Chain swap mode - timer ##
+            # Holding the knob in chain view arms swap mode before it becomes active.
             if (self.state.active_ui_section == UISection.CHAIN and 
                     self.knob_hold_down_start and self.chain_swap_mode == 0 and downstate[0]):
                 if ticks.ticks_diff(ticks.ticks_ms(), self.knob_hold_down_start) >= 1000:
@@ -598,7 +599,7 @@ class MidiCommander:
                     self.enable_chain_swap_mode()
 
             ## Process midi key press ##
-            # -> if knob down then use it as function - if not emit notes
+            # With knob held, keys are shortcuts. Without it, keys become notes.
             if any(pressed):
                 self.input_manager.encoder_press_consumed = 1
                 if self.chain_swap_mode == 1: # Cancel Pending
@@ -637,6 +638,7 @@ class MidiCommander:
                         elif self.state.active_ui_section == UISection.PARMEDIT:
                             self.exit_parm_edit()
 
+                    # Note navigation edits musical state while staying in the current view.
                     if self.state.nav_keys_state == 0: #Nav Notes
                         if pressed[8]:
                             self.state.octave+=1
@@ -658,6 +660,7 @@ class MidiCommander:
                                 key_offset.set_value(self.state.key_offset)
                             self.add_to_ui_queue(self.ui_manager.parameter_section.rebuild_parm_section)
 
+                    # Parm navigation makes the 2x2 corner keys act like arrows.
                     if self.state.nav_keys_state == 1: #Nav Parms
                         # Active section: Chain #
                         if self.state.active_ui_section == UISection.CHAIN:
@@ -712,7 +715,7 @@ class MidiCommander:
                                 self.edit_parm(1)
 
                 else: #knob is not held -> simple button press
-                    # Generate note ons from keys
+                    # Convert physical key presses into pad note ids.
                     for index in range(1, 13):
                         if pressed[index]:
                             self.note_ons.append_value(index - 1)
@@ -725,7 +728,7 @@ class MidiCommander:
                         self.neo_pixels.set_held_pixel(index-1)
 
             ## Process encoder button release ##
-            # -> depends on state - either navbar selection, parm selection, or parm confirmation
+            # Unconsumed knob releases confirm the current UI selection.
             if released[0]:
                 if self.input_manager.encoder_press_consumed == 1: #Was consumed by a key press
                     self.input_manager.encoder_press_consumed = None
@@ -766,7 +769,7 @@ class MidiCommander:
                 self.state.chain_modules[0].color_pixels()
 
             ## Process midi key release ##
-            # -> if knob down then use it as function - if not emit notes
+            # Released note keys become note-offs unless they were shortcut keys.
             if any(released):
                 if downstate[0]: #knob is held -> combination
                     self.input_manager.encoder_press_consumed = 1
@@ -786,6 +789,7 @@ class MidiCommander:
             note_ons, note_offs = self.state.chain_modules[ChainElements.IN].process_super(self.note_ons, self.note_offs)
 
             ## Process modules ##
+            # Notes flow left-to-right through the six user module slots.
             for slot in range(ChainElements.SLOT1, ChainElements.SLOT6 + 1):
                 note_ons, note_offs = self.state.chain_modules[slot].process_super(note_ons, note_offs)
             ## Process output ##
@@ -798,6 +802,7 @@ class MidiCommander:
             self.maybe_gc()
 
             ### Update UI & screen ###
+            # UI callbacks are throttled so display work does not jitter MIDI timing.
             if self.ui_queue and self.can_do_ui_work(min_slack_ms=12):
                 callback = self.ui_queue.pop(0)
                 current = ticks.ticks_ms()

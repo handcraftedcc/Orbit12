@@ -98,6 +98,7 @@ class Chords(Input):
     ### CHORD BUILDING ###
 
     def build_chord(self, pad_note):
+        # Borrow mode temporarily swaps the scale used for chord construction.
         if self.held_modifiers.contains(ModifierMap.BORROW):
             if self.borrow_scale == 0:
                 borrow_scale = Music.AUTOBORROWRELATIONSHIP[self.state.scale]
@@ -108,11 +109,11 @@ class Chords(Input):
             scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)
 
-        # Build chord tones
+        # Resolve the pad to a scale degree and octave before adding chord tones.
         root_pad_note = pad_note + self.state.key_offset
         root_pad_octave = root_pad_note // scale_notes
 
-        #Check Pentatonic State
+        # Pentatonic scales need custom degree jumps to sound chord-like.
         pentatonic_state = [False, False]
 
         if (self.state.scale == Music.IDX_MAJP or
@@ -139,7 +140,7 @@ class Chords(Input):
         seventh_degree = None
         add9_degree = None
 
-        # Apply sus/7th/add9
+        # Optional modifiers add or reshape upper chord tones.
         if self.held_modifiers.contains(ModifierMap.SUS):
             #if root_degree == 5:
             #   note2_degree += 1
@@ -189,6 +190,7 @@ class Chords(Input):
 
         #print("base_chord_notes: ", self.temp_chord.notes)
 
+        # Voicing modifiers operate after degrees become MIDI notes.
         # Apply inversion to upper voicing
         if self.held_modifiers.contains(ModifierMap.INV):
             self.temp_chord.notes[0] += 12
@@ -227,6 +229,7 @@ class Chords(Input):
         self.note_offs.clear()
 
         ## Handle Note Offs##
+        # Split pad releases into root releases and modifier releases.
         for i in range(note_offs.length):
             pad_note = note_offs.notes[i]
             pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
@@ -237,6 +240,7 @@ class Chords(Input):
                 if self.held_modifiers.contains(pad_note):
                     self.held_modifiers.remove_value_first(pad_note)
 
+        # Convert released roots back into all chord notes they created.
         for i in range(self.note_offs.length):
             pad_note = self.note_offs.notes[i]
             chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
@@ -248,6 +252,7 @@ class Chords(Input):
                         self.note_offs_out.append_value(note)
 
         ## Process input notes and split them into notes and modifiers
+        # Root pads create chords; upper pads latch modifier state.
         for i in range(note_ons.length):
             pad_note = note_ons.notes[i]
             pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
@@ -259,6 +264,7 @@ class Chords(Input):
                     self.held_modifiers.append_value(pad_note)
 
         ## Create and export chords ##
+        # Store input-to-output relationships so releases can find chord tones.
         for i in range(self.note_ons.length):
             pad_note = self.note_ons.notes[i]
             self.build_chord(pad_note)
