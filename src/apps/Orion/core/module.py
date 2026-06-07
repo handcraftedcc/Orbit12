@@ -1,3 +1,4 @@
+from .note_array import NoteOnArray, NoteOffArray
 from . import parms as Parms
 import gc
 
@@ -24,6 +25,9 @@ SOURCE_OPTIONS = (
     "S4",
     "S5",
 )
+
+EMPTY_NOTE_ON = NoteOnArray()
+EMPTY_NOTE_OFF = NoteOffArray()
 
 
 ### SHARED CONTEXT ###
@@ -178,16 +182,20 @@ class Module:
                     source.note_ons_out is not None and source.note_offs_out is not None):
                 note_ons,note_offs = source.note_ons_out,source.note_offs_out
 
-        if self.operation_mode == 1: # Additive
+        if self.operation_mode == 1 and self.slot_id != 0: # Additive
             note_ons_in, note_offs_in = note_ons, note_offs
             note_ons, note_offs = self.process(note_ons, note_offs)
             note_ons.append_values(note_ons_in)
             note_offs.append_values(note_offs_in)
             return note_ons, note_offs
-        elif self.operation_mode == 2: # Out & Next
+        elif (self.operation_mode == 2 and self.slot_id != 0) or (self.operation_mode == 1 and self.slot_id == 0): # Out & Next
             note_ons, note_offs = self.process(note_ons, note_offs)
             self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, channel = self.out_channel)
             return note_ons, note_offs
+        elif self.slot_id == 0 and self.operation_mode == 2: # Input only
+            note_ons, note_offs = self.process(note_ons, note_offs)
+            self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, channel = self.out_channel)
+            return EMPTY_NOTE_ON, EMPTY_NOTE_OFF
         elif self.operation_mode == 3: # Out & Skip
             note_ons_out, note_offs_out = self.process(note_ons, note_offs)
             self.module_helper.output_manager.schedule_midi_notes(note_ons_out, note_offs_out, channel = self.out_channel)

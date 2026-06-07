@@ -7,7 +7,7 @@ from ..note_array import NoteOnArray, NoteOffArray
 ### INPUT MAPPING ###
 
 PADMAP = (9,10,11,6,7,8,3,4,5,0,1,2)
-INPUT_OPERATION_OPTIONS = ("NEXT", "OUT+N")
+INPUT_OPERATION_OPTIONS = ("NEXT", "OUT+N", "ONLY")
 
 
 ### INPUT BASE MODULE ###

@@ -3,6 +3,7 @@
 MODULE_SPECS = (
     ("note", "NOTE"),
     ("chords", "CHRD"),
+    ("matrix", "MTRX"),
     ("drum", "DRUM"),
 )
 
@@ -12,6 +13,7 @@ AVAILABLE_MODULE_LABELS = [spec[1] for spec in MODULE_SPECS]
 MODULE_IMPORT_NAMES = {
     "note": ".note",
     "chords": ".chords",
+    "matrix": ".matrix",
     "drum": ".drum",
 }
 
@@ -28,6 +30,9 @@ def get_module_class(module_key):
     if module_key == "chords":
         from .chords import Chords
         return Chords
+    if module_key == "matrix":
+        from .matrix import Matrix
+        return Matrix
     if module_key == "drum":
         from .drum import Drum
         return Drum

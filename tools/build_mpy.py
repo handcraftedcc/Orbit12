@@ -142,7 +142,7 @@ def validate_mpy_cross(mpy_cross):
 
 def compile_file(mpy_cross, source_file, output_file, runner=run_command, source_name=None):
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    command = [str(mpy_cross), "-O3", "-o", str(output_file)]
+    command = [str(mpy_cross), "-O2", "-o", str(output_file)]
     if source_name is not None:
         command.extend(["-s", str(source_name)])
     command.append(str(source_file))
