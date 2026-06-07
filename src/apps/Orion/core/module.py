@@ -47,6 +47,7 @@ class Module:
     name = None
     label = None
     version = 1
+    save_attrs = ()
     def __init__(self, module_helper, slot_id, include_default_parms = True, include_out_parms = True, include_source_parms = True):
         gc.collect()
         self.parms = None

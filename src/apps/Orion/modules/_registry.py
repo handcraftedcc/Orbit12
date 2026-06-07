@@ -7,6 +7,7 @@ MODULE_SPECS = (
     ("chord", "CHRD"),
     ("chopper", "CHOPPR"),
     ("delay", "DELAY"),
+    ("euclid", "EUCLID"),
     ("gate", "GATE"),
     ("latch", "LATCH"),
     ("pick", "PICK"),
@@ -26,6 +27,7 @@ MODULE_IMPORT_NAMES = {
     "chord": ".chord",
     "chopper": ".chopper",
     "delay": ".delay",
+    "euclid": ".euclid",
     "gate": ".gate",
     "latch": ".latch",
     "pick": ".pick",
@@ -61,6 +63,9 @@ def get_module_class(module_key):
     if module_key == "delay":
         from .delay import Delay
         return Delay
+    if module_key == "euclid":
+        from .euclid import Euclid
+        return Euclid
     if module_key == "gate":
         from .gate import Gate
         return Gate

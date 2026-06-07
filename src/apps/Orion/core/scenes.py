@@ -10,6 +10,7 @@ SCENE_PREFIX = "Scene"
 ACTIVE_SCENE_FILE = "_activescene"
 SCENE_COUNT = 10
 HEADER = "SCN1"
+ATTR_SEPARATOR = "|"
 
 STATE_ATTRS = (
     "key",
@@ -91,10 +92,50 @@ def value_to_text(value):
     return str(value)
 
 
+def attr_value_to_text(value):
+    if isinstance(value, (list, tuple, bytearray)):
+        return ATTR_SEPARATOR.join(value_to_text(item) for item in value)
+    return value_to_text(value)
+
+
+def parse_scalar_like(current_value, text):
+    if isinstance(current_value, bool):
+        return text == "1" or text == "True"
+    if isinstance(current_value, float):
+        return float(text)
+    if isinstance(current_value, int):
+        return int(float(text))
+    return text
+
+
+def parse_attr_value(current_value, text):
+    if isinstance(current_value, bytearray):
+        if text == "":
+            return bytearray()
+        return bytearray(int(float(part)) for part in text.split(ATTR_SEPARATOR))
+
+    if isinstance(current_value, (list, tuple)):
+        if text == "":
+            values = []
+        else:
+            parts = text.split(ATTR_SEPARATOR)
+            sample = current_value[0] if len(current_value) else 0
+            values = [parse_scalar_like(sample, part) for part in parts]
+        if isinstance(current_value, tuple):
+            return tuple(values)
+        return values
+
+    return parse_scalar_like(current_value, text)
+
+
 def should_save_parm(parm):
     if parm.name in SCENE_UI_PARMS:
         return False
     return parm.type is not Parms.ButtonParmType
+
+
+def should_save_attr(module, attr):
+    return hasattr(module, attr)
 
 
 def write_state(file, state):
@@ -126,6 +167,14 @@ def write_module(file, slot_id, module):
             file.write(parm.name)
             file.write(",")
             file.write(value_to_text(parm.value))
+            file.write("\n")
+
+    for attr in getattr(module, "save_attrs", ()):
+        if should_save_attr(module, attr):
+            file.write("A,")
+            file.write(attr)
+            file.write(",")
+            file.write(attr_value_to_text(getattr(module, attr)))
             file.write("\n")
 
     if not had_parms:
@@ -162,6 +211,22 @@ def parse_parm_value(parm, text):
     if parm_type is Parms.StringParmType:
         return text
     return int(float(text))
+
+
+def restore_module_attr(module, attr, text):
+    save_attrs = getattr(module, "save_attrs", ())
+    if attr not in save_attrs or not hasattr(module, attr):
+        return
+
+    current_value = getattr(module, attr)
+    restored_value = parse_attr_value(current_value, text)
+
+    if isinstance(current_value, list) and isinstance(restored_value, list):
+        current_value[:] = restored_value
+    elif isinstance(current_value, bytearray) and isinstance(restored_value, bytearray):
+        current_value[:] = restored_value
+    else:
+        setattr(module, attr, restored_value)
 
 
 def load_scene(orion, scene=None, base_dir=SCENE_DIR):
@@ -222,5 +287,8 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
                         parm.edit_callback_function(parm.value)
                     if parm.exit_callback_function is not None:
                         parm.exit_callback_function(parm.value)
+
+            elif record_type == "A" and len(parts) >= 3 and current_module is not None:
+                restore_module_attr(current_module, parts[1], parts[2])
 
     return True
