@@ -15,18 +15,22 @@ SUS_OPTIONS = ("OFF", "SUS2", "SUS4")
 BASS_MODE_OPTIONS = ("NONE", "ROOT", "2ND", "LOW", "HIGH")
 SPREAD_MODE_OPTIONS = ("TIGHT", "MED", "WIDE")
 RESET_OPTIONS = (">", "DEG", "CHRD", "NOTE", "HALF")
-DEFAULT_NOTES = (1, 3, 5, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+DEFAULT_NOTES = (1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8)
+DEFAULT_CHORDS = (1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0)
 DEGREE_NOTES = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 HALF_NOTES = (1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6)
+ALL_CHORDS = (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+NO_CHORDS = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+HALF_CHORDS = (1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
 LAYOUTS = (
     None,
-    (DEFAULT_NOTES, 3),
-    (DEGREE_NOTES, 12),
-    (DEGREE_NOTES, 0),
-    (HALF_NOTES, 6),
+    (DEFAULT_NOTES, DEFAULT_CHORDS),
+    (DEGREE_NOTES, ALL_CHORDS),
+    (DEGREE_NOTES, NO_CHORDS),
+    (HALF_NOTES, HALF_CHORDS),
 )
 PAD_VALUE_PARMS = (
-    ("note", "NOTE", "notes", Parms.IntParmType, (1, 24), None, True),
+    ("note", "NOTE", "notes", Parms.IntParmType, (-24, 24), None, True),
     ("chord", "CHORD", "chords", Parms.BooleanParmType, None, None, True),
     ("seventh", "7TH", "sevenths", Parms.BooleanParmType, None, None, False),
     ("ninth", "9TH", "ninths", Parms.BooleanParmType, None, None, False),
@@ -54,8 +58,8 @@ class Matrix(Input):
         self.bass_mode = 0
         self.spread_mode = 0
         self.reset_parm = None
-        self.notes = bytearray(DEFAULT_NOTES)
-        self.chords = bytearray((1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        self.notes = list(DEFAULT_NOTES)
+        self.chords = bytearray(DEFAULT_CHORDS)
         self.sevenths = bytearray(PAD_COUNT)
         self.ninths = bytearray(PAD_COUNT)
         self.inversions = bytearray(PAD_COUNT)
@@ -124,11 +128,11 @@ class Matrix(Input):
         for values in (self.sevenths, self.ninths, self.inversions, self.sus, self.power):
             values[:] = bytearray(PAD_COUNT)
 
-    def apply_layout(self, notes, chord_count):
+    def apply_layout(self, notes, chords):
         self.clear_pad_modifiers()
         for pad in range(PAD_COUNT):
             self.notes[pad] = notes[pad]
-            self.chords[pad] = 1 if pad < chord_count else 0
+            self.chords[pad] = chords[pad]
         self.set_pad(self.pad)
         self.color_pixels()
 
@@ -185,27 +189,27 @@ class Matrix(Input):
     def build_pad_notes(self, pad):
         root = self.notes[pad] - 1
         self.temp_notes.clear()
-        self.temp_notes.append_value(root)
 
         if not self.chords[pad]:
-            self.temp_notes.notes[0] = self.note_for_degree(root)
+            self.temp_notes.append_value(self.note_for_degree(root))
             return
 
+        degrees = [root]
         if self.sus[pad] == 1:
-            self.temp_notes.append_value(root + 1)
+            degrees.append(root + 1)
         elif self.sus[pad] == 2:
-            self.temp_notes.append_value(root + 3)
+            degrees.append(root + 3)
         elif not self.power[pad]:
-            self.temp_notes.append_value(root + 2)
+            degrees.append(root + 2)
 
-        self.temp_notes.append_value(root + 4)
+        degrees.append(root + 4)
         if self.sevenths[pad]:
-            self.temp_notes.append_value(root + 6)
+            degrees.append(root + 6)
         if self.ninths[pad]:
-            self.temp_notes.append_value(root + 8)
+            degrees.append(root + 8)
 
-        for i in range(self.temp_notes.length):
-            self.temp_notes.notes[i] = self.note_for_degree(self.temp_notes.notes[i])
+        for degree in degrees:
+            self.temp_notes.append_value(self.note_for_degree(degree))
 
         root_note = self.temp_notes.notes[0]
         inversions = min(self.inversions[pad], self.temp_notes.length - 1)

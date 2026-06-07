@@ -7,9 +7,11 @@ MODULE_SPECS = (
     ("chord", "CHRD"),
     ("chopper", "CHOPPR"),
     ("delay", "DELAY"),
+    ("drop", "DROP"),
     ("euclid", "EUCLID"),
     ("gate", "GATE"),
     ("latch", "LATCH"),
+    ("phraser", "PHRSR"),
     ("pick", "PICK"),
     ("quantize", "QNT"),
     ("randomize", "RND"),
@@ -27,9 +29,11 @@ MODULE_IMPORT_NAMES = {
     "chord": ".chord",
     "chopper": ".chopper",
     "delay": ".delay",
+    "drop": ".drop",
     "euclid": ".euclid",
     "gate": ".gate",
     "latch": ".latch",
+    "phraser": ".phraser",
     "pick": ".pick",
     "quantize": ".quantize",
     "randomize": ".randomize",
@@ -63,6 +67,9 @@ def get_module_class(module_key):
     if module_key == "delay":
         from .delay import Delay
         return Delay
+    if module_key == "drop":
+        from .drop import Drop
+        return Drop
     if module_key == "euclid":
         from .euclid import Euclid
         return Euclid
@@ -72,6 +79,9 @@ def get_module_class(module_key):
     if module_key == "latch":
         from .latch import Latch
         return Latch
+    if module_key == "phraser":
+        from .phraser import Phraser
+        return Phraser
     if module_key == "pick":
         from .pick import Pick
         return Pick
