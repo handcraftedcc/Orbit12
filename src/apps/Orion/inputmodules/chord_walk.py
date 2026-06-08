@@ -72,9 +72,7 @@ class ChordWalk(Input):
         self.pad = value
         for name, _, attr, _, _, _ in PAD_VALUE_PARMS:
             self.get_parm_by_name(name).set_value(getattr(self, attr)[value])
-        orion = self.module_helper.orion
-        if orion is not None and getattr(orion, "ui_manager", None) is not None:
-            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
+        self.queue_parm_rebuild()
         return value
 
     def set_pad_value(self, attr, value):

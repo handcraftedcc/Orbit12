@@ -634,7 +634,12 @@ class ParameterSection(Section):
                 set_text(self.parm_values[i], " ")
             return
 
-        active_parm, self.scroll_offset = self.get_active_parm_and_scroll(self.parm_count)
+        active_parm, scroll_offset = self.get_active_parm_and_scroll(self.parm_count)
+        max_scroll = max(0, self.parm_count - PARMSPERPAGE)
+        if (active_parm == self.last_active_parm and self.scroll_offset <= max_scroll and
+                self.scroll_offset <= active_parm < self.scroll_offset + PARMSPERPAGE):
+            scroll_offset = self.scroll_offset
+        self.scroll_offset = scroll_offset
         visible_rows = PARMSPERPAGE
 
         highlight_row = active_parm - self.scroll_offset

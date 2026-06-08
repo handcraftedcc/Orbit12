@@ -29,6 +29,18 @@ def random_int(seed, max_value, mode):
     return low + (hash_u32(seed) % (high - low + 1))
 
 
+### GRID HELPERS ###
+
+def grid_change(midi_tick, rate_ticks, last_grid_bin):
+    current_bin = midi_tick // rate_ticks
+    if current_bin < last_grid_bin:
+        last_grid_bin = -1
+    if current_bin == last_grid_bin:
+        return current_bin, False, 0
+    triggers = 1 if last_grid_bin < 0 else current_bin - last_grid_bin
+    return current_bin, True, triggers
+
+
 ### BOUNDARY HELPERS ###
 
 BOUNDARY_LIST = ("WRPU", "WRPB", "FLDU", "FLDB", "CLMP")

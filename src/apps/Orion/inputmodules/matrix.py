@@ -113,11 +113,6 @@ class Matrix(Input):
 
     ### RESET ###
 
-    def queue_parm_rebuild(self):
-        orion = self.module_helper.orion
-        if orion is not None and getattr(orion, "ui_manager", None) is not None:
-            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
-
     def arm_reset(self, value):
         if self.reset_parm is not None:
             self.reset_parm.display_value = "SUR?"
@@ -155,9 +150,7 @@ class Matrix(Input):
         if pad_parm is not None:
             pad_parm.set_value(pad)
         self.set_pad(pad)
-        orion = self.module_helper.orion
-        if orion is not None and getattr(orion, "ui_manager", None) is not None:
-            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
+        self.queue_parm_rebuild()
 
     def should_follow_played_pad(self):
         return (self.state.active_chain == INPUT_SLOT and

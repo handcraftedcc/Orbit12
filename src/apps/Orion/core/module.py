@@ -138,6 +138,11 @@ class Module:
             if parm.name == name:
                 return parm
         return None
+
+    def queue_parm_rebuild(self):
+        orion = getattr(self.module_helper, "orion", None)
+        if orion is not None and getattr(orion, "ui_manager", None) is not None:
+            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
     
     def release_parms(self):
         if self.parms is None:

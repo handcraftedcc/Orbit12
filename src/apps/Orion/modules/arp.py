@@ -300,25 +300,12 @@ class Arp(Module):
                 self.active_pattern_step = 0
 
         if self.transport.running:
-            interval = self.rate_to_midi_ticks()  # e.g. 6 for 1/16
-            current_bin = self.transport.midi_tick // interval
-
-            # Clock wrap or reset means the grid cursor must restart.
-            if current_bin < self.last_grid_bin:
-                self.last_grid_bin = -1
-
-            if current_bin != self.last_grid_bin:
-                previous_grid_bin = self.last_grid_bin
-                self.last_grid_bin = current_bin
-
-                if self.arp_state == 1:
-                    if previous_grid_bin < 0:
-                        triggers = 1
-                    else:
-                        triggers = current_bin - previous_grid_bin
-
-                    for _ in range(triggers):
-                        self.generate_notes()
+            self.last_grid_bin, changed, triggers = utils.grid_change(
+                self.transport.midi_tick, self.rate_to_midi_ticks(), self.last_grid_bin
+            )
+            if changed and self.arp_state == 1:
+                for _ in range(triggers):
+                    self.generate_notes()
 
         self.process_note_offs()
 

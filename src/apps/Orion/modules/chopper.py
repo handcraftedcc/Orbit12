@@ -87,10 +87,10 @@ class Chopper(Module):
             self.last_grid_bin = -1
 
         if self.transport.running:
-            current_bin = self.transport.midi_tick // self.rate_ticks
-            if current_bin < self.last_grid_bin:
-                self.last_grid_bin = -1
-            if current_bin != self.last_grid_bin and (self.held_notes.length > 0 or note_ons.length > 0):
+            current_bin, changed, _ = utils.grid_change(
+                self.transport.midi_tick, self.rate_ticks, self.last_grid_bin
+            )
+            if changed and (self.held_notes.length > 0 or note_ons.length > 0):
                 self.last_grid_bin = current_bin
                 if self.retrigger_mode == 0:
                     step = current_bin

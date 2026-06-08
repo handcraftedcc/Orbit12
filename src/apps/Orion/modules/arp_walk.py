@@ -12,7 +12,7 @@ SORT_LIST = ("UP", "DOWN", "ORD")
 SORT_UP, SORT_DOWN, SORT_INORDER = 0, 1, 2
 MAX_STEPS = 8
 RANDOM_STEP_MAX = 3
-DEFAULT_STEP_VALUES = (0, -1, 2, -1, 1, 0, 0, 0)
+DEFAULT_STEP_VALUES = (-1, 2, 0, 0, 0, 0, 0, 0)
 
 
 ### ARPWALK MODULE ###
@@ -34,7 +34,7 @@ class ArpWalk(Module):
         self.scheduled_offs = NoteArray(times=True)
         self.popped_ids = NoteArray()
         self.sort_mode = SORT_UP
-        self.step_length = 3
+        self.step_length = 2
         self.step_select = 0
         self.step_values = list(DEFAULT_STEP_VALUES)
         self.random_counter = 0
@@ -102,11 +102,6 @@ class ArpWalk(Module):
         return self.rate_ticks
 
     ### STEP PATTERN ###
-
-    def queue_parm_rebuild(self):
-        orion = getattr(self.module_helper, "orion", None)
-        if orion is not None and getattr(orion, "ui_manager", None) is not None:
-            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
 
     def sync_step_parms(self):
         select_parm = self.get_parm_by_name("step_select")
@@ -262,16 +257,12 @@ class ArpWalk(Module):
                 self.active_pattern_step = 0
 
         if running:
-            current_bin = self.transport.midi_tick // self.rate_to_midi_ticks()
-            if current_bin < self.last_grid_bin:
-                self.last_grid_bin = -1
-            if current_bin != self.last_grid_bin:
-                previous_grid_bin = self.last_grid_bin
-                self.last_grid_bin = current_bin
-                if self.arp_state == 1:
-                    triggers = 1 if previous_grid_bin < 0 else current_bin - previous_grid_bin
-                    for _ in range(triggers):
-                        self.generate_notes()
+            self.last_grid_bin, changed, triggers = utils.grid_change(
+                self.transport.midi_tick, self.rate_to_midi_ticks(), self.last_grid_bin
+            )
+            if changed and self.arp_state == 1:
+                for _ in range(triggers):
+                    self.generate_notes()
 
         self.process_note_offs()
         self.was_transport_running = running

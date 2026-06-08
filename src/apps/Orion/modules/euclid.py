@@ -1,4 +1,4 @@
-from ..core import music
+from ..core import music, utils
 from ..core.module import Module
 from ..core import parms as Parms
 from ..core.note_array import NoteOnArray, NoteOffArray
@@ -107,9 +107,7 @@ class Euclid(Module):
         self.get_parm_by_name("length").set_value(self.lengths[value])
         self.get_parm_by_name("rotation").set_value(self.rotations[value])
 
-        orion = self.module_helper.orion
-        if orion is not None and getattr(orion, "ui_manager", None) is not None:
-            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
+        self.queue_parm_rebuild()
         return value
 
     def set_rate(self, value):
@@ -212,15 +210,12 @@ class Euclid(Module):
 
         if running and self.held_notes.length > 0:
             self.build_note_order()
-            current_bin = self.transport.midi_tick // self.rate_ticks
-
-            if current_bin < self.last_grid_bin:
-                self.last_grid_bin = -1
-
-            if current_bin != self.last_grid_bin:
-                self.last_grid_bin = current_bin
+            self.last_grid_bin, changed, _ = utils.grid_change(
+                self.transport.midi_tick, self.rate_ticks, self.last_grid_bin
+            )
+            if changed:
                 if self.retrigger_mode == RETRIGGER_STABLE:
-                    step = current_bin
+                    step = self.last_grid_bin
                 else:
                     step = self.step_index
                     self.step_index += 1
