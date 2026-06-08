@@ -16,6 +16,7 @@ MODULE_SPECS = (
     ("pick", "PICK"),
     ("quantize", "QNT"),
     ("randomize", "RND"),
+    ("retrigger", "RTRGR"),
     ("strum", "STRUM"),
     ("transpose", "TRNS"),
     ("wander", "WANDR")
@@ -39,6 +40,7 @@ MODULE_IMPORT_NAMES = {
     "pick": ".pick",
     "quantize": ".quantize",
     "randomize": ".randomize",
+    "retrigger": ".retrigger",
     "strum": ".strum",
     "transpose": ".transpose",
     "wander": ".wander",
@@ -93,6 +95,9 @@ def get_module_class(module_key):
     if module_key == "randomize":
         from .randomize import Randomize
         return Randomize
+    if module_key == "retrigger":
+        from .retrigger import Retrigger
+        return Retrigger
     if module_key == "strum":
         from .strum import Strum
         return Strum
