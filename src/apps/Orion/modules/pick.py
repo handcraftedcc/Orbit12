@@ -103,9 +103,18 @@ class Pick(Module):
         return False
 
     def emit_selection_change(self):
-        for i in range(self.active_notes.length):
-            self.note_offs_out.append_value(self.active_notes.notes[i])
-        self.note_ons_out.append_values(self.next_notes)
+        length = max(self.active_notes.length, self.next_notes.length)
+        for i in range(length):
+            old_active = i < self.active_notes.length
+            new_active = i < self.next_notes.length
+            if old_active and new_active:
+                if (self.active_notes.notes[i] == self.next_notes.notes[i] and
+                        self.active_notes.velocity_at(i) == self.next_notes.velocity_at(i)):
+                    continue
+            if old_active:
+                self.note_offs_out.append_value(self.active_notes.notes[i])
+            if new_active:
+                self.note_ons_out.append_from(self.next_notes, i)
         self.active_notes.clear()
         self.active_notes.append_values(self.next_notes)
 
