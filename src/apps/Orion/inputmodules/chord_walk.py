@@ -9,16 +9,15 @@ from ..core.note_array import NoteArray
 
 CHORD_PADS = (0, 3, 6, 9)
 TRIGGER_PADS = (1, 2, 4, 5, 7, 8, 10, 11)
+INPUT_SLOT = 0
+UI_PARMSELECTION = 1
+UI_PARMEDIT = 2
 PAD_COUNT = 4
 SUS_OPTIONS = ("OFF", "SUS2", "SUS4")
-BASS_MODE_OPTIONS = ("NONE", "ROOT", "2ND", "LOW", "HIGH")
-SPREAD_MODE_OPTIONS = ("TIGHT", "MED", "WIDE")
 DEFAULT_NOTES = (1, 3, 5, 7)
 PAD_VALUE_PARMS = (
     ("note", "NOTE", "notes", Parms.IntParmType, (-24, 24), None),
     ("seventh", "7TH", "sevenths", Parms.BooleanParmType, None, None),
-    ("ninth", "9TH", "ninths", Parms.BooleanParmType, None, None),
-    ("inversion", "INV", "inversions", Parms.IntParmType, (0, 3), None),
     ("sus", "SUS", "sus", Parms.EnumParmType, None, SUS_OPTIONS),
     ("power", "PWR", "power", Parms.BooleanParmType, None, None),
 )
@@ -29,16 +28,13 @@ PAD_VALUE_PARMS = (
 class ChordWalk(Input):
     name = "chord_walk"
     label = "CHRDWLK"
-    save_attrs = ("notes", "sevenths", "ninths", "inversions", "sus", "power")
+    save_attrs = ("notes", "sevenths", "sus", "power")
 
     def __init__(self, module_helper, slot_id):
         self.pad = 0
-        self.bass_mode = 0
-        self.spread_mode = 0
+        self.preview_chord = 0
         self.notes = list(DEFAULT_NOTES)
         self.sevenths = bytearray(PAD_COUNT)
-        self.ninths = bytearray(PAD_COUNT)
-        self.inversions = bytearray(PAD_COUNT)
         self.sus = bytearray(PAD_COUNT)
         self.power = bytearray(PAD_COUNT)
         self.held_chords = NoteArray(length=PAD_COUNT)
@@ -48,6 +44,8 @@ class ChordWalk(Input):
         self.current_step = 0
         self.active_note = None
         super().__init__(module_helper, slot_id, include_musical_parms=True)
+        self.held_chords.append_value(0)
+        self.build_register(0)
 
     ### PARMS ###
 
@@ -63,12 +61,9 @@ class ChordWalk(Input):
                                     edit_callback_function=lambda value, attr=attr:
                                     self.set_pad_value(attr, value)))
         parms.extend([
-            Parms.Parm(name="bass", label="BASS", default=self.bass_mode,
-                       parm_type=Parms.EnumParmType, options=BASS_MODE_OPTIONS,
-                       bind_object=self, bind_attribute="bass_mode"),
-            Parms.Parm(name="spread", label="SPRD", default=self.spread_mode,
-                       parm_type=Parms.EnumParmType, options=SPREAD_MODE_OPTIONS,
-                       bind_object=self, bind_attribute="spread_mode"),
+            Parms.Parm(name="preview_chord", label="PRVCRD", default=self.preview_chord,
+                       parm_type=Parms.BooleanParmType,
+                       bind_object=self, bind_attribute="preview_chord"),
         ])
         parms.extend(super().create_main_parms())
         return parms
@@ -77,13 +72,31 @@ class ChordWalk(Input):
         self.pad = value
         for name, _, attr, _, _, _ in PAD_VALUE_PARMS:
             self.get_parm_by_name(name).set_value(getattr(self, attr)[value])
+        orion = self.module_helper.orion
+        if orion is not None and getattr(orion, "ui_manager", None) is not None:
+            orion.add_to_ui_queue(orion.ui_manager.parameter_section.rebuild_parm_section)
         return value
 
     def set_pad_value(self, attr, value):
         getattr(self, attr)[self.pad] = value
+        if self.held_chords.length and self.pad == self.held_chords.notes[self.held_chords.length - 1]:
+            self.build_register(self.pad)
+            self.color_pixels()
         return value
 
     ### PAD HELPERS ###
+
+    def should_follow_played_pad(self):
+        return (self.state.active_chain == INPUT_SLOT and
+                self.state.active_ui_section in (UI_PARMSELECTION, UI_PARMEDIT))
+
+    def select_pad_from_input(self, slot):
+        if slot == self.pad:
+            return
+        pad_parm = self.get_parm_by_name("pad")
+        if pad_parm is not None:
+            pad_parm.set_value(slot)
+        self.set_pad(slot)
 
     def color_pixels(self, color_overrides=None):
         color_array = [neo_pixels.KEYCOLORBASE] * 12
@@ -91,7 +104,7 @@ class ChordWalk(Input):
             color_array[PADMAP.index(pad)] = neo_pixels.KEYCOLORNAVPARMS
         if self.register.length > 0:
             for i in range(len(TRIGGER_PADS)):
-                if i % self.register.length == 0:
+                if (i + self.state.key_offset) % self.register.length == 0:
                     color_array[PADMAP.index(TRIGGER_PADS[i])] = neo_pixels.KEYCOLORROOT
         try:
             self.module_helper.neo_pixels.set_key_colors(color_array)
@@ -118,7 +131,6 @@ class ChordWalk(Input):
     def note_for_degree(self, degree):
         scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)
-        degree += self.state.key_offset
         octave = degree // scale_notes + self.state.octave
         degree = degree % scale_notes
         return self.clamp_note(scale[degree] + self.state.key + (octave + 2) * 12)
@@ -141,34 +153,11 @@ class ChordWalk(Input):
         degrees.append(root + 4)
         if self.sevenths[slot]:
             degrees.append(root + 6)
-        if self.ninths[slot]:
-            degrees.append(root + 8)
 
         for degree in degrees:
             self.register.append_value(self.note_for_degree(degree))
 
-        root_note = self.register.notes[0]
-        inversions = min(self.inversions[slot], self.register.length - 1)
-        for i in range(inversions):
-            self.register.notes[i] += 12
-
-        if self.spread_mode != 0:
-            self.register.notes[self.register.length - 1] += 12
-            if self.spread_mode == 2 and self.register.length > 2:
-                self.register.notes[self.register.length - 2] += 12
-
-        if self.bass_mode != 0:
-            bass = None
-            if self.bass_mode == 1:
-                bass = root_note - 12
-            elif self.bass_mode == 2 and self.register.length > 1:
-                bass = self.register.notes[1] - 12
-            elif self.bass_mode == 3:
-                bass = self.register.get_min_note()[0] - 12
-            elif self.bass_mode == 4:
-                bass = self.register.get_max_note()[0] - 12
-            if bass is not None:
-                self.register.insert_value_at_index(self.clamp_note(bass), 0)
+        self.register.sort_notes()
 
     def active_velocity(self):
         if self.held_triggers.length == 0:
@@ -210,10 +199,6 @@ class ChordWalk(Input):
             self.held_chords.remove_value_first(slot)
         self.held_chords.append_value(slot)
 
-    def remove_held_chord(self, slot):
-        self.held_chords.remove_value_first(slot)
-        self.refresh_register()
-
     def add_held_trigger(self, index, velocity):
         if self.held_triggers.contains(index):
             self.held_triggers.remove_value_first(index)
@@ -249,7 +234,10 @@ class ChordWalk(Input):
             pad = self.pad_index(note_offs.notes[i])
             slot = self.chord_slot(pad)
             if slot is not None:
-                self.remove_held_chord(slot)
+                if self.preview_chord:
+                    self.build_register(slot)
+                    for j in range(self.register.length):
+                        self.note_offs_out.append_value(self.register.notes[j])
                 continue
             trigger = self.trigger_index(pad)
             if trigger is not None:
@@ -263,8 +251,15 @@ class ChordWalk(Input):
             pad = self.pad_index(note_ons.notes[i])
             slot = self.chord_slot(pad)
             if slot is not None:
+                velocity = note_ons.velocity_at(i, self.velocity)
+                if self.should_follow_played_pad():
+                    self.select_pad_from_input(slot)
                 self.add_held_chord(slot)
-                self.refresh_register()
+                self.build_register(slot)
+                self.color_pixels()
+                if self.preview_chord:
+                    for j in range(self.register.length):
+                        self.note_ons_out.append_value(self.register.notes[j], velocity=velocity)
                 continue
 
             trigger = self.trigger_index(pad)
@@ -272,7 +267,7 @@ class ChordWalk(Input):
                 continue
             velocity = note_ons.velocity_at(i, self.velocity)
             if self.held_triggers.length == 0:
-                self.current_step = trigger
+                self.current_step = trigger + self.state.key_offset
                 self.trigger_root = trigger
             else:
                 self.current_step += trigger - self.trigger_root

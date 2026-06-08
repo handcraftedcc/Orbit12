@@ -10,19 +10,46 @@ gc.collect()
 
 ### ARP MODES ###
 
-MODE_LIST = (
+SORT_LIST = (
     "UP",
     "DOWN",
-    "RND",
     "ORD",
+)
+
+SORT_UP = SORT_LIST.index("UP")
+SORT_DOWN = SORT_LIST.index("DOWN")
+SORT_INORDER = SORT_LIST.index("ORD")
+
+PLAY_LIST = (
+    "SORT",
+    "MIRR",
+    "THUMB",
+    "PINKY",
+    "DIV",
+    "CONV",
+    "CDIV",
+    "RND",
     "RPT",
 )
 
-MODE_UP = MODE_LIST.index("UP")
-MODE_DOWN = MODE_LIST.index("DOWN")
-MODE_RANDOM = MODE_LIST.index("RND")
-MODE_INORDER = MODE_LIST.index("ORD")
-MODE_REPEAT = MODE_LIST.index("RPT")
+MODE_LIST = ("UP", "DOWN", "RND", "ORD", "RPT")
+
+PLAY_SORT = PLAY_LIST.index("SORT")
+PLAY_MIRROR = PLAY_LIST.index("MIRR")
+PLAY_THUMB = PLAY_LIST.index("THUMB")
+PLAY_PINKY = PLAY_LIST.index("PINKY")
+PLAY_DIVERGE = PLAY_LIST.index("DIV")
+PLAY_CONVERGE = PLAY_LIST.index("CONV")
+PLAY_CONDIVERGE = PLAY_LIST.index("CDIV")
+PLAY_RANDOM = PLAY_LIST.index("RND")
+PLAY_REPEAT = PLAY_LIST.index("RPT")
+
+# Backwards-compatible names for old imports.
+MODE_UP = SORT_UP
+MODE_DOWN = SORT_DOWN
+MODE_INORDER = SORT_INORDER
+MODE_RANDOM = PLAY_RANDOM
+MODE_REPEAT = PLAY_REPEAT
 
 ### ARP MODULE ###
 
@@ -44,7 +71,9 @@ class Arp(Module):
         self.note_offs_out = NoteOffArray()
         self.scheduled_offs = NoteArray(times = True)
         self.popped_ids = NoteArray()
-        self.mode = MODE_UP
+        self.sort_mode = SORT_UP
+        self.play_mode = PLAY_SORT
+        self.transpose_steps = 0
         self.retrigger_mode = 0
         self.retrigger_mode_list = (
             "RTRG",
@@ -78,10 +107,18 @@ class Arp(Module):
                                edit_callback_function=self.set_rate)
         parms.append(rate_parm)
 
-        # Mode
-        mode_parm = Parms.Parm(name="mode", label="MDE", default=self.mode, parm_type=Parms.EnumParmType,
-                               options=MODE_LIST, bind_object=self, bind_attribute="mode")
-        parms.append(mode_parm)
+        sort_parm = Parms.Parm(name="sort_mode", label="SORT", default=self.sort_mode, parm_type=Parms.EnumParmType,
+                               options=SORT_LIST, bind_object=self, bind_attribute="sort_mode")
+        parms.append(sort_parm)
+
+        play_parm = Parms.Parm(name="play_mode", label="PLAY", default=self.play_mode, parm_type=Parms.EnumParmType,
+                               options=PLAY_LIST, bind_object=self, bind_attribute="play_mode")
+        parms.append(play_parm)
+
+        transpose_parm = Parms.Parm(name="transpose_steps", label="TRNS", default=self.transpose_steps,
+                                    parm_type=Parms.IntParmType, minmax=(-24, 24),
+                                    bind_object=self, bind_attribute="transpose_steps")
+        parms.append(transpose_parm)
 
         # Gate
         gate_parm = Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
@@ -149,11 +186,58 @@ class Arp(Module):
                 self.held_notes.remove_value_first(note)
             if self.note_register.contains(note) and not self.held_notes.contains(note):
                 self.note_register.remove_value_first(note)
-        if self.mode == MODE_UP or self.mode == MODE_RANDOM:
+        if self.sort_mode == SORT_UP or self.play_mode == PLAY_RANDOM:
             self.note_register.sort_notes()
-        elif self.mode == MODE_DOWN:
+        elif self.sort_mode == SORT_DOWN:
             self.note_register.sort_notes()
             self.note_register.reverse_notes()
+
+    ### PLAY PATHS ###
+
+    def diverge_index(self, position, count):
+        center = (count - 1) // 2
+        if position == 0:
+            return center
+        step = (position + 1) // 2
+        if position % 2:
+            return center + step
+        return center - step
+
+    def path_length(self, count):
+        if count < 2:
+            return 1
+        if self.play_mode in (PLAY_MIRROR, PLAY_THUMB, PLAY_PINKY):
+            return count * 2 - 2
+        if self.play_mode == PLAY_CONDIVERGE:
+            return count * 2 - 1
+        return count
+
+    def path_index(self, position, count):
+        if count < 2:
+            return 0
+        length = self.path_length(count)
+        position = position % length
+        if self.play_mode == PLAY_MIRROR:
+            return position if position < count else length - position
+        if self.play_mode == PLAY_THUMB:
+            return 0 if position % 2 == 0 else (position + 1) // 2
+        if self.play_mode == PLAY_PINKY:
+            return count - 1 if position % 2 == 0 else (position - 1) // 2
+        if self.play_mode == PLAY_DIVERGE:
+            return self.diverge_index(position, count)
+        if self.play_mode == PLAY_CONVERGE:
+            return self.diverge_index(count - 1 - position, count)
+        if self.play_mode == PLAY_CONDIVERGE:
+            if position < count: return self.diverge_index(count - 1 - position, count)
+            return self.diverge_index(position - count + 1, count)
+        return position % count
+
+    def transpose_note(self, note, completion):
+        steps = self.transpose_steps * completion
+        if steps:
+            scale = music.SCALES[self.state.scale]
+            note = music.transpose(note, steps, 0, True, self.state.key, scale)
+        return max(0, min(127, note))
 
     ### NOTE GENERATION ###
 
@@ -175,13 +259,15 @@ class Arp(Module):
         if check_pattern == 0: #If pattern is 0 on this step, don't emit notes
             return
 
-        if self.mode == MODE_REPEAT: #Repeat mode
+        if self.play_mode == PLAY_REPEAT: #Repeat mode
             # Repeat mode emits every held note on each active pattern step.
+            completion = self.note_register_position
             for i in range(self.note_register.length):
-                note = self.note_register.notes[i]
+                note = self.transpose_note(self.note_register.notes[i], completion)
                 velocity = self.note_register.velocity_at(i)
                 self.note_ons_out.append_value(note,velocity=velocity)
                 self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, gate))
+            self.note_register_position += 1
 
         else:
             register_note_count = self.note_register.length
@@ -210,16 +296,18 @@ class Arp(Module):
 
                 self.note_register_position = active_steps_past
 
-            if self.mode == MODE_RANDOM:
+            path_len = self.path_length(register_note_count)
+            completion = self.note_register_position // path_len
+            if self.play_mode == PLAY_RANDOM:
                 index = utils.random_int(rand_seed_time_temp + self.random_seed_user, register_note_count-1, 0)
             else:
-                index = self.note_register_position % register_note_count
+                index = self.path_index(self.note_register_position, register_note_count)
             # Non-repeat modes emit one selected note per active pattern step.
-            note = self.note_register.notes[index]
+            note = self.transpose_note(self.note_register.notes[index], completion)
             velocity = self.note_register.velocity_at(index)
             self.note_ons_out.append_value(note, velocity=velocity)
             self.scheduled_offs.append_value(note, time=ticks.ticks_add(current, gate))
-            self.note_register_position = (self.note_register_position+1) % register_note_count
+            self.note_register_position += 1
 
         #print("Note Register", self.note_register.notes)
         #print("Note Register Position", self.note_register_position)
