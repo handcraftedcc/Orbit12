@@ -1,6 +1,5 @@
-from ..core import music
+from ..core import music, parms as Parms
 from ..core.module import Module
-from ..core import parms as Parms
 import adafruit_ticks as ticks
 from ..core import utils
 from ..core.note_array import NoteArray,NoteOnArray,NoteOffArray
@@ -10,39 +9,14 @@ gc.collect()
 
 ### ARP MODES ###
 
-SORT_LIST = (
-    "UP",
-    "DOWN",
-    "ORD",
-)
+SORT_LIST = ("UP", "DOWN", "ORD")
+SORT_UP, SORT_DOWN, SORT_INORDER = 0, 1, 2
 
-SORT_UP = SORT_LIST.index("UP")
-SORT_DOWN = SORT_LIST.index("DOWN")
-SORT_INORDER = SORT_LIST.index("ORD")
-
-PLAY_LIST = (
-    "SORT",
-    "MIRR",
-    "THUMB",
-    "PINKY",
-    "DIV",
-    "CONV",
-    "CDIV",
-    "RND",
-    "RPT",
-)
-
+PLAY_LIST = ("SORT", "MIRR", "THUMB", "PINKY", "DIV", "CONV", "CDIV", "RND", "RPT")
 MODE_LIST = ("UP", "DOWN", "RND", "ORD", "RPT")
 
-PLAY_SORT = PLAY_LIST.index("SORT")
-PLAY_MIRROR = PLAY_LIST.index("MIRR")
-PLAY_THUMB = PLAY_LIST.index("THUMB")
-PLAY_PINKY = PLAY_LIST.index("PINKY")
-PLAY_DIVERGE = PLAY_LIST.index("DIV")
-PLAY_CONVERGE = PLAY_LIST.index("CONV")
-PLAY_CONDIVERGE = PLAY_LIST.index("CDIV")
-PLAY_RANDOM = PLAY_LIST.index("RND")
-PLAY_REPEAT = PLAY_LIST.index("RPT")
+PLAY_SORT, PLAY_MIRROR, PLAY_THUMB, PLAY_PINKY, PLAY_DIVERGE = 0, 1, 2, 3, 4
+PLAY_CONVERGE, PLAY_CONDIVERGE, PLAY_RANDOM, PLAY_REPEAT = 5, 6, 7, 8
 
 # Backwards-compatible names for old imports.
 MODE_UP = SORT_UP
@@ -74,12 +48,10 @@ class Arp(Module):
         self.sort_mode = SORT_UP
         self.play_mode = PLAY_SORT
         self.transpose_steps = 0
+        self.max_transpose = 0
+        self.boundary_mode = utils.BOUNDARY_WRAP_UNI
         self.retrigger_mode = 0
-        self.retrigger_mode_list = (
-            "RTRG",
-            "CONT",
-            "STBL",
-        )
+        self.retrigger_mode_list = ("RTRG", "CONT", "STBL")
         self.gate = 100
         self.arp_state = 0 #0 = Not active, 1 = Active -> When all notes are released we go empty
         self.random_seed_user = 0
@@ -101,60 +73,31 @@ class Arp(Module):
     ### PARMS ###
 
     def create_main_parms(self):
-        parms = []
-        # Rate
-        rate_parm = Parms.Parm(name="rate", label="RATE", default=self.rate_value, parm_type=Parms.RateParmType,
-                               edit_callback_function=self.set_rate)
-        parms.append(rate_parm)
-
-        sort_parm = Parms.Parm(name="sort_mode", label="SORT", default=self.sort_mode, parm_type=Parms.EnumParmType,
-                               options=SORT_LIST, bind_object=self, bind_attribute="sort_mode")
-        parms.append(sort_parm)
-
-        play_parm = Parms.Parm(name="play_mode", label="PLAY", default=self.play_mode, parm_type=Parms.EnumParmType,
-                               options=PLAY_LIST, bind_object=self, bind_attribute="play_mode")
-        parms.append(play_parm)
-
-        transpose_parm = Parms.Parm(name="transpose_steps", label="TRNS", default=self.transpose_steps,
-                                    parm_type=Parms.IntParmType, minmax=(-24, 24),
-                                    bind_object=self, bind_attribute="transpose_steps")
-        parms.append(transpose_parm)
-
-        # Gate
-        gate_parm = Parms.Parm(name="gate", label="GATE", default=self.gate, parm_type=Parms.FloatParmType,
-                               increment=5, minmax = (0,100000), bind_object=self, bind_attribute="gate")
-        parms.append(gate_parm)
-
-        # Pattern
-        pattern_parm = Parms.Parm(name="pattern", label="PTN", default=self.selected_pattern,
-                                  parm_type=Parms.PatternParmType,
-                                  edit_callback_function=self.set_pattern)
-        parms.append(pattern_parm)
-
-        pattern_shift_parm = Parms.Parm(name="pattern_shift", label="PTSHFT", default=self.pattern_shift,
-                                        parm_type=Parms.IntParmType, bind_object=self, bind_attribute="pattern_shift")
-        parms.append(pattern_shift_parm)
-
-        # Random Pattern Length
-        random_pattern_length_parm = Parms.Parm(name="random_pattern_length", label="RNDLEN", default=self.random_pattern_length,
-                                                parm_type=Parms.IntParmType, minmax=(0,128),
-                                                bind_object=self, bind_attribute="random_pattern_length")
-        parms.append(random_pattern_length_parm)
-
-        # Random Seed
-        random_seed_parm = Parms.Parm(name="rand_seed", label="SEED", default=self.random_seed_user,
-                                      parm_type=Parms.IntParmType,
-                                      minmax=(0, 10000), bind_object=self, bind_attribute="random_seed_user")
-        parms.append(random_seed_parm)
-
-        # Retrigger Mode
-        retrigger_parm = Parms.Parm(name="retrigger_mode", label="RTRG", default=self.retrigger_mode,
-                                    parm_type=Parms.EnumParmType,
-                                    options=self.retrigger_mode_list,
-                                    bind_object=self, bind_attribute="retrigger_mode")
-        parms.append(retrigger_parm)
-
-        return parms
+        return [
+            Parms.Parm("rate", "RATE", Parms.RateParmType, self.rate_value, edit_callback_function=self.set_rate),
+            Parms.Parm("sort_mode", "SORT", Parms.EnumParmType, self.sort_mode,
+                       options=SORT_LIST, bind_object=self, bind_attribute="sort_mode"),
+            Parms.Parm("play_mode", "PLAY", Parms.EnumParmType, self.play_mode,
+                       options=PLAY_LIST, bind_object=self, bind_attribute="play_mode"),
+            Parms.Parm("transpose_steps", "TRNS", Parms.IntParmType, self.transpose_steps,
+                       minmax=(-24, 24), bind_object=self, bind_attribute="transpose_steps"),
+            Parms.Parm("max_transpose", "MAXTRN", Parms.IntParmType, self.max_transpose,
+                       minmax=(0, 48), bind_object=self, bind_attribute="max_transpose"),
+            Parms.Parm("boundary_mode", "BND", Parms.EnumParmType, self.boundary_mode,
+                       options=utils.BOUNDARY_LIST, bind_object=self, bind_attribute="boundary_mode"),
+            Parms.Parm("gate", "GATE", Parms.FloatParmType, self.gate,
+                       increment=5, minmax=(0,100000), bind_object=self, bind_attribute="gate"),
+            Parms.Parm("pattern", "PTN", Parms.PatternParmType, self.selected_pattern,
+                       edit_callback_function=self.set_pattern),
+            Parms.Parm("pattern_shift", "PTSHFT", Parms.IntParmType, self.pattern_shift,
+                       bind_object=self, bind_attribute="pattern_shift"),
+            Parms.Parm("random_pattern_length", "RNDLEN", Parms.IntParmType, self.random_pattern_length,
+                       minmax=(0,128), bind_object=self, bind_attribute="random_pattern_length"),
+            Parms.Parm("rand_seed", "SEED", Parms.IntParmType, self.random_seed_user,
+                       minmax=(0, 10000), bind_object=self, bind_attribute="random_seed_user"),
+            Parms.Parm("retrigger_mode", "RTRG", Parms.EnumParmType, self.retrigger_mode,
+                       options=self.retrigger_mode_list, bind_object=self, bind_attribute="retrigger_mode"),
+        ]
 
     def set_rate(self, value):
         self.rate_value = value
@@ -217,23 +160,25 @@ class Arp(Module):
             return 0
         length = self.path_length(count)
         position = position % length
-        if self.play_mode == PLAY_MIRROR:
+        mode = self.play_mode
+        if mode == PLAY_MIRROR:
             return position if position < count else length - position
-        if self.play_mode == PLAY_THUMB:
+        if mode == PLAY_THUMB:
             return 0 if position % 2 == 0 else (position + 1) // 2
-        if self.play_mode == PLAY_PINKY:
+        if mode == PLAY_PINKY:
             return count - 1 if position % 2 == 0 else (position - 1) // 2
-        if self.play_mode == PLAY_DIVERGE:
+        if mode == PLAY_DIVERGE:
             return self.diverge_index(position, count)
-        if self.play_mode == PLAY_CONVERGE:
+        if mode == PLAY_CONVERGE:
             return self.diverge_index(count - 1 - position, count)
-        if self.play_mode == PLAY_CONDIVERGE:
+        if mode == PLAY_CONDIVERGE:
             if position < count: return self.diverge_index(count - 1 - position, count)
             return self.diverge_index(position - count + 1, count)
         return position % count
 
     def transpose_note(self, note, completion):
         steps = self.transpose_steps * completion
+        steps = utils.bound_offset(steps, self.max_transpose, self.boundary_mode)
         if steps:
             scale = music.SCALES[self.state.scale]
             note = music.transpose(note, steps, 0, True, self.state.key, scale)

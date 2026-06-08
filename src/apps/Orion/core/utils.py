@@ -27,3 +27,35 @@ def random_int(seed, max_value, mode):
         low = min(-max_value, max_value)
         high = max(-max_value, max_value)
     return low + (hash_u32(seed) % (high - low + 1))
+
+
+### BOUNDARY HELPERS ###
+
+BOUNDARY_LIST = ("WRPU", "WRPB", "FLDU", "FLDB", "CLMP")
+BOUNDARY_WRAP_UNI, BOUNDARY_WRAP_BI, BOUNDARY_FOLD_UNI = 0, 1, 2
+BOUNDARY_FOLD_BI, BOUNDARY_CLAMP = 3, 4
+
+def bound_offset(offset, limit, mode):
+    if limit <= 0:
+        return offset
+    if mode == BOUNDARY_CLAMP:
+        return max(-limit, min(limit, offset))
+    if mode == BOUNDARY_WRAP_UNI:
+        return offset % (limit + 1)
+    if mode == BOUNDARY_WRAP_BI:
+        return ((offset + limit) % (limit * 2 + 1)) - limit
+
+    if mode == BOUNDARY_FOLD_UNI:
+        period = limit * 2
+        offset = offset % period
+        if offset <= limit:
+            return offset
+        return period - offset
+
+    period = limit * 4
+    offset = offset % period
+    if offset <= limit:
+        return offset
+    if offset <= limit * 3:
+        return limit * 2 - offset
+    return offset - period

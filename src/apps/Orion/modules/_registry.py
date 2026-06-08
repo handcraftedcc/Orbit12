@@ -3,6 +3,7 @@
 MODULE_SPECS = (
     ("empty", "EMPTY"),
     ("arp", "ARP"),
+    ("arp_walk", "ARPWLK"),
     ("bounce", "BOUNCE"),
     ("chord", "CHRD"),
     ("chopper", "CHOPPR"),
@@ -25,6 +26,7 @@ AVAILABLE_MODULE_LABELS = [spec[1] for spec in MODULE_SPECS]
 
 MODULE_IMPORT_NAMES = {
     "arp": ".arp",
+    "arp_walk": ".arp_walk",
     "bounce": ".bounce",
     "chord": ".chord",
     "chopper": ".chopper",
@@ -55,6 +57,9 @@ def get_module_class(module_key):
     if module_key == "arp":
         from .arp import Arp
         return Arp
+    if module_key == "arp_walk":
+        from .arp_walk import ArpWalk
+        return ArpWalk
     if module_key == "bounce":
         from .bounce import Bounce
         return Bounce
@@ -79,9 +84,6 @@ def get_module_class(module_key):
     if module_key == "latch":
         from .latch import Latch
         return Latch
-    if module_key == "phraser":
-        from .phraser import Phraser
-        return Phraser
     if module_key == "pick":
         from .pick import Pick
         return Pick
