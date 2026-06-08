@@ -30,7 +30,7 @@ class Bounce(Module):
         self.transport = self.module_helper.transport
         self.bounces = 3
         self.interval_mode = 0
-        self.interval_ms = 40
+        self.interval_ms = 150
         self.interval_rate_value = 8
         self.interval_rate = music.RATE_MIDI_TICKS[self.interval_rate_value]
         self.interval_mod = 0 # 0 means steady - 1 means goes to 0 by bounces+1 bounces
