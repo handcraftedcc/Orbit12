@@ -2,11 +2,11 @@
 
 MODULE_SPECS = (
     ("note", "NOTE"),
+    ("chords", "CHRD"),
+    ("drum", "DRUM"),
+    ("matrix", "MTRX"),
     ("note_walk", "NOTEWLK"),
     ("chord_walk", "CHRDWLK"),
-    ("chords", "CHRD"),
-    ("matrix", "MTRX"),
-    ("drum", "DRUM"),
 )
 
 AVAILABLE_MODULE_NAMES = [spec[0] for spec in MODULE_SPECS]
@@ -14,11 +14,11 @@ AVAILABLE_MODULE_LABELS = [spec[1] for spec in MODULE_SPECS]
 
 MODULE_IMPORT_NAMES = {
     "note": ".note",
+    "chords": ".chords",
+    "drum": ".drum",
+    "matrix": ".matrix",
     "note_walk": ".note_walk",
     "chord_walk": ".chord_walk",
-    "chords": ".chords",
-    "matrix": ".matrix",
-    "drum": ".drum",
 }
 
 
@@ -31,21 +31,21 @@ def get_module_class(module_key):
     if module_key == "note":
         from .note import Note
         return Note
+    if module_key == "chords":
+        from .chords import Chords
+        return Chords
+    if module_key == "drum":
+        from .drum import Drum
+        return Drum
+    if module_key == "matrix":
+        from .matrix import Matrix
+        return Matrix
     if module_key == "note_walk":
         from .note_walk import NoteWalk
         return NoteWalk
     if module_key == "chord_walk":
         from .chord_walk import ChordWalk
         return ChordWalk
-    if module_key == "chords":
-        from .chords import Chords
-        return Chords
-    if module_key == "matrix":
-        from .matrix import Matrix
-        return Matrix
-    if module_key == "drum":
-        from .drum import Drum
-        return Drum
     return None
 
 

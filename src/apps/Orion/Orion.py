@@ -65,7 +65,7 @@ def _unload_module(module_path):
 
 ### APP MANAGER ###
 
-class MidiCommander:
+class Orion:
     def __init__(self):
         ## Hardware Setup ##
 

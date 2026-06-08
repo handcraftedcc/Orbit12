@@ -216,4 +216,5 @@ def transpose(note, semitones, octaves = 0, scale_aware = True, root = 0, scale 
         note = note + (octave + octave_shift + octaves) * 12 + root
     else:
         note = note + semitones + octaves * 12
+    note = max(min(note, 127),0)
     return note

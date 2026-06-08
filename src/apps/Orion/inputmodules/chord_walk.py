@@ -43,6 +43,7 @@ class ChordWalk(Input):
         self.trigger_root = None
         self.current_step = 0
         self.active_note = None
+        module_helper.state.key_offset = -2
         super().__init__(module_helper, slot_id, include_musical_parms=True)
         self.held_chords.append_value(0)
         self.build_register(0)

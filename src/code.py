@@ -1,12 +1,12 @@
 from adafruit_macropad import MacroPad
 
-import apps.Orion.MidiCommander as MidiCommander
+import apps.Orion.Orion as Orion
 #import apps.MidiTester.code as MidiTester
 #import apps.Orion.tinytest as tinytest
 
 
 
-midi_commander = MidiCommander.MidiCommander()
+midi_commander = Orion.Orion()
 midi_commander.run()
 
 #MidiTester.run()
