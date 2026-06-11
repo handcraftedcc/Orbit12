@@ -280,10 +280,21 @@ class Arp(Module):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         running = self.transport.running
+
+        #Check if note offs temporarily turn off all notes
+        counter = 0
+        for i in range(note_offs.length):
+            if self.note_register.contains(note_offs.notes[i]):
+                counter += 1
+
+        same_frame_retrigger = False
+        if counter == self.note_register.length:
+            same_frame_retrigger = True
+
         if note_ons.length>0 or note_offs.length>0:
             self.update_note_register(note_ons, note_offs)
 
-        if self.arp_state == 1 and self.note_register.length<1: #All keys released
+        if (self.arp_state == 1 and self.note_register.length<1) or same_frame_retrigger: #All keys released
             self.arp_state = 0
             #print("All Keys Released")
             if self.retrigger_mode == 0:

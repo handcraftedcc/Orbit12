@@ -229,6 +229,13 @@ class NoteRelationshipArray:
         self.return_length = 0
         self.max_length = length
 
+    def has_in_note(self, in_note):
+        for i in range(self.length):
+            note = self.in_notes[i]
+            if in_note == note:
+                return True,i
+        return False,None
+
     def has_out_note(self, out_note):
         for i in range(self.length):
             note = self.out_notes[i]

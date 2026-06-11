@@ -167,6 +167,7 @@ class ArpWalk(Module):
         self.step_position += 1
 
     def bounded_walk_position(self):
+        if self.invert: return -utils.bound_offset(-self.walk_position, self.max_walk, self.boundary_mode)
         return utils.bound_offset(self.walk_position, self.max_walk, self.boundary_mode)
 
     def note_for_single(self):
@@ -236,10 +237,21 @@ class ArpWalk(Module):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         running = self.transport.running
+
+        #Check if note offs temporarily turn off all notes
+        counter = 0
+        for i in range(note_offs.length):
+            if self.note_register.contains(note_offs.notes[i]):
+                counter += 1
+
+        same_frame_retrigger = False
+        if counter == self.note_register.length:
+            same_frame_retrigger = True
+
         if note_ons.length > 0 or note_offs.length > 0:
             self.update_note_register(note_ons, note_offs)
 
-        if self.arp_state == 1 and self.note_register.length < 1:
+        if (self.arp_state == 1 and self.note_register.length < 1) or same_frame_retrigger:
             self.arp_state = 0
             if self.retrigger_mode == 0:
                 self.walk_position = 0

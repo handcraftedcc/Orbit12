@@ -54,6 +54,7 @@ class Chords(Input):
         self.bass_mode = 0
         self.spread_mode = 0
         self.borrow_scale = 0
+        self.max_chords = 1
         super().__init__(module_helper, slot_id, include_musical_parms=True)
 
         self.color_pixels()
@@ -63,6 +64,7 @@ class Chords(Input):
         self.note_ons = NoteOnArray(length = 6)
         self.note_offs = NoteOffArray(length = 6)
         self.temp_chord = NoteArray(length = 6)
+        self.held_chords = 0
 
     ### PARMS ###
 
@@ -85,6 +87,12 @@ class Chords(Input):
                                       options=BORROW_SCALE_OPTIONS,
                                       bind_object=self, bind_attribute="borrow_scale")
         parms.append(borrow_scale_parm)
+
+        # Max Chords
+        max_chords_parm = Parms.Parm(name="max_chords", label="MAXCT", parm_type=Parms.IntParmType,
+                                       default=self.max_chords, minmax = (1,6),
+                                       bind_object=self, bind_attribute="max_chords")
+        parms.append(max_chords_parm)
         return parms
 
     def color_pixels(self, color_overrides = None):
@@ -240,10 +248,30 @@ class Chords(Input):
                 if self.held_modifiers.contains(pad_note):
                     self.held_modifiers.remove_value_first(pad_note)
 
+        #Check if there is room for new chords based on max_chords
+
+        new_chords = 0
+        for i in range(note_ons.length):
+            pad_note = note_ons.notes[i]
+            pad_note = PADMAP.index(pad_note)
+            if pad_note < 6:  # -> Root Note
+                new_chords += 1
+        force_offs = (new_chords + self.held_chords) - self.max_chords
+        if force_offs > 0:
+            counter = 0
+            while counter < force_offs:
+                in_note = self.held_note_relationship.in_notes[0]
+                if not self.note_offs.contains(in_note):
+                    counter += 1
+                    self.note_offs.append_value(in_note)
+
         # Convert released roots back into all chord notes they created.
         for i in range(self.note_offs.length):
             pad_note = self.note_offs.notes[i]
+            has, ct = self.held_note_relationship.has_in_note(pad_note)
+            if not has: continue
             chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
+            self.held_chords -= 1
             if chord.return_length > 0:
                 for j in range(chord.return_length):
                     note = chord.return_notes[j]
@@ -257,6 +285,8 @@ class Chords(Input):
             pad_note = note_ons.notes[i]
             pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
             if pad_note < 6:  # -> Chord root
+                if self.note_ons.length>=self.max_chords:
+                    continue
                 self.note_ons.append_value(pad_note)
             else:  # -> Modifier
                 pad_note -= 6
@@ -267,6 +297,7 @@ class Chords(Input):
         # Store input-to-output relationships so releases can find chord tones.
         for i in range(self.note_ons.length):
             pad_note = self.note_ons.notes[i]
+            self.held_chords += 1
             self.build_chord(pad_note)
             for j in range(self.temp_chord.length):
                 chord_note = self.temp_chord.notes[j]
@@ -279,7 +310,6 @@ class Chords(Input):
 
         #if note_ons.length > 0 or note_offs.length > 0:
             #print("Held Notes Relationship: ", self.held_note_relationship.in_notes, self.held_note_relationship.out_notes)
-
         return self.note_ons_out, self.note_offs_out
 
     def stop(self):

@@ -80,6 +80,22 @@ class Retrigger(Module):
         self.note_offs_out.clear()
 
         had_notes = self.held_notes.length > 0
+
+        # Check if a full retrigger already happened
+        if note_offs.length>0 and self.held_notes.length>0 and self.held_notes.length == note_offs.length:
+            all_off = True
+            for i in range(self.held_notes.length):
+                note = self.held_notes.notes[i]
+                all_off = note_offs.contains(note)
+                if not all_off:
+                    break
+            if all_off:
+                self.note_offs_out.append_values(note_offs)
+                self.note_ons_out.append_values(note_ons)
+                self.held_notes.length = 0
+                return self.note_ons_out, self.note_offs_out
+
+        # Check for triggers
         press_event = self.mode in (MODE_PRESS,MODE_BOTH) and note_ons.length > 0
         release_event = self.mode in (MODE_RELEASE, MODE_BOTH) and note_offs.length > 0
 
