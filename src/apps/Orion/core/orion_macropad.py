@@ -26,7 +26,7 @@ class OrionMacroPad:
         self._debounced_switch = Debouncer(self._encoder_switch)
 
         self.display = board.DISPLAY
-        self.display.bus.send(_DISPLAY_WAKE_COMMAND, b"")
+        #self.display.bus.send(_DISPLAY_WAKE_COMMAND, b"")
         self._display_sleep = False
 
         self._rotation = 0

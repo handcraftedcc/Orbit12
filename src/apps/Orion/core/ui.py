@@ -130,7 +130,6 @@ class UIManager:
             self.chain.group.hidden = True
             self.parameter_section.group.hidden = True
             self.module_selector.group.hidden = False
-        self.screen.update()
 
 
 ### SCREEN ###

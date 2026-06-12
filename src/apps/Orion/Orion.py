@@ -2,6 +2,8 @@
 Main app manager for Orion.
 '''
 
+
+
 ### IMPORTS ###
 
 import keypad
@@ -10,9 +12,6 @@ import gc
 from .core.orion_macropad import OrionMacroPad as MacroPad
 
 gc.collect()
-print("START")
-print("allocated:",gc.mem_alloc())
-print("free:",gc.mem_free())
 
 import microcontroller
 
@@ -37,9 +36,7 @@ from .core._modules._empty import Empty as EmptyModule
 from .core._modules._transport import Transport as TransportModule
 from .core._modules._output import Output as OutputModule
 from .core._modules._settings import Settings as SettingsModule
-gc.collect()
-print("allocated import:",gc.mem_alloc())
-print("free:",gc.mem_free())
+
 
 SCREEN_REFRESH_RATE = 4
 SCREEN_SLEEP_TIME = 60000
