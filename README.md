@@ -1,6 +1,6 @@
 # Orbit12
 
-Orbit12 is the open-source umbrella project for a focused MIDI keyboard workflow on the Adafruit MacroPad RP2040. The project is built around the 12-key pad and currently ships with one app, Orion, which provides a chain-based modular MIDI keyboard instrument with scale-aware input modules, processing modules, scenes, and a small on-device UI.
+Orbit12 is the open-source umbrella project for a focused MIDI keyboard workflow on the very affordable Adafruit MacroPad RP2040 (~$50). The project is built around the 12-key pad and currently ships with one app, Orion, which provides a chain-based modular MIDI keyboard instrument with scale-aware input modules, processing modules, scenes, and a small on-device UI.
 
 Start here:
 
@@ -61,9 +61,16 @@ If you use a release build, you still need the board to be running CircuitPython
 
 ## About AI Involvement
 
-Most of Orbit12 was hand coded. AI was used heavily during the project for planning, debugging, learning CircuitPython APIs, and generating supporting musical data such as scale-related material.
+Some background:
+One of the goals of this projects for me was to up my python game - a language I already used in Houdini for scripting, but I wanted to get better at it.
+I did initially try a purely "vibecoded approach" but this quickly failed, as the RP2040 ram is very limited for an app of this size and depth, and AI was unable to write consice and focused enough code in this case, and I kept getting out of memory errors.
 
-A few late-stage modules were fully AI coded, then reviewed and integrated into the rest of the app. The intent throughout was to keep the architecture and musical behavior deliberate, even when AI helped produce the first draft of a piece.
+Thus, most of Orbit12 is hand coded but AI was used heavily during the project for planning, debugging, learning CircuitPython APIs, and generating supporting musical data such as scale-related material.
+
+A few late-stage modules were fully AI coded, then reviewed and integrated into the rest of the app, primarily to save time and repetitive work - as my free time is limited. The intent throughout was to keep the architecture and musical behavior deliberate, even when AI helped produce the first draft of a piece.
+
+## Inspiration
+A lot of this projects inspiration was taken from [Schwung](https://github.com/charlesvestal/schwung) - an amazing "hack" for the Ableton Move, to which I contributed a few modules.
 
 ## Open Source
 
