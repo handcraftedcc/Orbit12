@@ -36,7 +36,6 @@ MODULE_IMPORT_NAMES = {
     "euclid": ".euclid",
     "gate": ".gate",
     "latch": ".latch",
-    "phraser": ".phraser",
     "pick": ".pick",
     "quantize": ".quantize",
     "randomize": ".randomize",
