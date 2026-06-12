@@ -1,6 +1,12 @@
 # Orbit12
 
-Orbit12 is the open-source umbrella project for a focused MIDI keyboard workflow on the very affordable Adafruit MacroPad RP2040 (~$50). The project is built around the 12-key pad and currently ships with one app, Orion, which provides a chain-based modular MIDI keyboard instrument with scale-aware input modules, processing modules, scenes, and a small on-device UI.
+Orbit 12 is an open-source USB MIDI Keyboard Instrument Software built for the rather affordable Adafruit Macropad RP2050 (~$50). It currently ships with one app:
+ORION an incredibly flexible modular chain based MIDI instrument.
+
+I started this project with the desire for a portable midi keyboard that was both, tiny and powerful, filled with tools to make composing both fun and easy, even without deep music theory knowledge.
+
+The whole app is scale aware, and includes a variety of input modules, and midi processors.
+
 
 Start here:
 
@@ -24,7 +30,15 @@ Orion is the only app in the project right now. Additional apps such as a step s
 
 There are two supported ways to get Orbit12 onto a board.
 
-### Option 1: Build From Source
+### Option 1: Use a Release Build
+
+First install CircuitPython on the MacroPad, using the [Adafruit install guide](https://learn.adafruit.com/welcome-to-circuitpython/installing-circuitpython).
+
+Download the prebuilt Orbit12 package from the [Releases page](https://github.com/handcraftedcc/Orbit12/releases) and copy its contents to `CIRCUITPY`.
+
+If you use a release build, you still need the board to be running CircuitPython 10.1.4 or a compatible nearby release.
+
+### Option 2: Build From Source
 
 1. Install CircuitPython on the MacroPad, ideally version 10.1.4.
 2. Clone or unpack this repository.
@@ -46,12 +60,6 @@ Useful supporting resources:
 - Adafruit CircuitPython bundle and library downloads: [circuitpython.org/libraries](https://circuitpython.org/libraries)
 - CircuitPython build helper notes: use the CircuitPython `mpy-cross` compiler, not the MicroPython one
 
-### Option 2: Use a Release Build
-
-Download the prebuilt Orbit12 package from the [Releases page](https://github.com/handcraftedcc/Orbit12/releases) and copy its contents to `CIRCUITPY`.
-
-If you use a release build, you still need the board to be running CircuitPython 10.1.4 or a compatible nearby release.
-
 ## Project Layout
 
 - `src/`: source tree that lands on the board
@@ -65,7 +73,7 @@ Some background:
 One of the goals of this projects for me was to up my python game - a language I already used in Houdini for scripting, but I wanted to get better at it.
 I did initially try a purely "vibecoded approach" but this quickly failed, as the RP2040 ram is very limited for an app of this size and depth, and AI was unable to write consice and focused enough code in this case, and I kept getting out of memory errors.
 
-Thus, most of Orbit12 is hand coded but AI was used heavily during the project for planning, debugging, learning CircuitPython APIs, and generating supporting musical data such as scale-related material.
+Thus, most of Orbit12 is hand coded but AI was used heavily during the project for planning, debugging, learning CircuitPython APIs, generating supporting musical data such as scale-related material and helping with documentation.
 
 A few late-stage modules were fully AI coded, then reviewed and integrated into the rest of the app, primarily to save time and repetitive work - as my free time is limited. The intent throughout was to keep the architecture and musical behavior deliberate, even when AI helped produce the first draft of a piece.
 
