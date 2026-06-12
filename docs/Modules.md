@@ -70,8 +70,8 @@ Visible parameters:
 - `MAXTRN`: maximum allowed transposition
 - `BND`: how notes are bounded when transposed
 - `GATE`: note length
-- `PTN`: rhythm pattern
-- `PTSHFT`: rhythm shift
+- `RYTM`: rhythm pattern
+- `RYSHFT`: rhythm shift
 - `RNDLEN`: randomization window
 - `SEED`: random seed
 - `RTRG`: retrigger mode
@@ -91,21 +91,21 @@ Enum parameters:
 
 Visible parameters:
 
-- `RATE`
-- `SORT`
-- `LEN`: step pattern length
-- `SEL`: selected step in the pattern
+- `RATE`: step rate
+- `SORT`: note ordering
+- `LEN`: walk pattern length
+- `SEL`: selected step in the walk pattern
 - `VAL`: value for the selected step
-- `RAND`: randomize the step pattern
+- `RAND`: randomize the walk pattern steps
 - `INV`: invert the walk direction
 - `MAXWLK`: maximum walk distance
-- `BND`
-- `GATE`
+- `BND`: boundary behavior for the walk position
+- `GATE`: note length
 - `RYTM`: rhythm pattern
-- `PTSHFT`
-- `RTRG`
+- `RYSHFT`: rhythm shift
+- `RTRG`: retrigger mode
 
-`LEN`, `SEL`, `VAL`, and `RAND` edit the module's local walk pattern. `RYTM` and `PTSHFT` use the shared [Pattern Reference](#pattern-reference) below.
+`LEN`, `SEL`, `VAL`, and `RAND` edit the module's local walk pattern. `RYTM` uses the shared [Pattern Reference](#pattern-reference) below.
 
 Enum parameters:
 

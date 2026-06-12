@@ -81,7 +81,7 @@ class ArpWalk(Module):
                        increment=5, minmax=(0,100000), bind_object=self, bind_attribute="gate"),
             Parms.Parm("rhythm_pattern", "RYTM", Parms.PatternParmType, self.selected_pattern,
                        edit_callback_function=self.set_pattern),
-            Parms.Parm("pattern_shift", "PTSHFT", Parms.IntParmType, self.pattern_shift,
+            Parms.Parm("pattern_shift", "RYSHFT", Parms.IntParmType, self.pattern_shift,
                        bind_object=self, bind_attribute="pattern_shift"),
             Parms.Parm("retrigger_mode", "RTRG", Parms.EnumParmType, self.retrigger_mode,
                        options=self.retrigger_mode_list, bind_object=self, bind_attribute="retrigger_mode"),
