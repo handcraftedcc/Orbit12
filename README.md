@@ -4,11 +4,11 @@ Orbit12 is the open-source umbrella project for a focused MIDI keyboard workflow
 
 Start here:
 
-- [UX guide](./UX.md)
-- [Input modules](./Input-Modules.md)
-- [Processing modules](./Modules.md)
-- [Architecture](./Architecture.md)
-- [Module development guide](./Module-Dev-Guide.md)
+- [UX guide](docs/UX.md)
+- [Input modules](docs/Input-Modules.md)
+- [Processing modules](docs/Modules.md)
+- [Architecture](docs/Architecture.md)
+- [Module development guide](docs/Module-Dev-Guide.md)
 
 ## What You Need
 
