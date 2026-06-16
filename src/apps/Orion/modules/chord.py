@@ -5,6 +5,15 @@ from ..core.note_array import NoteRelationshipArray, NoteOnArray, NoteOffArray
 
 ### CHORD MODULE ###
 
+
+def iter_unique_offsets(offsets):
+    seen = []
+    for offset in offsets:
+        if offset in seen:
+            continue
+        seen.append(offset)
+        yield offset
+
 class Chord(Module):
     name = "chord"
     label = "CHRD"
@@ -76,25 +85,16 @@ class Chord(Module):
             note = note_ons.notes[i]
             velocity = note_ons.velocity_at(i)
 
-            for idx,offset in enumerate(self.offsets):
-                duplicate_offset = False
-                for previous_idx in range(idx):
-                    if self.offsets[previous_idx] == offset:
-                        duplicate_offset = True
-                        break
-                if duplicate_offset:
-                    continue  # skip duplicate notes
+            for offset in iter_unique_offsets(self.offsets):
                 new_note = music.transpose(note, offset, 0, self.scale_aware, self.state.key, scale)
-                append = False
-                if self.note_relationship.length < self.note_relationship.max_length:
-                    append = True
+                if self.note_relationship.length >= self.note_relationship.max_length:
+                    continue
 
-                if append:
-                    has_out_note, _ = self.note_relationship.has_out_note(new_note)
-                    if has_out_note:
-                        self.note_offs_out.append_value(new_note)
-                    self.note_ons_out.append_value(new_note, velocity=velocity)
-                    self.note_relationship.add_note(note, new_note)
+                has_out_note, _ = self.note_relationship.has_out_note(new_note)
+                if has_out_note:
+                    self.note_offs_out.append_value(new_note)
+                self.note_ons_out.append_value(new_note, velocity=velocity)
+                self.note_relationship.add_note(note, new_note)
 
 
         return self.note_ons_out, self.note_offs_out

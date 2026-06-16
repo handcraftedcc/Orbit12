@@ -1,4 +1,5 @@
 from ..core import parms as Parms
+from ..core import neo_pixels
 from ..core._modules._input import Input
 from ..core.note_array import  NoteArray,NoteOnArray,NoteOffArray,NoteRelationshipArray
 import rainbowio
@@ -6,32 +7,95 @@ import rainbowio
 from ..core import music as Music
 from ..core._modules._input import PADMAP
 
-### CHORD INPUT DESIGN ###
-
-'''
-Idea:
-Top 6 buttons are modifiers:
-- Inversion
-- 7th
-- Sus
-- Add9
-- Bass
-- Spread
-
-Bottom 6 buttons are root notes.
-'''
-
 ### CHORD OPTIONS ###
 
-# TODO: Update key color for chords
-class ModifierMap:
-    # What keys do what. Might become parameters later.
-    SEV = 0
-    ADD9 = 3
-    SUS = 1
-    INV = 4
-    POWER = 2
-    BORROW = 5
+LAYOUT_SPLIT = 0
+LAYOUT_4X8 = 1
+LAYOUT_OPTIONS = ("SPLT", "4&8")
+INPUT_SLOT = 0
+UI_PARMSELECTION = 1
+UI_PARMEDIT = 2
+ROOT_PADS_BY_LAYOUT = (
+    (0, 1, 2, 3, 4, 5),
+    (1, 2, 4, 5, 7, 8, 10, 11),
+)
+MODIFIER_PADS_BY_LAYOUT = (
+    (6, 7, 8, 9, 10, 11),
+    (0, 3, 6, 9),
+)
+
+
+class ModifierAction:
+    OFF, INV1, INV2, INV3, SEV, ADD9, SUS2, SUS4, POWER, DIM, BORROW = range(11)
+
+
+MODIFIER_ACTION_OPTIONS = (
+    "OFF", "INV1", "INV2", "INV3", "SEV",
+    "ADD9", "SUS2", "SUS4", "PWR", "DIM", "BRRW",
+)
+DEFAULT_MODIFIER_ACTIONS = (
+    ModifierAction.SEV,
+    ModifierAction.SUS4,
+    ModifierAction.POWER,
+    ModifierAction.ADD9,
+    ModifierAction.INV1,
+    ModifierAction.BORROW,
+)
+PENTATONIC_ADD4_SCALES = (Music.IDX_MAJP, Music.IDX_MINP, Music.IDX_SPEN)
+def get_pad_slot(pads, pad_note):
+    return pads.index(pad_note) if pad_note in pads else None
+
+
+def get_root_slot(layout, pad_note):
+    return get_pad_slot(ROOT_PADS_BY_LAYOUT[layout], pad_note)
+
+
+def get_modifier_slot(layout, pad_note):
+    return get_pad_slot(MODIFIER_PADS_BY_LAYOUT[layout], pad_note)
+
+
+def get_layout_root_degree(root_slot, layout, split_drop, scale_notes):
+    if layout == LAYOUT_SPLIT and scale_notes == 7:
+        drop_index = min(max(split_drop, 1), 7) - 1
+        if root_slot >= drop_index:
+            return root_slot + 1
+    return root_slot
+def resolve_modifier_state(held_modifiers, modifier_actions):
+    inversion = 0
+    sus_mode = 0
+    is_sev = False
+    is_add9 = False
+    is_power = False
+    is_borrow = False
+    is_dim = False
+
+    if hasattr(held_modifiers, "notes"):
+        active_modifiers = held_modifiers.notes[:held_modifiers.length]
+    else:
+        active_modifiers = held_modifiers
+
+    for modifier_slot in active_modifiers:
+        if modifier_slot >= len(modifier_actions):
+            continue
+        action = modifier_actions[modifier_slot]
+        if not action:
+            continue
+        if action < ModifierAction.SEV:
+            inversion = action if inversion == 0 else min(inversion, action)
+        elif action == ModifierAction.SEV:
+            is_sev = True
+        elif action == ModifierAction.ADD9:
+            is_add9 = True
+        elif action <= ModifierAction.SUS4:
+            sus_mode = action
+        elif action == ModifierAction.POWER:
+            is_power = True
+        elif action == ModifierAction.DIM:
+            is_dim = True
+        else:
+            is_borrow = True
+
+    return inversion, sus_mode, is_sev, is_add9, is_power, is_borrow, is_dim
 
 class BassModes:
     NoBass = 0
@@ -51,10 +115,14 @@ class Chords(Input):
     name = "chords"
     label = "CHRD"
     def __init__(self, module_helper, slot_id):
+        self.modifier_pad = 0
+        self.layout = LAYOUT_SPLIT
+        self.split_drop = 7
         self.bass_mode = 0
         self.spread_mode = 0
         self.borrow_scale = 0
         self.max_chords = 1
+        self.modifier_actions = list(DEFAULT_MODIFIER_ACTIONS)
         super().__init__(module_helper, slot_id, include_musical_parms=True)
 
         self.color_pixels()
@@ -70,246 +138,249 @@ class Chords(Input):
 
     def create_main_parms(self):
         parms = super().create_main_parms()
-        # Bass Mode
-        bass_mode_parm = Parms.Parm(name="bass", label="BASS", parm_type=Parms.EnumParmType, default=self.bass_mode,
-                                      options=BASS_MODE_OPTIONS,
-                                      bind_object=self, bind_attribute="bass_mode")
-        parms.append(bass_mode_parm)
+        velocity_parm = parms.pop()
 
-        # Spread Mode
-        spread_mode_parm = Parms.Parm(name="spread", label="SPRD", parm_type=Parms.EnumParmType, default=self.spread_mode,
-                                      options=SPREAD_MODE_OPTIONS,
-                                      bind_object=self, bind_attribute="spread_mode")
-        parms.append(spread_mode_parm)
+        parms.extend([
+            Parms.Parm(name="modifier_select", label="SEL", parm_type=Parms.IntParmType,
+                       default=self.modifier_pad + 1, minmax=(1, 6),
+                       edit_callback_function=self.set_modifier_pad_from_parm),
+            Parms.Parm(name="modifier_action", label="MOD", parm_type=Parms.EnumParmType,
+                       default=self.modifier_actions[self.modifier_pad],
+                       options=MODIFIER_ACTION_OPTIONS,
+                       edit_callback_function=self.set_selected_modifier_action),
+            Parms.Parm(name="bass", label="BASS", parm_type=Parms.EnumParmType, default=self.bass_mode,
+                       options=BASS_MODE_OPTIONS, bind_object=self, bind_attribute="bass_mode"),
+            Parms.Parm(name="spread", label="SPRD", parm_type=Parms.EnumParmType, default=self.spread_mode,
+                       options=SPREAD_MODE_OPTIONS, bind_object=self, bind_attribute="spread_mode"),
+            Parms.Parm(name="borrow_scale", label="BRWSCL", parm_type=Parms.EnumParmType, default=self.borrow_scale,
+                       options=BORROW_SCALE_OPTIONS, bind_object=self, bind_attribute="borrow_scale"),
+            Parms.Parm(name="max_chords", label="MAXCT", parm_type=Parms.IntParmType,
+                       default=self.max_chords, minmax=(1, 6),
+                       bind_object=self, bind_attribute="max_chords"),
+        ])
 
-        # Borrow Scale
-        borrow_scale_parm = Parms.Parm(name="borrow_scale", label="BRWSCL", parm_type=Parms.EnumParmType, default=self.borrow_scale,
-                                      options=BORROW_SCALE_OPTIONS,
-                                      bind_object=self, bind_attribute="borrow_scale")
-        parms.append(borrow_scale_parm)
-
-        # Max Chords
-        max_chords_parm = Parms.Parm(name="max_chords", label="MAXCT", parm_type=Parms.IntParmType,
-                                       default=self.max_chords, minmax = (1,6),
-                                       bind_object=self, bind_attribute="max_chords")
-        parms.append(max_chords_parm)
+        parms.append(velocity_parm)
+        parms.extend([
+            Parms.Parm(name="layout", label="LAY", parm_type=Parms.EnumParmType, default=self.layout,
+                       options=LAYOUT_OPTIONS, edit_callback_function=self.set_layout),
+            Parms.Parm(name="split_drop", label="SPLDRP", parm_type=Parms.IntParmType, default=self.split_drop,
+                       minmax=(1, 7), bind_object=self, bind_attribute="split_drop"),
+        ])
         return parms
 
-    def color_pixels(self, color_overrides = None):
-        # set special color
-        overrides = {}
-        for i in range(6):
-            overrides[i+6] = rainbowio.colorwheel(i*60)
-        super().color_pixels(overrides)
+    def color_pixels(self, color_overrides=None):
+        color_array = [neo_pixels.KEYCOLORBASE] * 12
+        scale_notes = len(Music.SCALES[self.state.scale])
+        for root_slot, pad in enumerate(ROOT_PADS_BY_LAYOUT[self.layout]):
+            degree = get_layout_root_degree(root_slot, self.layout, self.split_drop, scale_notes) + self.state.key_offset
+            if degree % scale_notes == 0:
+                color_array[PADMAP.index(pad)] = neo_pixels.KEYCOLORROOT
 
+        for pad in MODIFIER_PADS_BY_LAYOUT[self.layout]:
+            color_array[PADMAP.index(pad)] = neo_pixels.KEYCOLORNAVPARMS
 
-    ### CHORD BUILDING ###
+        try:
+            self.module_helper.neo_pixels.set_key_colors(color_array)
+        except:
+            pass
 
-    def build_chord(self, pad_note):
-        # Borrow mode temporarily swaps the scale used for chord construction.
-        if self.held_modifiers.contains(ModifierMap.BORROW):
-            if self.borrow_scale == 0:
-                borrow_scale = Music.AUTOBORROWRELATIONSHIP[self.state.scale]
-            else:
-                borrow_scale = self.borrow_scale
+    def set_layout(self, value):
+        self.layout = value
+        self.held_modifiers.clear()
+        self.module_helper.output_manager.all_notes_off()
+        self.color_pixels()
+        return value
+
+    def set_modifier_pad(self, value):
+        self.modifier_pad = min(max(value, 0), 5)
+        self.update_modifier_parms()
+        return self.modifier_pad
+
+    def set_modifier_pad_from_parm(self, value):
+        return self.set_modifier_pad(value - 1)
+
+    def set_selected_modifier_action(self, value):
+        self.modifier_actions[self.modifier_pad] = value
+        return value
+
+    def update_modifier_parms(self):
+        modifier_action_parm = self.get_parm_by_name("modifier_action")
+        if modifier_action_parm is not None:
+            modifier_action_parm.set_value(self.modifier_actions[self.modifier_pad])
+        modifier_select_parm = self.get_parm_by_name("modifier_select")
+        if modifier_select_parm is not None:
+            modifier_select_parm.set_value(self.modifier_pad + 1)
+
+    def follow_modifier_input(self, slot):
+        if (slot == self.modifier_pad or self.state.active_chain != INPUT_SLOT or
+                self.state.active_ui_section not in (UI_PARMSELECTION, UI_PARMEDIT)):
+            return
+        self.modifier_pad = slot
+        self.update_modifier_parms()
+        self.queue_parm_rebuild()
+
+    def build_chord(self, root_slot, modifier_state):
+        inversion, sus_mode, is_sev, is_add9, is_power, is_borrow, is_dim = modifier_state
+        scale_id = self.state.scale
+        scale = Music.SCALES[scale_id]
+        if is_borrow:
+            borrow_scale = Music.AUTOBORROWRELATIONSHIP[scale_id] if self.borrow_scale == 0 else self.borrow_scale
             scale = Music.SCALES[borrow_scale]
-        else:
-            scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)
+        root_pad_note = get_layout_root_degree(root_slot, self.layout, self.split_drop, scale_notes) + self.state.key_offset
+        root_pad_octave, root_degree = divmod(root_pad_note, scale_notes)
+        is_major_pent = scale_id in (Music.IDX_MAJP, Music.IDX_SPEN)
+        is_minor_pent = scale_id == Music.IDX_MINP
 
-        # Resolve the pad to a scale degree and octave before adding chord tones.
-        root_pad_note = pad_note + self.state.key_offset
-        root_pad_octave = root_pad_note // scale_notes
-
-        # Pentatonic scales need custom degree jumps to sound chord-like.
-        pentatonic_state = [False, False]
-
-        if (self.state.scale == Music.IDX_MAJP or
-                self.state.scale == Music.IDX_SPEN):
-            pentatonic_state[0] = True
-
-        if self.state.scale == Music.IDX_MINP:
-            pentatonic_state[1] = True
-
-        #TODO: Extract octave and add to final octave as currently the keys just wrap in same octave
-        root_degree = root_pad_note % scale_notes
-        if pentatonic_state[0]:
-            #print("MAJP")
-            note2_degree = root_degree + 1
-            note3_degree = root_degree + 3
-        elif pentatonic_state[1]:
-            #print("MINP")
-            note2_degree = root_degree + 2
-            note3_degree = root_degree + 3
+        if is_major_pent:
+            note2_degree, note3_degree = root_degree + 1, root_degree + 3
+        elif is_minor_pent:
+            note2_degree, note3_degree = root_degree + 2, root_degree + 3
         else:
-            note2_degree = root_degree+2
-            note3_degree = root_degree+4
+            note2_degree, note3_degree = root_degree + 2, root_degree + 4
 
-        seventh_degree = None
-        add9_degree = None
+        if sus_mode == ModifierAction.SUS2:
+            note2_degree = root_degree + 1
+        elif sus_mode == ModifierAction.SUS4:
+            note2_degree = root_degree + 3
 
-        # Optional modifiers add or reshape upper chord tones.
-        if self.held_modifiers.contains(ModifierMap.SUS):
-            #if root_degree == 5:
-            #   note2_degree += 1
-            #else:
-            note2_degree -= 1
-            #print("sus")
-
-
-
-        if self.held_modifiers.contains(ModifierMap.SEV):
-            if any(pentatonic_state):
-                #print("pent7")
-                seventh_degree = root_degree + 4
-            else:
-                seventh_degree = root_degree + 6
-            #print("seventh")
-
-        if self.held_modifiers.contains(ModifierMap.ADD9):
-            if any(pentatonic_state):
-                add9_degree = root_degree + 6
-            else:
-                add9_degree = root_degree + 8
-            #print("add9")
-
-        # Add notes to one array
         self.temp_chord.clear()
-        self.temp_chord.append_value(root_degree)
-        self.temp_chord.append_value(note2_degree)
-        self.temp_chord.append_value(note3_degree)
-        if seventh_degree is not None:
-            self.temp_chord.append_value(seventh_degree)
+        for degree in (root_degree, note2_degree, note3_degree):
+            self.temp_chord.append_value(degree)
+        if is_sev:
+            self.temp_chord.append_value(root_degree + (4 if scale_id in PENTATONIC_ADD4_SCALES else 6))
+        if is_add9:
+            self.temp_chord.append_value(root_degree + (6 if scale_id in PENTATONIC_ADD4_SCALES else 8))
 
-        if add9_degree is not None:
-            self.temp_chord.append_value(add9_degree)
-
-        #print("base_chord_degrees: ", self.temp_chord.notes)
-
-        # Resolve into actual midi notes
         for i in range(self.temp_chord.length):
-            note = self.temp_chord.notes[i]
-            octave = (note // scale_notes + (self.state.octave + 2 + root_pad_octave))*12
-            degree = note % scale_notes
-            note = scale[degree]+self.state.key
-            self.temp_chord.notes[i] = note + octave
+            octave, degree = divmod(self.temp_chord.notes[i], scale_notes)
+            self.temp_chord.notes[i] = (
+                scale[degree] + self.state.key + (octave + self.state.octave + 2 + root_pad_octave) * 12
+            )
 
         root = self.temp_chord.notes[0]
+        if is_dim:
+            if sus_mode == 0 and self.temp_chord.length > 1:
+                self.temp_chord.notes[1] -= 1
+            if self.temp_chord.length > 2:
+                self.temp_chord.notes[2] -= 1
 
-        #print("base_chord_notes: ", self.temp_chord.notes)
+        for i in range(min(inversion, max(self.temp_chord.length - 1, 0))):
+            self.temp_chord.notes[i] += 12
 
-        # Voicing modifiers operate after degrees become MIDI notes.
-        # Apply inversion to upper voicing
-        if self.held_modifiers.contains(ModifierMap.INV):
-            self.temp_chord.notes[0] += 12
-            #print("inversion")
-
-        # Apply spread to upper voicing
         if self.spread_mode != 0:
-            self.temp_chord.notes[self.temp_chord.length-1] += 12
+            self.temp_chord.notes[self.temp_chord.length - 1] += 12
             if self.spread_mode == 2:
-                self.temp_chord.notes[self.temp_chord.length-2] += 12
+                self.temp_chord.notes[self.temp_chord.length - 2] += 12
 
-        # Apply power chord (remove second)
-        if self.held_modifiers.contains(ModifierMap.POWER):
+        if is_power:
             self.temp_chord.remove_index(1)
 
-        # Add base note underneath
         if self.bass_mode != BassModes.NoBass:
             bass = None
             if self.bass_mode == BassModes.Root:
                 bass = root - 12
-            if self.bass_mode == BassModes.Second:
-                bass = self.temp_chord.notes[1]-12
-            if self.bass_mode == BassModes.Lowest:
+            elif self.bass_mode == BassModes.Second:
+                bass = self.temp_chord.notes[1] - 12
+            elif self.bass_mode == BassModes.Lowest:
                 bass = self.temp_chord.get_min_note()[0] - 12
-            if self.bass_mode == BassModes.Highest:
+            elif self.bass_mode == BassModes.Highest:
                 bass = self.temp_chord.get_max_note()[0] - 12
             if bass is not None:
-                self.temp_chord.insert_value_at_index(bass,0)
-
-    ### PROCESSING ###
+                self.temp_chord.insert_value_at_index(bass, 0)
 
     def process(self, note_ons, note_offs):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
         self.note_ons.clear()
         self.note_offs.clear()
+        root_pads = ROOT_PADS_BY_LAYOUT[self.layout]
+        modifier_pads = MODIFIER_PADS_BY_LAYOUT[self.layout]
 
-        ## Handle Note Offs##
-        # Split pad releases into root releases and modifier releases.
         for i in range(note_offs.length):
-            pad_note = note_offs.notes[i]
-            pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
-            if pad_note < 6:  # -> Root Note
-                self.note_offs.append_value(pad_note)
-            else:  # -> Modifier
-                pad_note -= 6
-                if self.held_modifiers.contains(pad_note):
-                    self.held_modifiers.remove_value_first(pad_note)
+            pad_note = PADMAP.index(note_offs.notes[i])
+            root_slot = get_pad_slot(root_pads, pad_note)
+            if root_slot is not None:
+                self.note_offs.append_value(root_slot)
+                continue
+            modifier_slot = get_pad_slot(modifier_pads, pad_note)
+            if modifier_slot is not None:
+                self.held_modifiers.remove_value_first(modifier_slot)
 
-        #Check if there is room for new chords based on max_chords
+        for i in range(self.note_offs.length):
+            has, _ = self.held_note_relationship.has_in_note(self.note_offs.notes[i])
+            if not has:
+                continue
+            chord = self.held_note_relationship.remove_note_all(self.note_offs.notes[i])
+            self.held_chords -= 1
+            for j in range(chord.return_length):
+                note = chord.return_notes[j]
+                has_out_note, _ = self.held_note_relationship.has_out_note(note)
+                if not has_out_note:
+                    self.note_offs_out.append_value(note)
 
-        new_chords = 0
-        for i in range(note_ons.length):
-            pad_note = note_ons.notes[i]
-            pad_note = PADMAP.index(pad_note)
-            if pad_note < 6:  # -> Root Note
-                new_chords += 1
+        new_chords = sum(
+            1 for i in range(note_ons.length)
+            if get_pad_slot(root_pads, PADMAP.index(note_ons.notes[i])) is not None
+        )
         force_offs = (new_chords + self.held_chords) - self.max_chords
         if force_offs > 0:
-            counter = 0
-            while counter < force_offs:
-                in_note = self.held_note_relationship.in_notes[0]
-                if not self.note_offs.contains(in_note):
-                    counter += 1
-                    self.note_offs.append_value(in_note)
+            release_start = self.note_offs.length
+            queued_roots = []
+            for i in range(self.held_note_relationship.length):
+                in_note = self.held_note_relationship.in_notes[i]
+                if in_note in queued_roots or self.note_offs.contains(in_note):
+                    continue
+                queued_roots.append(in_note)
+                self.note_offs.append_value(in_note)
+                force_offs -= 1
+                if force_offs == 0:
+                    break
 
-        # Convert released roots back into all chord notes they created.
-        for i in range(self.note_offs.length):
-            pad_note = self.note_offs.notes[i]
-            has, ct = self.held_note_relationship.has_in_note(pad_note)
-            if not has: continue
-            chord = self.held_note_relationship.remove_note_all(pad_note)  # returns None if missing
-            self.held_chords -= 1
-            if chord.return_length > 0:
+            for i in range(release_start, self.note_offs.length):
+                has, _ = self.held_note_relationship.has_in_note(self.note_offs.notes[i])
+                if not has:
+                    continue
+                chord = self.held_note_relationship.remove_note_all(self.note_offs.notes[i])
+                self.held_chords -= 1
                 for j in range(chord.return_length):
                     note = chord.return_notes[j]
                     has_out_note, _ = self.held_note_relationship.has_out_note(note)
                     if not has_out_note:
                         self.note_offs_out.append_value(note)
 
-        ## Process input notes and split them into notes and modifiers
-        # Root pads create chords; upper pads latch modifier state.
         for i in range(note_ons.length):
-            pad_note = note_ons.notes[i]
-            pad_note = PADMAP.index(pad_note)  # Map from 0-11 starting from bottom left to top right
-            if pad_note < 6:  # -> Chord root
-                if self.note_ons.length>=self.max_chords:
+            pad_note = PADMAP.index(note_ons.notes[i])
+            root_slot = get_pad_slot(root_pads, pad_note)
+            if root_slot is not None:
+                if self.note_ons.length >= self.max_chords:
                     continue
-                self.note_ons.append_value(pad_note)
-            else:  # -> Modifier
-                pad_note -= 6
-                if not self.held_modifiers.contains(pad_note):
-                    self.held_modifiers.append_value(pad_note)
+                self.note_ons.append_value(root_slot)
+                continue
+            modifier_slot = get_pad_slot(modifier_pads, pad_note)
+            if modifier_slot is not None:
+                self.follow_modifier_input(modifier_slot)
+                if not self.held_modifiers.contains(modifier_slot):
+                    self.held_modifiers.append_value(modifier_slot)
 
-        ## Create and export chords ##
-        # Store input-to-output relationships so releases can find chord tones.
+        modifier_state = resolve_modifier_state(self.held_modifiers, self.modifier_actions)
         for i in range(self.note_ons.length):
-            pad_note = self.note_ons.notes[i]
-            self.held_chords += 1
-            self.build_chord(pad_note)
+            root_slot = self.note_ons.notes[i]
+            self.build_chord(root_slot, modifier_state)
+            added_notes = 0
             for j in range(self.temp_chord.length):
                 chord_note = self.temp_chord.notes[j]
-                if self.held_note_relationship.length < self.held_note_relationship.max_length:
-                    has_out_note, _ = self.held_note_relationship.has_out_note(chord_note)
-                    if has_out_note:
-                        self.note_offs_out.append_value(chord_note)
-                    self.held_note_relationship.add_note(pad_note, chord_note)
-                    self.note_ons_out.append_value(chord_note, velocity=self.velocity)
+                if self.held_note_relationship.length >= self.held_note_relationship.max_length:
+                    break
+                has_out_note, _ = self.held_note_relationship.has_out_note(chord_note)
+                if has_out_note:
+                    self.note_offs_out.append_value(chord_note)
+                self.held_note_relationship.add_note(root_slot, chord_note)
+                self.note_ons_out.append_value(chord_note, velocity=self.velocity)
+                added_notes += 1
+            if added_notes:
+                self.held_chords += 1
 
-        #if note_ons.length > 0 or note_offs.length > 0:
-            #print("Held Notes Relationship: ", self.held_note_relationship.in_notes, self.held_note_relationship.out_notes)
         return self.note_ons_out, self.note_offs_out
 
     def stop(self):
