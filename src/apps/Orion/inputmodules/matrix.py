@@ -36,8 +36,8 @@ PAD_VALUE_PARMS = (
     ("ninth", "9TH", "ninths", Parms.BooleanParmType, None, None, False),
     ("inversion", "INV", "inversions", Parms.IntParmType, (0, 3), None, False),
     ("sus", "SUS", "sus", Parms.EnumParmType, None, SUS_OPTIONS, False),
-    ("power", "PWR", "power", Parms.BooleanParmType, None, None, False),
     ("dim", "DIM", "dim", Parms.BooleanParmType, None, None, False),
+    ("power", "PWR", "power", Parms.BooleanParmType, None, None, False),
 )
 
 MATRIX_NOTE_COLOR = neo_pixels.KEYCOLORBASE

@@ -15,6 +15,14 @@ Global musical context now lives in the `Set` slot. Input modules inherit the re
 
 `Note` is the simplest input module. Each pad maps directly into the current set key and scale plus the local input octave. It is the cleanest starting point if you want the MacroPad to behave like a scale layout instead of a specialized performance surface.
 
+Visible module-specific parameters:
+
+- `LAY`: note layout
+
+Enum parameters:
+
+- `LAY`: `KEY` scale-aware layout, `CHRM` chromatic semitone layout with off-scale notes shown as dim blue while root and in-scale notes keep their normal colors
+
 ## Chords
 
 `Chords` turns the 12 pads into chord roots and chord modifiers. It now supports two layouts:

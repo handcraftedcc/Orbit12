@@ -8,7 +8,7 @@ import adafruit_ticks as ticks
 
 ### EUCLID OPTIONS ###
 
-LANES = 4
+LANES = 6
 NO_NOTE = 255
 
 SORT_OPTIONS = (

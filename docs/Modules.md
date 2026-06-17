@@ -194,7 +194,7 @@ Enum parameters:
 
 ### Euclid
 
-`Euclid` runs up to four lanes of Euclidean sequencing. Each lane has its own pulse count, length, and rotation, and each lane can be edited separately.
+`Euclid` runs up to six lanes of Euclidean sequencing. Each lane has its own pulse count, length, and rotation, and each lane can be edited separately.
 
 Visible parameters:
 
