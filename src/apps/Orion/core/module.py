@@ -26,6 +26,8 @@ SOURCE_OPTIONS = (
     "S5",
 )
 
+INPUT_SLOT_ID = 1
+
 EMPTY_NOTE_ON = NoteOnArray()
 EMPTY_NOTE_OFF = NoteOffArray()
 
@@ -180,24 +182,25 @@ class Module:
         if self.source_mode != 0 and self.source_mode < self.slot_id:
             source = None
             if self.source_mode == 1:
-                source = self.state.chain_modules[0]
+                source = self.state.chain_modules[INPUT_SLOT_ID]
             else:
                 source = self.state.chain_modules[self.source_mode]
             if (hasattr(source,"note_ons_out") and hasattr(source,"note_offs_out") and
                     source.note_ons_out is not None and source.note_offs_out is not None):
                 note_ons,note_offs = source.note_ons_out,source.note_offs_out
 
-        if self.operation_mode == 1 and self.slot_id != 0: # Additive
+        if self.operation_mode == 1 and self.slot_id != INPUT_SLOT_ID: # Additive
             note_ons_in, note_offs_in = note_ons, note_offs
             note_ons, note_offs = self.process(note_ons, note_offs)
             note_ons.append_values(note_ons_in)
             note_offs.append_values(note_offs_in)
             return note_ons, note_offs
-        elif (self.operation_mode == 2 and self.slot_id != 0) or (self.operation_mode == 1 and self.slot_id == 0): # Out & Next
+        elif ((self.operation_mode == 2 and self.slot_id != INPUT_SLOT_ID) or
+              (self.operation_mode == 1 and self.slot_id == INPUT_SLOT_ID)): # Out & Next
             note_ons, note_offs = self.process(note_ons, note_offs)
             self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, channel = self.out_channel)
             return note_ons, note_offs
-        elif self.slot_id == 0 and self.operation_mode == 2: # Input only
+        elif self.slot_id == INPUT_SLOT_ID and self.operation_mode == 2: # Input only
             note_ons, note_offs = self.process(note_ons, note_offs)
             self.module_helper.output_manager.schedule_midi_notes(note_ons, note_offs, channel = self.out_channel)
             return EMPTY_NOTE_ON, EMPTY_NOTE_OFF

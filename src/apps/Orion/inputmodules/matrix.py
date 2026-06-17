@@ -8,7 +8,7 @@ from ..core.note_array import NoteArray, NoteRelationshipArray
 ### MATRIX OPTIONS ###
 
 PAD_COUNT = 12
-INPUT_SLOT = 0
+INPUT_SLOT = 1
 UI_PARMSELECTION = 1
 UI_PARMEDIT = 2
 SUS_OPTIONS = ("OFF", "SUS2", "SUS4")

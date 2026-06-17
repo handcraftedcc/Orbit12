@@ -181,6 +181,14 @@ def write_module(file, slot_id, module):
         module.release_parms()
 
 
+def remap_scene_module_record(slot_id, module_key):
+    if slot_id == 0 and module_key != "set":
+        return 1, module_key
+    if slot_id == 1 and module_key == "transport":
+        return 0, "set"
+    return slot_id, module_key
+
+
 def save_scene(state, scene=None, base_dir=SCENE_DIR):
     if scene is None:
         scene = state.active_scene
@@ -267,7 +275,8 @@ def load_scene(orion, scene=None, base_dir=SCENE_DIR):
             elif record_type == "M" and len(parts) >= 4:
                 # Load the current module so following parm records target it.
                 try:
-                    current_module = orion.load_scene_module(int(parts[1]), parts[2])
+                    slot_id, module_key = remap_scene_module_record(int(parts[1]), parts[2])
+                    current_module = orion.load_scene_module(slot_id, module_key)
                     gc.collect()
                 except MemoryError:
                     gc.collect()

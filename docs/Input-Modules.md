@@ -2,10 +2,8 @@
 
 Input modules live in the first slot of the chain. They turn the MacroPad keys into musical note streams before the rest of the chain processes them.
 
-All input modules inherit the shared musical controls from the base input class:
+Global musical context now lives in the `Set` slot. Input modules inherit the remaining local performance controls from the base input class:
 
-- `KEY`: root note
-- `SCL`: scale
 - `OCT`: octave
 - `PADOFS`: pad offset, which shifts the keyboard around
 - `VEL`: velocity
@@ -15,39 +13,43 @@ All input modules inherit the shared musical controls from the base input class:
 
 ## Note
 
-`Note` is the simplest input module. Each pad maps directly into the current key, scale, and octave. It is the cleanest starting point if you want the MacroPad to behave like a scale layout instead of a specialized performance surface.
+`Note` is the simplest input module. Each pad maps directly into the current set key and scale plus the local input octave. It is the cleanest starting point if you want the MacroPad to behave like a scale layout instead of a specialized performance surface.
 
 ## Chords
 
-`Chords` turns the 12 pads into chord roots and chord modifiers. The lower six pads choose root notes, and the upper six pads control inversion, sevenths, sus chord voicing, add9, bass note selection, and spread.
+`Chords` turns the 12 pads into chord roots and chord modifiers. It now supports two layouts:
 
-The top 6 modifier keys works like this:
+- `SPLT`: 6 roots and 6 modifiers
+- `4&8`: 4 modifiers on the left column and 8 roots on the remaining pads
 
-<table>
-  <tr>
-    <td>Add 9th</td>
-    <td>Inversion</td>
-    <td>Borrow scale</td>
-  </tr>
-  <tr>
-    <td>Add 7th</td>
-    <td>Sus chord voicing</td>
-    <td>Power chord</td>
-  </tr>
-</table>
+The modifier editor follows the `Matrix` and `ChordWalk` pattern: `SEL` picks which modifier slot you are editing, `MOD` edits that slot's action, and pressing a modifier key updates the selector automatically when the input chain is the active UI section.
 
 Visible module-specific parameters:
 
+- `SEL`: which modifier slot you are editing
+- `MOD`: action assigned to the selected modifier slot
 - `BASS`: which bass note to add, if any
 - `SPRD`: chord spread amount, moves upper notes up an octave
 - `BRWSCL`: borrowed scale for borrowed chord modifier
 - `MAXCT`: maximum number of simultaneous held chords
+- `LAY`: chord pad layout
+- `SPLDRP`: which scale degree to omit from the 6-root split layout
+
+Parameter order:
+
+- local input controls: `OCT`, `PADOFS`
+- modifier editor: `SEL`, `MOD`
+- chord controls: `BASS`, `SPRD`, `BRWSCL`, `MAXCT`
+- shared tail control: `VEL`
+- layout controls: `LAY`, `SPLDRP`
 
 Enum parameters:
 
+- `MOD`: `OFF`, `INV1`, `INV2`, `INV3`, `SEV`, `ADD9`, `SUS2`, `SUS4`, `PWR`, `DIM`, `BRRW`
 - `BASS`: `NONE` no extra bass note, `ROOT` root an octave down, `2ND` second tone an octave down, `LOW` the lowest note an octave down, `HIGH` the highest note an octave down
 - `SPRD`: `TIGHT` compact voicing, `MED` medium spread, `WIDE` wide spread
 - `BRWSCL`: `AUTO` choose a borrowed scale automatically, otherwise pick one of the named scales listed below
+- `LAY`: `SPLT` split roots/modifiers, `4&8` left-column modifiers with 8 root pads
 
 ## Drum
 

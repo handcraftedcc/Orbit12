@@ -40,16 +40,6 @@ class Input(Module):
         parms = []
 
         if self.include_musical_parms:
-            # Key
-            key_parm = Parms.Parm(name="key", label="KEY", parm_type=Parms.NoteParmType, default=self.state.key,
-                                  edit_callback_function=self.set_key)
-            parms.append(key_parm)
-
-            #Scale
-            scale_parm = Parms.Parm(name="scale", label="SCL", parm_type=Parms.EnumParmType, default=self.state.scale,
-                                    options=Music.SCALENAMES,
-                                    edit_callback_function=self.set_scale)
-            parms.append(scale_parm)
             # Octave
             octave_parm = Parms.Parm(name="octave", label="OCT", parm_type=Parms.IntParmType, default=self.state.octave,
                                   edit_callback_function=self.set_octave)

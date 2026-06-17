@@ -28,6 +28,8 @@ rsync -avh --itemize-changes --progress \
   --exclude=.idea \
   --exclude=.vscode \
   --exclude=.venv \
+  --exclude='__pycache__/' \
+  --exclude='*.pyc' \
   --exclude=lib/ \
   '--exclude=._*' \
   --exclude=.DS_Store \

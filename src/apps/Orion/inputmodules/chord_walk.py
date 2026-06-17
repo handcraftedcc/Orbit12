@@ -9,7 +9,7 @@ from ..core.note_array import NoteArray
 
 CHORD_PADS = (0, 3, 6, 9)
 TRIGGER_PADS = (1, 2, 4, 5, 7, 8, 10, 11)
-INPUT_SLOT = 0
+INPUT_SLOT = 1
 UI_PARMSELECTION = 1
 UI_PARMEDIT = 2
 PAD_COUNT = 4

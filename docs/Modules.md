@@ -12,21 +12,23 @@ Visible control:
 
 - `EMPTY`: open the module picker
 
-### Transport
+### Set
 
-`Transport` controls the clock. It switches between internal and external transport, sets BPM, and adds swing.
+`Set` owns the global musical and timing context. It sets key, scale, BPM, swing, and transport mode for the whole scene.
 
 Visible parameters:
 
-- `MDE`: internal or external clock mode
+- `KEY`: global root note
+- `SCL`: global scale
 - `BPM`: transport tempo
 - `SWNG`: swing amount
+- `TRMDE`: internal or external clock mode
 
-This slot is UI-only from a musical-routing point of view. It is where you manage the timing engine, not where you shape note data.
+This slot is UI-only from a musical-routing point of view. It is where you manage set-wide context, not where you shape note data.
 
 Enum parameters:
 
-- `MDE`: `INT` internal clock, `EXT` external MIDI clock
+- `TRMDE`: `INT` internal clock, `EXT` external MIDI clock
 
 ### Output
 

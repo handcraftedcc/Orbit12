@@ -34,7 +34,7 @@ The `core/` package owns the reusable parts of the app:
 
 `src/apps/Orion/modules/` contains the processing modules. These sit in the middle of the chain and transform note streams.
 
-`src/apps/Orion/core/_modules/` contains the fixed chain slots: input, transport, output, settings, and empty.
+`src/apps/Orion/core/_modules/` contains the fixed chain slots: set, input, output, settings, and empty.
 
 The registries in `inputmodules/_registry.py` and `modules/_registry.py` are the lazy-load dispatch tables. They keep the memory footprint down by importing a module only when it is actually selected.
 
@@ -46,13 +46,13 @@ The note flow is:
 
 `input slot` -> `user module 1` -> `user module 2` -> `user module 3` -> `user module 4` -> `user module 5` -> `user module 6` -> `output slot`
 
-The transport and settings slots are visible control slots around that stream.
+The set and settings slots are visible control slots around that stream.
 
 ## State and Persistence
 
 Scenes capture both app-level state and module state.
 
-- Global values such as key, scale, octave, BPM, swing, and transport mode are stored in scene files.
+- Global values such as key, scale, octave, BPM, swing, and transport mode are stored in scene files. The `Set` slot is the UI owner for key, scale, BPM, swing, and transport mode.
 - Module values are saved through the parameter system and optional `save_attrs`.
 - Loading a scene rebuilds the chain by loading the required modules on demand.
 - Resetting the scene unloads the current modules, restores defaults, and rebuilds the stock chain.

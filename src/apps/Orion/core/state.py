@@ -203,8 +203,8 @@ class UISection:
     MODULESELECTION = 3
 
 class ChainElements:
-    IN = 0
-    TRANSPORT = 1
+    SET = 0
+    IN = 1
     SLOT1 = 2
     SLOT2 = 3
     SLOT3 = 4
@@ -214,7 +214,7 @@ class ChainElements:
     OUT = 8
     SETTINGS = 9
 
-    STATICELEMENTS = (TRANSPORT,OUT,SETTINGS)
+    STATICELEMENTS = (SET,OUT,SETTINGS)
 
 class ChainModes:
     SELECT = 0

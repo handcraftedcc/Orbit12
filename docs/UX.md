@@ -6,15 +6,15 @@ This guide describes the Orion app, which is currently the only app in Orbit12. 
 
 The visible chain is:
 
-`I` -> `T` -> `1` -> `2` -> `3` -> `4` -> `5` -> `6` -> `O` -> `*`
+`S` -> `I` -> `1` -> `2` -> `3` -> `4` -> `5` -> `6` -> `O` -> `*`
 
+- `S` is the set slot.
 - `I` is the input slot.
-- `T` is the transport slot.
 - `1` to `6` are the user module slots.
 - `O` is the output slot.
 - `*` is the settings slot.
 
-Musical notes flow left to right through the input slot, then the six user slots, then the output slot. The transport and settings slots are visible in the chain, but they are control surfaces rather than musical stages.
+Musical notes flow left to right through the input slot, then the six user slots, then the output slot. The set and settings slots are visible in the chain, but they are control surfaces rather than musical stages.
 
 ## Hardware and Timing Notes
 

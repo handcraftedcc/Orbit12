@@ -16,8 +16,8 @@ _display_sleep = False
 main_group = displayio.Group()
 display.root_group = main_group
 
-# Load bitmap from CIRCUITPY drive
-bitmap = displayio.OnDiskBitmap("/apps/Orion/imgs/LaunchScreen.bmp")
+# Load bitmap
+bitmap = displayio.OnDiskBitmap("/apps/Orion/imgs/LaunchScreen1.1.bmp")
 
 # Put it on screen
 tile_grid = displayio.TileGrid(

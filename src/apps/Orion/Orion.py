@@ -33,7 +33,7 @@ gc.collect()
 
 from .inputmodules.note import Note as InputModule
 from .core._modules._empty import Empty as EmptyModule
-from .core._modules._transport import Transport as TransportModule
+from .core._modules._set import Set as SetModule
 from .core._modules._output import Output as OutputModule
 from .core._modules._settings import Settings as SettingsModule
 
@@ -131,7 +131,7 @@ class Orion:
         self.ui_manager.screen.update()
 
         # Update Pixels
-        self.state.chain_modules[0].color_pixels()
+        self.state.chain_modules[ChainElements.IN].color_pixels()
         self.neo_pixels.paint_pixels()
 
         #gc.disable()
@@ -140,7 +140,7 @@ class Orion:
 
     def create_stock_chain_modules(self, fill_all=True):
         self.state.chain_modules = [None]*state.TOTALSLOTCOUNT
-        self.state.chain_modules[ChainElements.TRANSPORT] = TransportModule(self.module_helper, ChainElements.TRANSPORT)
+        self.state.chain_modules[ChainElements.SET] = SetModule(self.module_helper, ChainElements.SET)
         self.state.chain_modules[ChainElements.OUT] = OutputModule(self.module_helper, ChainElements.OUT)
         self.state.chain_modules[ChainElements.SETTINGS] = SettingsModule(self.module_helper, ChainElements.SETTINGS)
         if fill_all:
@@ -493,7 +493,7 @@ class Orion:
     ### MODULE SELECTION ###
 
     def enter_module_selection(self):
-        if self.state.active_chain == ChainElements.TRANSPORT:
+        if self.state.active_chain in ChainElements.STATICELEMENTS:
             return
         self.state.active_ui_section = UISection.MODULESELECTION
         self.state.module_selector_enter()
@@ -763,7 +763,7 @@ class Orion:
 
                 released[0] = 0 # Clear knob release bit
                 self.neo_pixels.exit_nav_state_colors()
-                self.state.chain_modules[0].color_pixels()
+                self.state.chain_modules[ChainElements.IN].color_pixels()
 
             ## Process midi key release ##
             # Released note keys become note-offs unless they were shortcut keys.
