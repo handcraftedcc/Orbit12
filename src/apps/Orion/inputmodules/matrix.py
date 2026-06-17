@@ -37,6 +37,7 @@ PAD_VALUE_PARMS = (
     ("inversion", "INV", "inversions", Parms.IntParmType, (0, 3), None, False),
     ("sus", "SUS", "sus", Parms.EnumParmType, None, SUS_OPTIONS, False),
     ("power", "PWR", "power", Parms.BooleanParmType, None, None, False),
+    ("dim", "DIM", "dim", Parms.BooleanParmType, None, None, False),
 )
 
 MATRIX_NOTE_COLOR = neo_pixels.KEYCOLORBASE
@@ -51,7 +52,7 @@ class Matrix(Input):
     name = "matrix"
     label = "MTRX"
     version = 1
-    save_attrs = ("notes", "chords", "sevenths", "ninths", "inversions", "sus", "power")
+    save_attrs = ("notes", "chords", "sevenths", "ninths", "inversions", "sus", "power", "dim")
 
     def __init__(self, module_helper, slot_id):
         self.pad = 0
@@ -65,6 +66,7 @@ class Matrix(Input):
         self.inversions = bytearray(PAD_COUNT)
         self.sus = bytearray(PAD_COUNT)
         self.power = bytearray(PAD_COUNT)
+        self.dim = bytearray(PAD_COUNT)
         self.held_note_relationship = NoteRelationshipArray(36)
         self.temp_notes = NoteArray(length=6)
         super().__init__(module_helper, slot_id, include_musical_parms=True)
@@ -120,7 +122,7 @@ class Matrix(Input):
         return value
 
     def clear_pad_modifiers(self):
-        for values in (self.sevenths, self.ninths, self.inversions, self.sus, self.power):
+        for values in (self.sevenths, self.ninths, self.inversions, self.sus, self.power, self.dim):
             values[:] = bytearray(PAD_COUNT)
 
     def apply_layout(self, notes, chords):
@@ -205,6 +207,12 @@ class Matrix(Input):
             self.temp_notes.append_value(self.note_for_degree(degree))
 
         root_note = self.temp_notes.notes[0]
+        if self.dim[pad]:
+            if self.sus[pad] == 0 and self.temp_notes.length > 1:
+                self.temp_notes.notes[1] -= 1
+            if self.temp_notes.length > 2:
+                self.temp_notes.notes[2] -= 1
+
         inversions = min(self.inversions[pad], self.temp_notes.length - 1)
         for i in range(inversions):
             self.temp_notes.notes[i] += 12

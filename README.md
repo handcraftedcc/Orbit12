@@ -73,9 +73,9 @@ Some background:
 One of the goals of this projects for me was to up my python game - a language I already used in Houdini for scripting, but I wanted to get better at it.
 I did initially try a purely "vibecoded approach" but this quickly failed, as the RP2040 ram is very limited for an app of this size and depth, and AI was unable to write consice and focused enough code in this case, and I kept getting out of memory errors.
 
-Thus, most of Orbit12 is hand coded but AI was used heavily during the project for planning, debugging, optimization, learning CircuitPython APIs, generating supporting musical data such as scale-related material and helping with documentation.
+Thus, most of Orbit12 is hand coded initially but AI was used heavily during the project for planning, debugging, optimization, learning CircuitPython APIs, generating supporting musical data such as scale-related material, some late stage refactoring and helping with documentation.
 
-A few late-stage additions and modules (like the scene saving or the arpwalk module) were fully AI coded, then reviewed and integrated into the rest of the app, primarily to save time and repetitive work - as my free time is limited. The intent throughout was to keep the architecture and musical behavior deliberate, even when AI helped produce the first draft of a piece.
+A few late-stage additions and modules (like the scene saving or the arpwalk module) were fully AI coded, then reviewed and integrated into the rest of the app, primarily to save time and repetitive work - as my free time is limited.
 
 ## Inspiration
 A lot of this projects inspiration was taken from [Schwung](https://github.com/charlesvestal/schwung) - an amazing "hack" for the Ableton Move, to which I contributed a few modules.

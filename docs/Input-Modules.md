@@ -89,6 +89,7 @@ Visible module-specific parameters:
 - `INV`: pad-specific inversion count
 - `SUS`: sus chord voicing
 - `PWR`: power-chord mode
+- `DIM`: diminished voicing
 - `BASS`: global bass handling
 - `SPRD`: global chord spread
 - `RESET`: restore one of the preset layouts
