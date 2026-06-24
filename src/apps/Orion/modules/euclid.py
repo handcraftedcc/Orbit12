@@ -71,9 +71,18 @@ class Euclid(Module):
 
         super().__init__(module_helper, slot_id)
 
+    def ensure_lane_state(self):
+        if len(self.pulses) != LANES:
+            self.pulses = bytearray(list(self.pulses[:LANES]) + [4] * max(0, LANES - len(self.pulses)))
+        if len(self.lengths) != LANES:
+            self.lengths = bytearray(list(self.lengths[:LANES]) + [16] * max(0, LANES - len(self.lengths)))
+        if len(self.rotations) != LANES:
+            self.rotations = list(self.rotations[:LANES]) + [0] * max(0, LANES - len(self.rotations))
+
     ### PARMS ###
 
     def create_main_parms(self):
+        self.ensure_lane_state()
         return [
             Parms.Parm(name="lane", label="LANE", default=self.lane,
                        parm_type=Parms.IntParmType, minmax=(0, LANES - 1),
@@ -102,6 +111,7 @@ class Euclid(Module):
         ]
 
     def set_lane(self, value):
+        self.ensure_lane_state()
         self.lane = value
         self.get_parm_by_name("pulses").set_value(self.pulses[value])
         self.get_parm_by_name("length").set_value(self.lengths[value])
@@ -116,10 +126,12 @@ class Euclid(Module):
         return self.rate_ticks
 
     def set_pulses(self, value):
+        self.ensure_lane_state()
         self.pulses[self.lane] = value
         return value
 
     def set_length(self, value):
+        self.ensure_lane_state()
         self.lengths[self.lane] = value
         if self.pulses[self.lane] > value:
             self.pulses[self.lane] = value
@@ -127,6 +139,7 @@ class Euclid(Module):
         return value
 
     def set_rotation(self, value):
+        self.ensure_lane_state()
         self.rotations[self.lane] = value
         return value
 
@@ -190,6 +203,7 @@ class Euclid(Module):
     ### PROCESSING ###
 
     def process(self, note_ons, note_offs):
+        self.ensure_lane_state()
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
