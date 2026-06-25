@@ -257,13 +257,12 @@ class NoteParmType(ParmType):
 
     @classmethod
     def edit(cls, parm, delta):
-        count = None
         if parm.multiple_octaves:
-            count = (parm.octave_range[1]-parm.octave_range[0])*12+1
-        else:
-            count = 12
-        
-        return max(0,min(count-1,(parm.value + delta)))
+            if parm.minmax:
+                return max(parm.minmax[0], min(parm.minmax[1], parm.value + delta))
+            count = (parm.octave_range[1] - parm.octave_range[0]) * 12 + 1
+            return max(0, min(count - 1, parm.value + delta))
+        return max(0, min(11, parm.value + delta))
 
     @classmethod
     def get_display_value(cls, parm):

@@ -490,6 +490,30 @@ class Orion:
 
         self.add_to_ui_queue(self.ui_manager.switch_section)
 
+    def jump_to_slot_parm_selection(self, slot_id):
+        if self.state.active_ui_section == UISection.PARMEDIT:
+            self.exit_parm_edit()
+        elif self.state.active_ui_section == UISection.MODULESELECTION:
+            self.exit_module_selection()
+
+        if self.chain_swap_mode != 0 or self.state.active_chain_mode == state.ChainModes.SWAP:
+            self.disable_chain_swap_mode()
+
+        if self.state.active_chain != slot_id:
+            current_module = self.state.chain_modules[self.state.active_chain]
+            if current_module is not None:
+                current_module.release_parms()
+            self.state.active_chain = slot_id
+            self.state.update_parm_count()
+            self.state.active_parm = 0
+
+            self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_id)
+            self.add_to_ui_queue(self.ui_manager.header_footer.update_header_module_label)
+            self.add_to_ui_queue(self.ui_manager.header_footer.update_header_chain_preview)
+            self.add_to_ui_queue(self.ui_manager.chain.rebuild_chain_section)
+
+        self.enter_parm_selection()
+
     ### MODULE SELECTION ###
 
     def enter_module_selection(self):
@@ -622,6 +646,12 @@ class Orion:
                         self.state.nav_keys_state = (self.state.nav_keys_state+1) % 2
                         self.neo_pixels.set_nav_state_colors(update=True)
                         self.add_to_ui_queue(self.ui_manager.header_footer.update_footer_state_icons)
+
+                    if pressed[3]: # Jump to Input
+                        self.jump_to_slot_parm_selection(ChainElements.IN)
+
+                    if pressed[6]: # Jump to Output
+                        self.jump_to_slot_parm_selection(ChainElements.OUT)
 
                     if pressed[9]: # Switch between Nav and Modify State
                         if self.state.active_ui_section == UISection.CHAIN:

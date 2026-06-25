@@ -17,12 +17,12 @@ class Output(Module):
 
     def create_main_parms(self):
         parms = []
-        print_output_parm = Parms.Parm(name="print", label="PRNT", parm_type=Parms.BooleanParmType, default=self.print_state,
-                                       bind_object=self, bind_attribute="print_state")
-        parms.append(print_output_parm)
         out_ch_parm = Parms.Parm(name="out_ch", label="OUTCH", parm_type=Parms.IntParmType, default=self.out_ch+1, minmax = (1,16),
                                        edit_callback_function=self.set_out_ch)
         parms.append(out_ch_parm)
+        print_output_parm = Parms.Parm(name="print", label="PRNT", parm_type=Parms.BooleanParmType, default=self.print_state,
+                                       bind_object=self, bind_attribute="print_state")
+        parms.append(print_output_parm)
         return parms
 
     def set_out_ch(self, value):

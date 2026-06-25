@@ -1,6 +1,7 @@
 from ..core import neo_pixels
 from ..core import parms as Parms
 from ..core._modules._input import Input, PADMAP
+from ..core.note_array import NoteRelationshipArray
 
 from ..core import music as Music
 
@@ -17,6 +18,7 @@ class Note(Input):
     label = "NOTE"
     def __init__(self, module_helper, slot_id):
         self.layout = NOTE_LAYOUT_KEY
+        self.held_note_relationship = NoteRelationshipArray(12)
         super().__init__(module_helper, slot_id, include_musical_parms=True)
 
     def create_main_parms(self):
@@ -69,6 +71,15 @@ class Note(Input):
         scale = Music.SCALES[self.state.scale]
         scale_notes = len(scale)
 
+        for i in range(note_offs.length):
+            pad_note = note_offs.notes[i]
+            off_notes = self.held_note_relationship.remove_note_all(pad_note)
+            for j in range(off_notes.return_length):
+                note = off_notes.return_notes[j]
+                has_out_note, _ = self.held_note_relationship.has_out_note(note)
+                if not has_out_note:
+                    self.note_offs_out.append_value(note)
+
         for i in range(note_ons.length):
             pad_note = note_ons.notes[i]
             if self.layout == NOTE_LAYOUT_CHROMATIC:
@@ -76,14 +87,15 @@ class Note(Input):
             else:
                 note = self.convert_note(pad_note, scale, scale_notes)
             self.note_ons_out.append_value(note, velocity = self.velocity)
-
-        for i in range(note_offs.length):
-            pad_note = note_offs.notes[i]
-            if self.layout == NOTE_LAYOUT_CHROMATIC:
-                note = self.convert_chromatic_note(pad_note)
-            else:
-                note = self.convert_note(pad_note, scale, scale_notes)
-            self.note_offs_out.append_value(note)
+            self.held_note_relationship.add_note(pad_note, note)
 
         return self.note_ons_out, self.note_offs_out
+
+    def stop(self):
+        super().stop()
+        self.held_note_relationship.clear()
+
+    def remove(self):
+        super().remove()
+        self.held_note_relationship = None
         

@@ -1,6 +1,7 @@
 from ..core import parms as Parms
 from ..core import neo_pixels
 from ..core._modules._input import Input, PADMAP
+from ..core.note_array import NoteRelationshipArray
 
 from ..core import music as Music
 
@@ -18,7 +19,9 @@ class Drum(Input):
     label = "DRUM"
     def __init__(self, module_helper, slot_id):
         self.layout = 0
+        self.base_note = Music.DRUMBASENOTE
         self.velocity = 127
+        self.held_note_relationship = NoteRelationshipArray(12)
         super().__init__(module_helper, slot_id, include_musical_parms=False)
 
         self.state.key_custom_text = "DRUM"
@@ -33,6 +36,19 @@ class Drum(Input):
         layout_mode_parm = Parms.Parm(name="layout", label="LAY", parm_type=Parms.EnumParmType, default=self.layout, options=LAYOUT_OPTIONS,
                                      edit_callback_function=self.set_layout)
         parms.append(layout_mode_parm)
+
+        base_note_parm = Parms.Parm(
+            name="base_note",
+            label="BASE",
+            parm_type=Parms.NoteParmType,
+            default=self.base_note,
+            minmax=(0, 127),
+            multiple_octaves=True,
+            octave_range=(1, 11),
+            bind_object=self,
+            bind_attribute="base_note",
+        )
+        parms.append(base_note_parm)
 
         # Key Offset
         key_offset_parm = Parms.Parm(name="key_offset", label="PADOFS", parm_type=Parms.IntParmType, default=self.state.key_offset,
@@ -76,8 +92,7 @@ class Drum(Input):
             pad_note = FOURBYFOURBOTTOM3ROWSMAPPINGFLIPPED[pad_note]
 
 
-
-        return pad_note+Music.DRUMBASENOTE+self.state.key_offset
+        return pad_note + self.base_note + self.state.key_offset
 
 
     ### PROCESSING ###
@@ -86,13 +101,28 @@ class Drum(Input):
         self.note_ons_out.clear()
         self.note_offs_out.clear()
 
-        for i in range(note_ons.length):
-            pad_note = note_ons.notes[i]
-            self.note_ons_out.append_value(self.convert_note(pad_note, None, None), velocity = self.velocity)
-
         for i in range(note_offs.length):
             pad_note = note_offs.notes[i]
-            self.note_offs_out.append_value(self.convert_note(pad_note, None, None))
+            off_notes = self.held_note_relationship.remove_note_all(pad_note)
+            for j in range(off_notes.return_length):
+                note = off_notes.return_notes[j]
+                has_out_note, _ = self.held_note_relationship.has_out_note(note)
+                if not has_out_note:
+                    self.note_offs_out.append_value(note)
+
+        for i in range(note_ons.length):
+            pad_note = note_ons.notes[i]
+            note = self.convert_note(pad_note, None, None)
+            self.note_ons_out.append_value(note, velocity = self.velocity)
+            self.held_note_relationship.add_note(pad_note, note)
 
         return self.note_ons_out, self.note_offs_out
+
+    def stop(self):
+        super().stop()
+        self.held_note_relationship.clear()
+
+    def remove(self):
+        super().remove()
+        self.held_note_relationship = None
         
