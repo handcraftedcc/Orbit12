@@ -26,7 +26,11 @@ class Output(Module):
         return parms
 
     def set_out_ch(self, value):
-        self.out_ch = value-1
+        new_channel = value - 1
+        if new_channel == self.out_ch:
+            return
+        self.module_helper.output_manager.all_notes_off(channel=self.out_ch)
+        self.out_ch = new_channel
 
     ### PROCESSING ###
 

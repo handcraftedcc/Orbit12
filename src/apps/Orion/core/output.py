@@ -73,17 +73,32 @@ class OutputManager:
     def schedule_midi_stop(self):
         self.macropad.midi.send(Stop())
 
-    def all_notes_off(self):
-        self.note_ons_out.clear()
+    def all_notes_off(self, channel=None):
+        if channel is None:
+            self.note_ons_out.clear()
 
-        # Convert every tracked held note into a queued note-off.
-        for i in range(self.held_notes.length):
+            # Convert every tracked held note into a queued note-off.
+            for i in range(self.held_notes.length):
+                held_note = self.held_notes.notes[i]
+                held_channel = self.held_notes.channels[i]
+                if not self.note_offs_out.append_value(held_note, channel=held_channel):
+                    self.macropad.midi.send(self.macropad.NoteOff(held_note, 0), channel=held_channel)
+
+            self.held_notes.clear()
+            return
+
+        for i in range(self.note_ons_out.length - 1, -1, -1):
+            if self.note_ons_out.channels[i] == channel:
+                self.note_ons_out.remove_index(i)
+
+        for i in range(self.held_notes.length - 1, -1, -1):
+            if self.held_notes.channels[i] != channel:
+                continue
             held_note = self.held_notes.notes[i]
-            held_channel = self.held_notes.channels[i]
-            if not self.note_offs_out.append_value(held_note, channel=held_channel):
-                self.macropad.midi.send(self.macropad.NoteOff(held_note, 0), channel=held_channel)
-
-        self.held_notes.clear()
+            if not self.note_offs_out.contains(held_note, channel=channel):
+                if not self.note_offs_out.append_value(held_note, channel=channel):
+                    self.macropad.midi.send(self.macropad.NoteOff(held_note, 0), channel=channel)
+            self.held_notes.remove_index(i)
 
     def process_midi_out(self):
         # Flush note-offs before note-ons for clean retrigger behavior.

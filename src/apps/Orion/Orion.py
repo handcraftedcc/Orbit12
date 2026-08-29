@@ -74,9 +74,9 @@ class Orion:
             self.macropad._key_pins,
             value_when_pressed=False,
             pull=True,
-            interval=0.002,
+            interval=0.003,
             max_events=64,
-            debounce_threshold=1,
+            debounce_threshold=2,
         )
 
         ## Core Managers ##
