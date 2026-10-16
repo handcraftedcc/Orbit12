@@ -171,7 +171,7 @@ def _take_backup(hw: Hardware, orbit: Optional[Orbit12Device], opts: Options) ->
         return None
     folder = None
     try:
-        folder = device.backup_device(hw, device_path, root)
+        folder = device.backup_device(hw, device_path, root, identity=_identity(orbit))
         if folder:
             hw.console.say(f"Backup written to {folder}")
     except (FlashError, DeviceRefused, TimeoutError, ProtocolError, OSError) as error:
@@ -183,34 +183,72 @@ def _take_backup(hw: Hardware, orbit: Optional[Orbit12Device], opts: Options) ->
 
 
 def run_flash(hw: Hardware, package: Package, opts: Options, interactive: bool = True) -> str:
-    """Backup, BOOTSEL, copy, wait, verify, and repair an unformatted partition. Returns a summary."""
+    """Backup, bootloader, copy, verify, and repair an unformatted partition. Returns a summary.
+
+    Three starting states: an Orbit12 (or CircuitPython) USB port, a board already in its
+    bootloader (exactly one RPI-RP2 drive and no CDC port), or neither (refused by the caller's
+    prerequisites: nothing to flash). Nothing is written before the backup decision is made.
+    """
     manifest = package.manifest
     hw.console.say(f"Flashing Orbit12 {manifest.version} (git {manifest.git_sha}, api {manifest.engine_api}) "
                    f"from {package.source}.")
     orbit = device.find_orbit12(hw, opts.port)
     if orbit is not None:
         hw.console.say(f"Found Orbit12 on {orbit.port.device}.")
-    backup_dir = _take_backup(hw, orbit, opts)
-    # Only a maintenance backup is restored automatically. A CIRCUITPY copy is kept for the user.
-    restore_from = backup_dir if orbit is not None else None
-    if backup_dir is None and not hw.console.confirm_typed(
-            "FLASH", "No backup was made. The image does not overwrite the scene partition, but "
+        backup_dir = _take_backup(hw, orbit, opts)
+        restore_from = backup_dir  # a maintenance backup is restored after a format
+        if backup_dir is None and not hw.console.confirm_typed("FLASH", "No backup was made. The image does not overwrite the scene partition, but "
+            "without a backup a later format would lose the scenes. Type FLASH to continue anyway"):
+            raise Cancelled("flash cancelled before any write")
+        if interactive and not hw.console.confirm("Put the board in the bootloader and flash now?", default=True):
+            raise Cancelled("flash cancelled before any write")
+        volume = device.enter_bootloader(hw, orbit.port.device, opts.bootsel_timeout_s)
+        return _write_and_verify(hw, package, opts, volume, backup_dir, restore_from, interactive)
+
+    bootloader = device.single_bootsel_volume(hw)
+    if bootloader is not None:
+        hw.console.say("Board is already in its bootloader (RPI-RP2 drive found, no Orbit12 USB port).")
+        backup_dir = _recent_backup_offer(hw, package, opts)
+        if backup_dir is None and not hw.console.confirm_typed("FLASH", "No backup was made. The image does not overwrite the scene partition, but "
+            "without a backup a later format would lose the scenes. Type FLASH to continue anyway"):
+            raise Cancelled("flash cancelled before any write")
+        if interactive and not hw.console.confirm("Flash the board now?", default=True):
+            raise Cancelled("flash cancelled before any write")
+        return _write_and_verify(hw, package, opts, bootloader, backup_dir, backup_dir, interactive)
+
+    backup_dir = _take_backup(hw, None, opts)  # CircuitPython: read-only CIRCUITPY copy, never restored
+    if backup_dir is None and not hw.console.confirm_typed("FLASH", "No backup was made. The image does not overwrite the scene partition, but "
             "without a backup a later format would lose the scenes. Type FLASH to continue anyway"):
         raise Cancelled("flash cancelled before any write")
     if interactive and not hw.console.confirm("Put the board in the bootloader and flash now?", default=True):
         raise Cancelled("flash cancelled before any write")
+    touch_port = None
+    lone = device.lone_cdc_port(hw)
+    if lone and hw.console.confirm(
+            f"Reset {lone} into the bootloader over USB? (a CircuitPython board accepts this)", default=True):
+        touch_port = lone
+    volume = device.enter_bootloader(hw, touch_port, opts.bootsel_timeout_s)
+    return _write_and_verify(hw, package, opts, volume, backup_dir, None, interactive)
+
+
+def _recent_backup_offer(hw: Hardware, package: Package, opts: Options) -> Optional[str]:
+    """A verified Orbit12 backup from the last hour for a compatible board and API, when the user accepts it."""
+    root = opts.backup_root or device.default_backup_root()
+    folder = device.find_recent_backup(root, package.manifest.engine_api)
+    if folder is None:
+        return None
+    if hw.console.confirm(f"Found a backup from the last hour: {folder}. Use it, so it can be restored "
+                          "if the partition needs formatting?", default=True):
+        return folder
+    return None
+
+
+def _write_and_verify(hw: Hardware, package: Package, opts: Options, volume: Volume,
+                      backup_dir: Optional[str], restore_from: Optional[str], interactive: bool) -> str:
+    manifest = package.manifest
     if backup_dir:
         # Keep the verified image beside the backup so a failed copy can be recovered by hand.
         _stash_image(backup_dir, package)
-    touch_port = orbit.port.device if orbit else None
-    if orbit is None:
-        lone = device.lone_cdc_port(hw)
-        if lone and hw.console.confirm(
-                f"Reset {lone} into the bootloader over USB? (a CircuitPython board accepts this)",
-                default=True):
-            touch_port = lone
-    device.request_bootsel(hw, touch_port)
-    volume = device.wait_for_bootsel(hw, opts.bootsel_timeout_s)
     hw.console.say(f"Bootloader drive: {volume.path}")
     try:
         result = device.copy_image(volume, package.image)
@@ -235,6 +273,13 @@ def run_flash(hw: Hardware, package: Package, opts: Options, interactive: bool =
     if backup_dir:
         hw.console.say(f"Backup kept at {backup_dir}")
     return f"Orbit12 {manifest.version} is installed on {dev.port.device}."
+
+
+def _identity(orbit: Orbit12Device) -> Optional[dict]:
+    report = orbit.info
+    if report is None:
+        return None
+    return {"fw": report.fw, "sha": report.sha, "api": report.api, "board": report.board}
 
 
 def _stash_image(backup_dir: str, package: Package) -> None:

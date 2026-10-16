@@ -149,6 +149,11 @@ Run without building: `python tools/installer/entry.py <command>`, or from `tool
 
 - Destructive steps need the typed word `ERASE`. `--yes` answers only non-destructive questions.
   The non-default repository confirmation needs the repository name typed.
+- Flash layout is checked against the RP2040 XIP window (0x10000000 to 0x11000000), not against an
+  assumed flash size. The image window must lie below the filesystem window: image end <= filesystem
+  start. The filesystem start and size must be 4096-byte aligned and inside the window, and every
+  UF2 block must stay inside the image window and off the filesystem. The real clean build
+  (image 0x10000000..0x10043000, 1072 blocks; filesystem 0x106ff000 size 0x100000) passes.
 - Nothing is written to the board before the backup, the manifest and image checks, and the UF2
   checks have passed. A UF2 block may not touch the scene partition.
 - A backup folder without `backup.json` is incomplete and is never restored. Restore verifies

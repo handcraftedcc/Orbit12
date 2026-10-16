@@ -4,7 +4,7 @@ import os
 import shutil
 import unittest
 
-from helpers import (BOARD, OLD_VERSION, FakeClock, FakeWorld, RecordingConsole, TempDirTest, hardware, make_uf2,
+from helpers import (BOARD, OLD_VERSION, write_backup, FakeClock, FakeWorld, RecordingConsole, TempDirTest, hardware, make_uf2,
                      manifest_doc, scenes)
 
 from orbit12_installer import cdc, device, package
@@ -296,8 +296,7 @@ class VolumeTests(unittest.TestCase):
 
     def test_one_bootsel_drive_is_found_after_a_touch(self):
         board = self.world.add("COM7")
-        device.request_bootsel(self.hw, "COM7")
-        volume = device.wait_for_bootsel(self.hw, timeout_s=5)
+        volume = device.enter_bootloader(self.hw, "COM7", timeout_s=5)
         self.assertEqual(volume.path, board.volume_path)
         self.assertIn("RPI-RP2", volume.info_text)
         shutil.rmtree(board.volume_path, ignore_errors=True)
@@ -522,6 +521,116 @@ class VerifyTests(unittest.TestCase):
         status = DeviceStatus(orbit12=False, storage_mounted=None, version=None)
         with self.assertRaisesRegex(FlashError, "does not answer as Orbit12"):
             device.verify_firmware(self.dev(None, status), self.manifest)
+
+
+class BootloaderEntryTests(unittest.TestCase):
+    """The 1200-baud touch is judged by its outcome: an exception is inconclusive, not a failure."""
+
+    def setUp(self):
+        self.clock = FakeClock()
+        self.world = FakeWorld(self.clock)
+        self.board = self.world.add("COM6", files=scenes())
+        self.console = RecordingConsole()
+        self.hw = hardware(self.world, self.console)
+
+    def test_clean_touch_gives_the_drive_without_any_prompt(self):
+        volume = device.enter_bootloader(self.hw, "COM6", timeout_s=5)
+        self.assertEqual(volume.path, self.board.volume_path)
+        self.assertEqual(self.console.pauses, [])
+        self.assertEqual(self.console.warned, [])
+
+    def test_exception_after_the_board_reset_is_not_a_failure_drive_appears_3s_later(self):
+        self.board.touch_failure_delay = 3.0
+        start = self.clock.monotonic()
+        volume = device.enter_bootloader(self.hw, "COM6", timeout_s=30)
+        self.assertEqual(volume.path, self.board.volume_path)
+        self.assertGreaterEqual(self.clock.monotonic() - start, 3.0)
+        self.assertEqual(self.console.pauses, [])  # no BOOT-key instruction
+        self.assertFalse(any("BOOT" in w for w in self.console.warned))
+        self.assertTrue(any("1200-baud touch" in s for s in self.console.said))
+
+    def test_touch_while_in_maintenance_still_reboots_into_the_bootloader(self):
+        self.board.mode = "maintenance"
+        volume = device.enter_bootloader(self.hw, "COM6", timeout_s=5)
+        self.assertEqual(volume.path, self.board.volume_path)
+
+    def test_port_closed_before_the_touch_and_after_it(self):
+        self.board.touch_failure_delay = 1.0
+        device.enter_bootloader(self.hw, "COM6", timeout_s=30)
+        self.assertTrue(self.world.opened)
+        self.assertTrue(all(port.closed for port in self.world.opened))
+
+    def test_port_already_gone_when_opened_still_polls_for_the_drive(self):
+        self.board.mode = "gone"
+        self.board.deferred_bootsel_at = self.clock.monotonic() + 2.0  # the reset is already under way
+        volume = device.enter_bootloader(self.hw, "COM6", timeout_s=30)
+        self.assertEqual(volume.path, self.board.volume_path)
+        self.assertEqual(self.console.pauses, [])
+
+    def test_drive_never_appears_after_the_touch_falls_back_to_the_boot_key(self):
+        self.board.touch_failure_delay = float("inf")
+
+        def hold_boot(message):
+            if "BOOT" in message:
+                self.board.mode = "normal"
+                self.board.touch()  # the user holds BOOT while connecting
+
+        self.console.on_pause = hold_boot
+        start = self.clock.monotonic()
+        volume = device.enter_bootloader(self.hw, "COM6", timeout_s=30)
+        self.assertEqual(volume.path, self.board.volume_path)
+        self.assertEqual(len(self.console.pauses), 1)
+        self.assertIn("BOOT", self.console.pauses[0])
+        self.assertTrue(any("did not appear after the 1200-baud touch" in w for w in self.console.warned))
+        self.assertGreaterEqual(self.clock.monotonic() - start, device.TOUCH_SETTLE_S)
+
+    def test_no_drive_at_all_after_the_boot_key_prompt_is_refused(self):
+        self.board.touch_failure_delay = float("inf")
+        with self.assertRaises(device.NoBootselDrive):
+            device.enter_bootloader(self.hw, "COM6", timeout_s=3)
+        self.assertEqual(len(self.console.pauses), 1)
+
+
+class RecentBackupTests(TempDirTest):
+    def setUp(self):
+        super().setUp()
+        self.root = os.path.join(self.tmp, "backups")
+
+    def test_a_backup_from_the_last_hour_for_this_board_is_found(self):
+        folder = write_backup(self.root, age_s=600)
+        self.assertEqual(device.find_recent_backup(self.root, engine_api=1), folder)
+
+    def test_a_backup_older_than_an_hour_is_not_offered(self):
+        write_backup(self.root, age_s=device.RECENT_BACKUP_S + 60)
+        self.assertIsNone(device.find_recent_backup(self.root, engine_api=1))
+
+    def test_a_backup_from_the_future_is_not_offered(self):
+        write_backup(self.root, age_s=-600)
+        self.assertIsNone(device.find_recent_backup(self.root, engine_api=1))
+
+    def test_identity_must_name_this_board_and_a_compatible_api(self):
+        write_backup(self.root, board="adafruit_feather_rp2040")
+        self.assertIsNone(device.find_recent_backup(self.root, engine_api=1))
+        write_backup(self.root, api=2)
+        self.assertIsNone(device.find_recent_backup(self.root, engine_api=1))
+
+    def test_a_backup_without_firmware_identity_is_not_offered(self):
+        write_backup(self.root, identity=False)
+        self.assertIsNone(device.find_recent_backup(self.root, engine_api=1))
+
+    def test_a_backup_that_fails_its_hash_check_is_skipped(self):
+        folder = write_backup(self.root)
+        with open(os.path.join(folder, "Scene01"), "wb") as handle:
+            handle.write(b"changed")
+        self.assertIsNone(device.find_recent_backup(self.root, engine_api=1))
+
+    def test_the_newest_eligible_backup_wins(self):
+        write_backup(self.root, age_s=1200)
+        newest = write_backup(self.root, age_s=60)
+        self.assertEqual(device.find_recent_backup(self.root, engine_api=1), newest)
+
+    def test_missing_root_is_simply_no_backup(self):
+        self.assertIsNone(device.find_recent_backup(os.path.join(self.tmp, "nope"), engine_api=1))
 
 
 if __name__ == "__main__":

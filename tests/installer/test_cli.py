@@ -184,5 +184,21 @@ class BuildScriptTests(unittest.TestCase):
         self.assertIn("entry.py", command)
 
 
+class EndOfInputExitCodeTests(unittest.TestCase):
+    def test_wizard_with_no_input_exits_non_zero_and_changes_nothing(self):
+        def eof(prompt):
+            raise EOFError()
+
+        world = FakeWorld()
+        board = world.add("COM7")
+        console = TerminalConsole(input_fn=eof, out=io.StringIO(), err=io.StringIO())
+        code = cli.run([], console=console, hardware=hardware(world, console),
+                       downloader=FakeDownloader({}))
+        self.assertNotEqual(code, cli.EXIT_OK)
+        self.assertEqual(code, cli.EXIT_CANCELLED)
+        self.assertEqual(board.mode, "normal")
+        self.assertFalse(any(":touch" in entry for entry in world.log))
+
+
 if __name__ == "__main__":
     unittest.main()

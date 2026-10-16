@@ -317,7 +317,7 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def backup_device(hw: Hardware, device: str, root: str) -> Optional[str]:
+def backup_device(hw: Hardware, device: str, root: str, identity: Optional[dict] = None) -> Optional[str]:
     """Copies every present maintenance file into a new timestamped folder under root.
 
     Returns the folder, or None when the storage reports nothing readable. Writes backup.json
@@ -348,6 +348,8 @@ def backup_device(hw: Hardware, device: str, root: str) -> Optional[str]:
     finally:
         port.close()
     doc = {"schema": 1, "source": "orbit12-maintenance", "created": stamp, "files": entries}
+    if identity:
+        doc["firmware"] = identity  # fw, sha, api, board of the firmware the backup came from
     with open(os.path.join(folder, BACKUP_MANIFEST), "w", encoding="utf-8") as handle:
         json.dump(doc, handle, indent=2)
     return folder
@@ -384,6 +386,44 @@ def load_backup(folder: str) -> List[Tuple[str, bytes]]:
             raise FlashError(f"backup file {name} does not match its recorded hash; not restoring")
         result.append((name, data))
     return result
+
+
+RECENT_BACKUP_S = 3600  # a backup this young may be offered when the board is already in its bootloader
+
+
+def find_recent_backup(root: str, engine_api: int, max_age_s: float = RECENT_BACKUP_S) -> Optional[str]:
+    """The newest backup under root that is less than max_age_s old, was taken from Orbit12 firmware
+    for this board and an engine API compatible with the release, and passes its hash check.
+    Compatibility is board and engine_api only: the firmware version is expected to differ."""
+    if not os.path.isdir(root):
+        return None
+    now = _dt.datetime.now()
+    best = None
+    for name in os.listdir(root):
+        folder = os.path.join(root, name)
+        if not name.startswith("backup-") or not os.path.isfile(os.path.join(folder, BACKUP_MANIFEST)):
+            continue
+        try:
+            with open(os.path.join(folder, BACKUP_MANIFEST), "r", encoding="utf-8") as handle:
+                doc = json.load(handle)
+            created = _dt.datetime.strptime(str(doc.get("created", "")), "%Y%m%d-%H%M%S")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if not isinstance(doc, dict) or doc.get("schema") != 1:
+            continue
+        identity = doc.get("firmware")
+        if not isinstance(identity, dict) or identity.get("board") != BOARD or identity.get("api") != engine_api:
+            continue
+        age = (now - created).total_seconds()
+        if age < -60 or age > max_age_s:
+            continue
+        try:
+            load_backup(folder)
+        except FlashError:
+            continue
+        if best is None or created > best[0]:
+            best = (created, folder)
+    return best[1] if best else None
 
 
 def restore_device(hw: Hardware, device: str, folder: str) -> List[str]:
@@ -438,23 +478,55 @@ def circuitpy_volumes(hw: Hardware) -> List[Volume]:
             if CIRCUITPY_MARKER_FILE in v.files and BOOTSEL_MARKER not in v.info_text]
 
 
-def request_bootsel(hw: Hardware, orbit_port: Optional[str]) -> None:
-    """1200-baud touch when the board runs firmware with CDC; otherwise ask for BOOT."""
+TOUCH_SETTLE_S = 15.0  # after a 1200-baud touch, how long the bootloader drive may take to appear
+
+
+class NoBootselDrive(FlashError):
+    """No RPI-RP2 drive is present (as opposed to several, which is an ambiguity error)."""
+
+
+def single_bootsel_volume(hw: Hardware) -> Optional[Volume]:
+    """The one RPI-RP2 drive, None when there is none; several are refused."""
+    found = bootsel_volumes(hw)
+    if len(found) > 1:
+        paths = ", ".join(v.path for v in found)
+        raise FlashError(f"several RPI-RP2 drives are connected ({paths}); refusing to choose one")
+    return found[0] if found else None
+
+
+def enter_bootloader(hw: Hardware, orbit_port: Optional[str], timeout_s: float = 30.0) -> Volume:
+    """Puts the board into its bootloader and returns the RPI-RP2 drive.
+
+    With a CDC port, a 1200-baud touch is sent first. The touch is judged by its outcome, not by
+    whether it raised: the board often resets as the port closes, so an exception (for example
+    Windows "a device attached to the system is not functioning") is inconclusive. The drive is
+    polled for up to TOUCH_SETTLE_S before the BOOT-key instruction is shown. The port is always
+    closed before the touch returns, and the caller leaves maintenance before calling this.
+    """
     if orbit_port is not None:
+        port = None
         try:
             port = hw.opener.open(orbit_port, OPEN_TIMEOUT_S)
             port.touch_1200()
-            return
         except OSError as error:
-            hw.console.warn(f"1200-baud touch on {orbit_port} failed ({error}); using the BOOT key")
+            hw.console.say(f"  the 1200-baud touch on {orbit_port} reported: {error}; checking whether the "
+                           "board reset into its bootloader")
+        finally:
+            if port is not None:
+                port.close()
+        try:
+            return wait_for_bootsel(hw, TOUCH_SETTLE_S)
+        except NoBootselDrive:
+            hw.console.warn("the bootloader drive did not appear after the 1200-baud touch")
     hw.console.pause_for_action(
         "Put the board in its bootloader: hold the BOOT button (where it is is shown in Adafruit's "
         "MacroPad RP2040 guide) while you connect the USB cable, and release it once the RPI-RP2 "
         "drive appears.")
+    return wait_for_bootsel(hw, timeout_s)
 
 
 def wait_for_bootsel(hw: Hardware, timeout_s: float = 30.0) -> Volume:
-    """Waits for exactly one RPI-RP2 volume. Zero after the timeout is refused; several at once too."""
+    """Waits for exactly one RPI-RP2 volume. Zero after the timeout is NoBootselDrive; several is refused."""
     def check():
         found = bootsel_volumes(hw)
         if len(found) > 1:
@@ -463,8 +535,8 @@ def wait_for_bootsel(hw: Hardware, timeout_s: float = 30.0) -> Volume:
 
     result = wait_until(hw, timeout_s, check)
     if result is None:
-        raise FlashError("no RP2040 bootloader drive (RPI-RP2) appeared; check the cable, or hold "
-                         "BOOT while connecting")
+        raise NoBootselDrive("no RP2040 bootloader drive (RPI-RP2) appeared; check the cable, or hold "
+                             "BOOT while connecting")
     kind, value = result
     if kind == "many":
         paths = ", ".join(v.path for v in value)

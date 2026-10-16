@@ -19,7 +19,7 @@ FLAG_NOT_MAIN_FLASH = 0x00000001
 FLAG_FAMILY_ID_PRESENT = 0x00002000
 RP2040_FAMILY_ID = 0xE48BFF56
 MAX_PAYLOAD = 476
-MAX_BLOCKS = 1 << 16  # far above a 2 MiB image; bounds the scan
+MAX_BLOCKS = 1 << 16  # bounds the scan; the image size is limited by MAX_IMAGE_BYTES in package.py
 
 
 class Uf2Error(Exception):

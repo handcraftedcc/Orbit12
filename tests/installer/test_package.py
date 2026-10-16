@@ -18,7 +18,7 @@ class ManifestTests(unittest.TestCase):
         manifest = parse()
         self.assertEqual(manifest.version, "0.1.0-pre.1")
         self.assertEqual(manifest.image.file, "Orbit12-0.1.0-pre.1.uf2")
-        self.assertEqual(manifest.fs_start, 0x10700000)
+        self.assertEqual(manifest.fs_start, 0x106ff000)
         self.assertEqual(manifest.image.blocks, 4)
 
     def test_wrong_board_is_refused(self):
@@ -54,13 +54,39 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(PackageError, "block count"):
             parse(image={"blocks": 99})
 
-    def test_address_range_must_start_at_the_flash_base(self):
-        with self.assertRaisesRegex(PackageError, "flash base"):
-            parse(image={"address_start": "0x20000000"})
+    def test_image_window_must_lie_inside_the_xip_window(self):
+        with self.assertRaisesRegex(PackageError, "flash window"):
+            parse(image={"address_start": "0x0F000000"})
+        with self.assertRaisesRegex(PackageError, "flash window"):
+            parse(image={"address_end": "0x11000001"})
 
-    def test_filesystem_must_lie_inside_the_image(self):
-        with self.assertRaisesRegex(PackageError, "outside the image"):
-            parse(filesystem={"start": "0x10780000"})
+    def test_real_clean_build_values_are_accepted(self):
+        # The values from a clean release build: 1072 blocks of 256 bytes, filesystem at the top.
+        manifest = parse(image={"size": 548864, "blocks": 1072, "address_end": "0x10043000"},
+                         filesystem={"start": "0x106ff000", "size": 1048576})
+        self.assertEqual(manifest.image.address_end, 0x10043000)
+        self.assertEqual(manifest.fs_start, 0x106FF000)
+        self.assertEqual(manifest.fs_size, 1048576)
+
+    def test_filesystem_outside_the_xip_window_is_refused(self):
+        with self.assertRaisesRegex(PackageError, "filesystem window"):
+            parse(filesystem={"start": "0x10F00000", "size": 0x200000})  # ends past 0x11000000
+
+    def test_image_overlapping_the_filesystem_is_refused(self):
+        with self.assertRaisesRegex(PackageError, "overlap"):
+            parse(image={"address_end": "0x10700000"}, filesystem={"start": "0x106ff000", "size": 1048576})
+
+    def test_unaligned_filesystem_start_is_refused(self):
+        with self.assertRaisesRegex(PackageError, "aligned"):
+            parse(filesystem={"start": "0x106ff001", "size": 1048576})
+
+    def test_zero_or_odd_filesystem_size_is_refused(self):
+        with self.assertRaises(PackageError):
+            parse(filesystem={"start": "0x106ff000", "size": 0})
+        with self.assertRaisesRegex(PackageError, "multiple of 4096"):
+            parse(filesystem={"start": "0x106ff000", "size": 1000})
+        with self.assertRaises(PackageError):
+            parse(filesystem={"start": "0x106ff000", "size": -4096})
 
     def test_bad_json_and_oversize_are_refused(self):
         with self.assertRaisesRegex(PackageError, "JSON"):
@@ -151,9 +177,9 @@ class ImageVerificationTests(unittest.TestCase):
             package.verify_image_bytes(bad, manifest, None)
 
     def test_image_overlapping_the_filesystem_is_refused_with_matching_hash(self):
-        bad = make_uf2(addresses=[0x10700000 - 128])
+        bad = make_uf2(addresses=[0x106ff000 - 128])
         manifest = package.parse_manifest(manifest_doc(bad))
-        with self.assertRaisesRegex(PackageError, "overlaps"):
+        with self.assertRaisesRegex(PackageError, "outside the image range|overlaps"):
             package.verify_image_bytes(bad, manifest, None)
 
 

@@ -4,7 +4,7 @@ import json
 import os
 import unittest
 
-from helpers import (NEW_GIT, NEW_VERSION, OLD_GIT, OLD_VERSION, FakeDownloader, FakeWorld,
+from helpers import (write_backup, NEW_GIT, NEW_VERSION, OLD_GIT, OLD_VERSION, FakeDownloader, FakeWorld,
                      RecordingConsole, TempDirTest, hardware, make_uf2, manifest_doc, scenes, sha256,
                      sums_text)
 
@@ -225,6 +225,20 @@ class MaintenanceCommandTests(FlowTest):
 
 
 class OfflineModeTests(FlowTest):
+    def test_real_clean_build_shaped_image_loads_offline(self):
+        # 1072 blocks of 256 bytes from 0x10000000 to 0x10043000, filesystem 1 MiB at 0x106ff000.
+        image = make_uf2(addresses=[0x10000000 + 256 * i for i in range(1072)])
+        self.assertEqual(len(image), 548864)
+        with open(self.uf2_path, "wb") as handle:
+            handle.write(image)
+        with open(self.manifest_path, "wb") as handle:
+            handle.write(manifest_doc(image))
+        with open(self.sums_path, "wb") as handle:
+            handle.write(sums_text({"Orbit12-0.1.0-pre.1.uf2": sha256(image)}))
+        package_ = flow.load_local_package(self.opts)
+        self.assertEqual(package_.manifest.image.blocks, 1072)
+        self.assertEqual(package_.manifest.image.address_end, 0x10043000)
+
     def test_local_package_verifies_before_anything_is_written(self):
         package_ = flow.load_local_package(self.opts)
         self.assertEqual(package_.manifest.version, NEW_VERSION)
@@ -440,6 +454,62 @@ class OnlineSelectionTests(FlowTest):
         os.environ.pop("GITHUB_TOKEN", None)
         flow.download_package(self.hw, self.downloader, release, self.opts)
         self.assertTrue(all(token is None for _, token in self.downloader.requests))
+
+
+class AlreadyInBootloaderTests(FlowTest):
+    """The board starts in its bootloader: no Orbit12 USB port, one RPI-RP2 drive."""
+
+    def setUp(self):
+        super().setUp()
+        self.board.touch()  # the board is already in its bootloader (mode bootsel, drive present)
+        self.assertIsNone(device.find_orbit12(self.hw))
+
+    def test_recent_verified_backup_is_offered_and_used_without_typed_flash(self):
+        folder = write_backup(self.backups, age_s=600)
+        self.console.yes = [True]  # "use this backup?"
+        summary = self.run_flash_offline()
+        self.assertIn("installed", summary)
+        self.assertEqual(self.console.typed_prompts, [])
+        self.assertEqual(self.board.version, NEW_VERSION)
+        self.assertTrue(os.path.exists(os.path.join(folder, "Orbit12-0.1.0-pre.1.uf2")))
+
+    def test_declining_the_recent_backup_needs_the_typed_word_flash(self):
+        write_backup(self.backups, age_s=600)
+        self.console.yes = [False]
+        self.console.typed = ["FLASH"]
+        self.run_flash_offline()
+        self.assertEqual(self.console.typed_prompts, ["FLASH"])
+        self.assertEqual(self.board.version, NEW_VERSION)
+
+    def test_declining_without_typing_flash_changes_nothing(self):
+        write_backup(self.backups, age_s=600)
+        self.console.yes = [False]
+        self.console.typed = ["flash"]
+        with self.assertRaises(Cancelled):
+            self.run_flash_offline()
+        self.assertEqual(self.board.version, OLD_VERSION)
+        self.assertEqual(self.board.mode, "bootsel")
+
+    def test_an_old_backup_is_not_offered_and_typed_flash_is_asked(self):
+        write_backup(self.backups, age_s=device.RECENT_BACKUP_S + 600)
+        self.console.typed = ["FLASH"]
+        self.run_flash_offline()
+        self.assertEqual(self.console.typed_prompts, ["FLASH"])
+        self.assertEqual(self.console.yes, [])  # never asked about the backup
+
+    def test_a_backup_without_firmware_identity_is_not_offered(self):
+        write_backup(self.backups, age_s=60, identity=False)
+        self.console.typed = ["FLASH"]
+        self.run_flash_offline()
+        self.assertEqual(self.console.typed_prompts, ["FLASH"])
+
+    def test_two_rpi_rp2_drives_are_refused(self):
+        other = self.world.add("COM8")
+        other.touch()
+        self.console.typed = ["FLASH"]
+        with self.assertRaisesRegex(FlashError, "several RPI-RP2"):
+            self.run_flash_offline()
+        self.assertEqual(self.board.version, OLD_VERSION)
 
 
 if __name__ == "__main__":

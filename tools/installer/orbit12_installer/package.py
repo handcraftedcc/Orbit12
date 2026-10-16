@@ -19,7 +19,11 @@ PRODUCT = "orbit12"
 BOARD = "adafruit_macropad_rp2040"
 CHIP = "RP2040"
 FAMILY_ID = "0xe48bff56"
-ADDRESS_START = 0x10000000
+# The RP2040 maps QSPI flash into this window (XIP). Flash size is not assumed: the image and the
+# filesystem partition are checked against the window, not against a fixed flash size.
+XIP_BASE = 0x10000000
+XIP_LIMIT = 0x11000000  # end of the 16 MiB window; exclusive
+FS_ALIGN = 4096
 MANIFEST_NAME = "release-manifest.json"
 SUMS_NAME = "SHA256SUMS"
 MAX_MANIFEST_BYTES = 64 * 1024
@@ -128,16 +132,13 @@ def parse_manifest(data: bytes, *, expected_repo: Optional[str] = None) -> Manif
              "manifest image block count does not match its size")
     start = _hex_int(image.get("address_start"), "image.address_start")
     end = _hex_int(image.get("address_end"), "image.address_end")
-    _require(start == ADDRESS_START, "manifest image start is not the RP2040 flash base")
-    _require(start < end, "manifest image address range is empty")
 
     fs = doc.get("filesystem")
     _require(isinstance(fs, dict), "manifest filesystem section is missing")
     fs_start = _hex_int(fs.get("start"), "filesystem.start")
     fs_size = fs.get("size")
-    _require(isinstance(fs_size, int) and fs_size > 0, "manifest filesystem size is invalid")
-    _require(fs_start >= start and fs_start + fs_size <= end,
-             "manifest filesystem partition lies outside the image address range")
+    _require(isinstance(fs_size, int) and not isinstance(fs_size, bool), "manifest filesystem size is invalid")
+    check_layout(start, end, fs_start, fs_size)
 
     modules = doc.get("modules")
     _require(isinstance(modules, dict), "manifest modules section is missing")
@@ -156,6 +157,29 @@ def parse_manifest(data: bytes, *, expected_repo: Optional[str] = None) -> Manif
         core_modules=tuple(core),
         user_modules=tuple(user),
     )
+
+
+def check_layout(image_start: int, image_end: int, fs_start: int, fs_size: int) -> None:
+    """The image window and the filesystem window must be sane and must not overlap.
+
+    No flash size is assumed: the image window and the filesystem window only have to lie inside
+    the 16 MiB XIP window, with the image below the filesystem. The real clean build has the image
+    at 0x10000000..0x10043000 and the filesystem at 0x106ff000 with a 1 MiB size.
+    """
+    _require(XIP_BASE <= image_start < image_end <= XIP_LIMIT,
+             f"manifest image window 0x{image_start:08X}..0x{image_end:08X} is outside the RP2040 "
+             f"flash window 0x{XIP_BASE:08X}..0x{XIP_LIMIT:08X}")
+    _require(fs_size > 0, "manifest filesystem size must be positive")
+    _require(fs_size % FS_ALIGN == 0,
+             f"manifest filesystem size {fs_size} is not a multiple of {FS_ALIGN} bytes")
+    _require(fs_start % FS_ALIGN == 0,
+             f"manifest filesystem start 0x{fs_start:08X} is not aligned to {FS_ALIGN} bytes")
+    _require(XIP_BASE <= fs_start and fs_start + fs_size <= XIP_LIMIT,
+             f"manifest filesystem window 0x{fs_start:08X}..0x{fs_start + fs_size:08X} is outside the "
+             f"RP2040 flash window 0x{XIP_BASE:08X}..0x{XIP_LIMIT:08X}")
+    _require(image_end <= fs_start,
+             f"manifest image window ends at 0x{image_end:08X}, past the filesystem start "
+             f"0x{fs_start:08X}: the image would overlap the filesystem")
 
 
 def sha256_hex(data: bytes) -> str:

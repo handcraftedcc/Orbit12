@@ -35,9 +35,9 @@ from orbit12_installer.interfaces import (Clock, Console, Downloader, PortEnumer
 
 FAMILY = 0xE48BFF56
 FLASH_START = 0x10000000
-FS_START = 0x10700000
+FS_START = 0x106FF000   # real clean build: 1 MiB filesystem partition
 FS_SIZE = 0x100000
-ADDRESS_END = 0x10800000
+ADDRESS_END = 0x10043000  # real clean build: image end (exclusive)
 VID = 0x239A
 BOARD = "adafruit_macropad_rp2040"
 NEW_VERSION = "0.1.0-pre.1"
@@ -70,9 +70,9 @@ def manifest_doc(image: bytes, /, version: str = NEW_VERSION, **overrides) -> by
         "git_sha": NEW_GIT, "engine_api": 1, "board": BOARD, "chip": "RP2040",
         "uf2_family_id": "0xe48bff56",
         "image": {"file": f"Orbit12-{version}.uf2", "sha256": sha256(image), "size": len(image),
-                  "address_start": "0x10000000", "address_end": "0x10800000",
+                  "address_start": "0x10000000", "address_end": "0x10043000",
                   "blocks": len(image) // 512},
-        "filesystem": {"start": "0x10700000", "size": FS_SIZE},
+        "filesystem": {"start": "0x106ff000", "size": FS_SIZE},
         "modules": {"core": ["transpose"], "user": []},
         "repo": "handcraftedcc/Orbit12",
     }
@@ -141,6 +141,10 @@ class FakeBoard:
         self.transport = False        # playback running: ENTER is NAKed NotStopped (16)
         self.busy_enters = 0          # ENTER attempts answered Busy (5) before the board accepts
         self.drop_enter_reply = False # ENTER takes effect but its ACK is lost in transit
+        # 1200-baud touch failure: the touch raises (the port vanished), and the board reaches the
+        # bootloader this many seconds later. None: the touch works normally.
+        self.touch_failure_delay: Optional[float] = None
+        self.deferred_bootsel_at: Optional[float] = None
         self.files: Dict[str, bytes] = dict(files or {})
         self.legacy = legacy  # CircuitPython-like: no Orbit12 dump at all
         self.volume_path: Optional[str] = None
@@ -268,6 +272,13 @@ class FakeBoard:
         if not self.drop_enter_reply:
             port.rx += encode_frame(ord("A"), name)
 
+    def poll_deferred(self, now: float) -> None:
+        """Brings the board into the bootloader once a failed touch's delay has passed."""
+        if self.deferred_bootsel_at is not None and now >= self.deferred_bootsel_at:
+            self.deferred_bootsel_at = None
+            self.mode = "normal"
+            self.touch()
+
     def touch(self) -> None:
         if self.mode in ("normal", "maintenance"):
             self.mode = "bootsel"
@@ -316,6 +327,12 @@ class FakePort(SerialPort):
         self.rx.clear()
 
     def touch_1200(self) -> None:
+        if self.board.touch_failure_delay is not None:
+            # Windows reports the vanished port as an exception, but the reset still happens.
+            self.board.mode = "gone"
+            self.board.deferred_bootsel_at = self.clock.monotonic() + self.board.touch_failure_delay
+            self.closed = True
+            raise PermissionError(13, "A device attached to the system is not functioning")
         self.board.touch()
         self.close()
 
@@ -326,6 +343,7 @@ class FakePort(SerialPort):
 class FakeWorld(PortEnumerator, SerialOpener, VolumeFinder):
     def __init__(self, clock: Optional[FakeClock] = None) -> None:
         self.clock = clock or FakeClock()
+        self.opened: List["FakePort"] = []
         self.boards: Dict[str, FakeBoard] = {}
         self.log: List[str] = []
         self.extra_ports: List[PortInfo] = []
@@ -337,6 +355,8 @@ class FakeWorld(PortEnumerator, SerialOpener, VolumeFinder):
         return board
 
     def list_ports(self) -> List[PortInfo]:
+        for board in self.boards.values():
+            board.poll_deferred(self.clock.monotonic())
         ports = [PortInfo(d, VID, 0x0001, "Orbit12 MacroPad") for d, b in self.boards.items()
                  if b.mode in ("normal", "maintenance")]
         return ports + list(self.extra_ports)
@@ -345,11 +365,14 @@ class FakeWorld(PortEnumerator, SerialOpener, VolumeFinder):
         board = self.boards.get(device)
         if board is None or board.mode not in ("normal", "maintenance"):
             raise OSError(f"no such port {device}")
-        return FakePort(board, self.clock)
+        port = FakePort(board, self.clock)
+        self.opened.append(port)
+        return port
 
     def list_volumes(self) -> List[Volume]:
         volumes = []
         for board in self.boards.values():
+            board.poll_deferred(self.clock.monotonic())
             board.poll_reboot()
             if board.mode == "bootsel" and board.volume_path:
                 files = frozenset(os.listdir(board.volume_path))
@@ -421,6 +444,26 @@ class FakeDownloader(Downloader):
         if len(data) > max_bytes:
             raise ReleaseError(f"download exceeds the {max_bytes}-byte limit")
         return data
+
+
+def write_backup(root: str, *, age_s: float = 60.0, identity: bool = True, board: str = BOARD,
+                 api: int = 1, files: Optional[Dict[str, bytes]] = None) -> str:
+    """Writes a backup folder in the same layout backup_device uses (backup.json written last)."""
+    import datetime as dt
+    os.makedirs(root, exist_ok=True)
+    created = (dt.datetime.now() - dt.timedelta(seconds=age_s)).strftime("%Y%m%d-%H%M%S")
+    folder = tempfile.mkdtemp(prefix=f"backup-{created}-", dir=root)
+    entries = []
+    for name, data in (files if files is not None else scenes()).items():
+        with open(os.path.join(folder, name), "wb") as handle:
+            handle.write(data)
+        entries.append({"name": name, "size": len(data), "sha256": sha256(data)})
+    doc = {"schema": 1, "source": "orbit12-maintenance", "created": created, "files": entries}
+    if identity:
+        doc["firmware"] = {"fw": OLD_VERSION, "sha": OLD_GIT, "api": api, "board": board}
+    with open(os.path.join(folder, "backup.json"), "w", encoding="utf-8") as handle:
+        json.dump(doc, handle)
+    return folder
 
 
 def hardware(world: FakeWorld, console: Console) -> Hardware:

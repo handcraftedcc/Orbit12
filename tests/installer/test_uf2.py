@@ -75,13 +75,19 @@ class Uf2CheckTests(unittest.TestCase):
             check(data)
 
     def test_overlap_with_the_filesystem_partition_is_refused(self):
+        # Inside a (hypothetical) image window that runs past the filesystem start.
         data = make_uf2(addresses=[FS_START - 128])  # payload ends inside the partition
         with self.assertRaisesRegex(uf2.Uf2Error, "overlaps the filesystem"):
-            check(data)
+            check(data, address_end=FS_START + 4096)
 
     def test_last_byte_just_before_the_partition_is_allowed(self):
         data = make_uf2(addresses=[FS_START - 256])
-        check(data)
+        check(data, address_end=FS_START)
+
+    def test_a_block_inside_the_filesystem_is_refused_even_within_the_declared_window(self):
+        data = make_uf2(addresses=[FS_START + 256])
+        with self.assertRaisesRegex(uf2.Uf2Error, "overlaps the filesystem"):
+            check(data, address_end=FS_START + FS_SIZE)
 
     def test_size_must_be_a_multiple_of_512(self):
         with self.assertRaisesRegex(uf2.Uf2Error, "512"):
