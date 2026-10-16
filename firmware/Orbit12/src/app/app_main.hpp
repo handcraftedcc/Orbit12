@@ -16,20 +16,26 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "app/bridge.hpp"
-#include "app/core1_attribution.hpp"
-#include "app/renderer.hpp"
-#include "app/controller.hpp"
-#include "app/ui_model.hpp"
-#include "domain/chain.hpp"
-#include "domain/output.hpp"
-#include "persistence/fs_format.hpp"
-#include "persistence/maintenance_protocol.hpp"
-#include "platform/macropad/diag_io.hpp"
-#include "platform/macropad/gpio.hpp"
-#include "platform/macropad/usb_midi.hpp"
+#include "bridge.hpp"
+#include "core1_attribution.hpp"
+#include "renderer.hpp"
+#include "controller.hpp"
+#include "ui_model.hpp"
+#include "../domain/chain.hpp"
+#include "../domain/output.hpp"
+#include "../persistence/fs_format.hpp"
+#include "../persistence/maintenance_command.hpp"
+#include "../persistence/maintenance_protocol.hpp"
+#include "../platform/macropad/diag_io.hpp"
+#include "../platform/macropad/gpio.hpp"
+#include "../platform/macropad/usb_midi.hpp"
+#include "maintenance_info.hpp"
 
 namespace orbit {
+
+// Normal-run reply outbox: one INFO frame (header, <= kInfoTextMaxBytes text, CRC) and two NAKs
+// that echo a full-length name (582 bytes; see the static_assert in app_main.cpp).
+constexpr std::size_t kOutboxBytes = 592;
 
 // Storage supplied by the board glue (LittleFS on the MacroPad; an in-memory fake in
 // host tests). mount() never formats. set_window opens/closes the write window.
@@ -173,13 +179,26 @@ class EngineApp {
                  std::uint32_t scheduled_us, bool eligible) noexcept;
   void fill_diag(std::uint32_t now_ms) noexcept;
   void service_diagnostics(const TimeSample& now) noexcept;
-  void service_serial() noexcept;
+  void service_serial(const TimeSample& now) noexcept;   // normal run: commands, replies, '?' dump
   void build_dump() noexcept;
   void service_gesture(const TimeSample& now) noexcept;
   void service_quiesce(const TimeSample& now) noexcept;
   void service_maintenance_serial(const TimeSample& now) noexcept;
-  void begin_maintenance(const TimeSample& now) noexcept;
+  // Enters maintenance (stop, quiesce, window). from_host: the ACK or NAK of ENTER-MAINT follows.
+  bool start_maintenance(const TimeSample& now, bool from_host) noexcept;
   void end_maintenance() noexcept;
+  // Normal-run commands (framer sink) and their replies.
+  static void run_command(void* context, const maintenance::RunCommand& command) noexcept;
+  static void run_passthrough(void* context, std::uint8_t byte) noexcept;
+  void handle_run_command(const maintenance::RunCommand& command) noexcept;
+  maintenance::NakReason host_entry_refusal() noexcept;   // None: ENTER may start now
+  std::size_t compose_info() noexcept;                    // INFO text into info_text_
+  bool queue_frame(maintenance::FrameType type, const std::uint8_t* name, std::size_t name_length,
+                   const std::uint8_t* payload, std::size_t payload_length) noexcept;
+  void queue_nak(const std::uint8_t* name, std::size_t name_length, maintenance::NakReason reason) noexcept;
+  void drain_outbox() noexcept;
+  void send_frame_blocking(maintenance::FrameType type, const std::uint8_t* name, std::size_t name_length,
+                           const std::uint8_t* payload, std::size_t payload_length) noexcept;
   static bool maintenance_write(void* context, const std::uint8_t* data, std::size_t length) noexcept;
   static bool maintenance_stopped(void* context) noexcept;
   static fsformat::FormatResult maintenance_format(void* context) noexcept;
@@ -202,6 +221,15 @@ class EngineApp {
   bool boot_started_ = false;
   bool storage_mounted_ = false;
   std::uint32_t mount_heap_bytes_ = 0;
+  // Normal-run command framer (every received byte) and its bounded outbox. Replies are queued
+  // and drained without waiting; a reply that does not fit is dropped and counted.
+  maintenance::RunCommandFramer run_framer_{};
+  std::uint8_t outbox_[kOutboxBytes]{};
+  std::size_t out_len_ = 0, out_sent_ = 0;
+  char info_text_[kInfoTextMaxBytes]{};
+  std::uint32_t run_now_ms_ = 0;
+  bool enter_pending_ = false;                  // an ENTER-MAINT is waiting for Active or a timeout
+  std::uint32_t enter_accepted_ = 0, enter_refused_ = 0, info_served_ = 0, reply_dropped_ = 0;
   // Maintenance entry and exit (core 0 only).
   MaintenanceState maint_ = MaintenanceState::Off;
   bool entry_sampled_ = false;   // the first core-1 pad sample has decided the gesture
@@ -217,6 +245,7 @@ class EngineApp {
   static constexpr std::uint32_t kMaintenanceIdleMs = 60000;
   static constexpr std::uint32_t kWriteStallMs = 2000;      // bounded wait for a host to read
   static constexpr std::size_t kSerialBytesPerPass = 64;
+  static constexpr std::size_t kRunBytesPerPass = 32;     // normal run: bytes read per pass
   static constexpr std::size_t kDumpCapacity = 4096;  // single instance (g_engine); +1024 B static RAM
   char dump_[kDumpCapacity]{};
   std::size_t dump_len_ = 0, dump_sent_ = 0;

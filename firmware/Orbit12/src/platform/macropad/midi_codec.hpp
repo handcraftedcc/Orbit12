@@ -8,8 +8,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "domain/output.hpp"
-#include "domain/transport.hpp"
+#include "../../domain/output.hpp"
+#include "../../domain/transport.hpp"
 
 namespace orbit {
 namespace platform {

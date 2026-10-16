@@ -1,4 +1,4 @@
-#include "persistence/user_settings.hpp"
+#include "user_settings.hpp"
 
 #include <cstring>
 

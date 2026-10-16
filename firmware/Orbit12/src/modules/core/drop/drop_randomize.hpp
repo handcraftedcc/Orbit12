@@ -1,5 +1,5 @@
 #pragma once
-#include "basics.hpp"
+#include "../../common/module_state.hpp"
 
 namespace orbit {
 // Deterministic seed hash from the Python source (utils.hash_u32). Evaluated in

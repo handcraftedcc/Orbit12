@@ -1,7 +1,7 @@
-#include "app/controller.hpp"
-#include "app/module_descriptors.hpp"
+#include "controller.hpp"
+#include "module_descriptors.hpp"
 
-#include "domain/time.hpp"
+#include "../domain/time.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -1990,8 +1990,10 @@ bool Controller::scene_capture(SceneDto& dto) noexcept {
     m.present = true;
     m.unknown_module = false;
     std::memset(m.id, 0, sizeof(m.id));
-    if (std::strlen(rec.id) > kSceneMaxModuleIdChars) return false;
-    copy_text(m.id, sizeof(m.id), rec.id);
+    // SCN1 stores the scene key (<= kSceneMaxModuleIdChars), not the module id.
+    const char* key = module_scene_key(rec.id);
+    if (key == nullptr || std::strlen(key) > kSceneMaxModuleIdChars) return false;
+    copy_text(m.id, sizeof(m.id), key);
     m.version = 1;
     m.parameter_count = 0;
     m.attribute_count = 0;
@@ -2070,7 +2072,7 @@ bool Controller::scene_apply_globals(const GlobalState& g, std::uint8_t fields) 
 bool Controller::scene_construct_module(std::uint8_t slot, const char* id, bool unknown) noexcept {
   if (slot >= kSlotCount) return false;
   if (slot == kSlotIn) return install_input(unknown ? "note" : id);
-  if (slot >= kSlotP1 && slot <= kSlotP6) return install_processor(slot, unknown ? "empty" : id);
+  if (slot >= kSlotP1 && slot <= kSlotP6) return install_processor(slot, unknown ? "empty" : module_id_for_scene_key(id));
   return true;  // SET / OUT / SETTINGS are fixed
 }
 
@@ -2164,7 +2166,7 @@ bool Controller::scene_resolve(std::uint8_t slot, const char* id, SceneModuleSch
     params = d->params; param_count = d->param_count; version = d->version;
     kind = SceneModuleKind::Input; input_slot = true;
   } else if (slot >= kSlotP1 && slot <= kSlotP6) {
-    const ModuleDescriptor* d = find_module(id);
+    const ModuleDescriptor* d = find_module(module_id_for_scene_key(id));
     if (d == nullptr) return false;
     params = d->params; param_count = d->param_count; version = d->version;
     routing = !same(d->id, "empty");
@@ -2188,7 +2190,7 @@ bool Controller::scene_resolve(std::uint8_t slot, const char* id, SceneModuleSch
   out.attr_count = attrs.count;
   // Return the descriptor's own id string so the schema never points at the caller's buffer.
   if (slot == kSlotIn) out.id = find_input_module(id)->id;
-  else out.id = find_module(id)->id;
+  else out.id = module_scene_key(find_module(module_id_for_scene_key(id))->id);
   return true;
 }
 

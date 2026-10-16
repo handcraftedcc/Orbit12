@@ -3,10 +3,10 @@
 // core 1 (GPIO owner). Arduino includes live in gpio.cpp only.
 #include <cstdint>
 
-#include "domain/types.hpp"
-#include "platform/macropad/debounce.hpp"
-#include "platform/macropad/encoder.hpp"
-#include "platform/macropad/ports.hpp"
+#include "../../domain/types.hpp"
+#include "debounce.hpp"
+#include "encoder.hpp"
+#include "ports.hpp"
 
 namespace orbit {
 namespace platform {

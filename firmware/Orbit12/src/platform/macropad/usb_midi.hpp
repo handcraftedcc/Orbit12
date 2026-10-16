@@ -3,8 +3,8 @@
 // Thru is not implemented (nothing is forwarded). Arduino includes: .cpp only.
 #include <cstdint>
 
-#include "domain/output.hpp"
-#include "platform/macropad/midi_codec.hpp"
+#include "../../domain/output.hpp"
+#include "midi_codec.hpp"
 
 namespace orbit {
 namespace platform {

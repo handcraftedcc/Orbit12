@@ -1,4 +1,4 @@
-#include "platform/macropad/encoder.hpp"
+#include "encoder.hpp"
 
 #include <Arduino.h>
 

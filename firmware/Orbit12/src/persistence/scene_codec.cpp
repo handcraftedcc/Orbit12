@@ -1,4 +1,4 @@
-#include "persistence/scene_codec.hpp"
+#include "scene_codec.hpp"
 
 #include <cmath>
 #include <cstring>

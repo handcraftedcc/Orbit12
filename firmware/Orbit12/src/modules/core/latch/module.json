@@ -1,0 +1,44 @@
+{
+  "package_format": 1,
+  "module_id": "latch",
+  "scene_key": "latch",
+  "display_name": "Latch",
+  "label": "LATCH",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "HOLDS NOTES",
+  "state": {
+    "type": "LatchModuleState",
+    "bytes": 52
+  },
+  "parameters": [
+    {
+      "name": "polyphony",
+      "type": "integer",
+      "default": 12,
+      "minimum": 1,
+      "maximum": 12,
+      "step": 1,
+      "label": "POLY",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "latch_pick.cpp"
+  ],
+  "source_group": "latch",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/latch/latch_pick.hpp",
+  "registry_index": 10,
+  "selector_index": 10
+}

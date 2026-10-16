@@ -1,0 +1,159 @@
+{
+  "package_format": 1,
+  "module_id": "euclid",
+  "scene_key": "euclid",
+  "display_name": "Euclid",
+  "label": "EUCLID",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "EUCLIDEAN RHYTHM",
+  "state": {
+    "type": "EuclidModuleState",
+    "bytes": 184
+  },
+  "parameters": [
+    {
+      "name": "lane",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 5,
+      "step": 1,
+      "label": "LANE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "RATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pulses",
+      "type": "integer",
+      "default": 4,
+      "minimum": 0,
+      "maximum": 128,
+      "step": 1,
+      "label": "PULSES",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "length",
+      "type": "integer",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 128,
+      "step": 1,
+      "label": "LENGTH",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rotation",
+      "type": "integer",
+      "default": 0,
+      "minimum": -127,
+      "maximum": 127,
+      "step": 1,
+      "label": "ROT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "sort",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SORT",
+      "options": [
+        "UP",
+        "DOWN",
+        "ORD"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate",
+      "type": "decimal",
+      "default": 100.0,
+      "minimum": 0.0,
+      "maximum": 100000.0,
+      "step": 5.0,
+      "label": "GATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "retrigger_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "RTRG",
+      "options": [
+        "STBL",
+        "CONT",
+        "RTRG"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "pulses",
+      "type": "byte",
+      "element_count": 6
+    },
+    {
+      "name": "lengths",
+      "type": "byte",
+      "element_count": 6
+    },
+    {
+      "name": "rotations",
+      "type": "integer",
+      "element_count": 6
+    }
+  ],
+  "sources": [
+    "euclid.cpp"
+  ],
+  "source_group": "euclid",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/euclid/euclid.hpp",
+  "registry_index": 8,
+  "selector_index": 8
+}

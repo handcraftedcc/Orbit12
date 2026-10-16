@@ -1,6 +1,6 @@
-#include "domain/transport.hpp"
+#include "transport.hpp"
 
-#include "domain/time.hpp"
+#include "time.hpp"
 
 namespace orbit {
 

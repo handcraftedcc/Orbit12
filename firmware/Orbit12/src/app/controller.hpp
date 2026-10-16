@@ -18,17 +18,17 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "app/bridge.hpp"
-#include "app/ui_model.hpp"
-#include "domain/chain.hpp"
-#include "domain/modules/chords_input.hpp"
-#include "domain/modules/input_registry.hpp"
-#include "domain/modules/matrix_input.hpp"
-#include "domain/modules/registry.hpp"
-#include "domain/modules/walk_inputs.hpp"
-#include "domain/output.hpp"
-#include "domain/transport.hpp"
-#include "persistence/scene_service.hpp"
+#include "bridge.hpp"
+#include "ui_model.hpp"
+#include "../domain/chain.hpp"
+#include "../modules/core/chords/chords_input.hpp"
+#include "../modules/common/input_registry.hpp"
+#include "../modules/core/matrix/matrix_input.hpp"
+#include "../modules/common/registry.hpp"
+#include "../modules/core/note_walk/walk_inputs.hpp"
+#include "../domain/output.hpp"
+#include "../domain/transport.hpp"
+#include "../persistence/scene_service.hpp"
 
 namespace orbit {
 

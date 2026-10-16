@@ -1,0 +1,99 @@
+{
+  "package_format": 1,
+  "module_id": "pick",
+  "scene_key": "pick",
+  "display_name": "Pick",
+  "label": "PICK",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "PICKS SUBSET",
+  "state": {
+    "type": "PickModuleState",
+    "bytes": 108
+  },
+  "parameters": [
+    {
+      "name": "pick_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 3,
+      "step": 1,
+      "label": "MDE",
+      "options": [
+        "STRT",
+        "END",
+        "LOW",
+        "HIGH"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "count",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 12,
+      "step": 1,
+      "label": "COUNT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "invert",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "INV",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "OFST",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octaves",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "latch",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/latch/latch_pick.hpp",
+  "registry_index": 11,
+  "selector_index": 11
+}

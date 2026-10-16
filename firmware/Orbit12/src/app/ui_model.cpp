@@ -1,4 +1,4 @@
-#include "app/ui_model.hpp"
+#include "ui_model.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -16,15 +16,8 @@ const char* const kOnOffOptions[2] = {"OFF", "ON"};
 
 namespace {
 // registry._registry.MODULE_SPECS with phraser (no implementation) removed.
-constexpr SelectorEntry kProcessorSelectors[] = {
-    {"empty", "EMPTY"}, {"arp", "ARP"}, {"arp_walk", "ARPWLK"}, {"bounce", "BOUNCE"},
-    {"chord", "CHRD"}, {"chopper", "CHOPPR"}, {"delay", "DELAY"}, {"drop", "DROP"},
-    {"euclid", "EUCLID"}, {"gate", "GATE"}, {"latch", "LATCH"}, {"pick", "PICK"},
-    {"quantize", "QNT"}, {"randomize", "RND"}, {"retrigger", "RTRGR"}, {"strum", "STRUM"},
-    {"transpose", "TRNS"}, {"wander", "WANDR"}};
-constexpr SelectorEntry kInputSelectors[] = {
-    {"note", "NOTE"}, {"chords", "CHRD"}, {"drum", "DRUM"}, {"matrix", "MTRX"},
-    {"note_walk", "NOTEWLK"}, {"chord_walk", "CHRDWLK"}};
+// Selector tables are generated from module.json (modules/generated/selectors_generated.hpp).
+#include "../modules/generated/selectors_generated.hpp"
 bool same(const char* a, const char* b) noexcept {
   return a != nullptr && b != nullptr && std::strcmp(a, b) == 0;
 }

@@ -2,9 +2,9 @@
 
 #include <cstdint>
 
-#include "persistence/scene_codec.hpp"
-#include "persistence/scene_names.hpp"
-#include "persistence/user_settings.hpp"
+#include "scene_codec.hpp"
+#include "scene_names.hpp"
+#include "user_settings.hpp"
 
 namespace orbit {
 

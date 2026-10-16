@@ -1,4 +1,4 @@
-#include "persistence/scene_names.hpp"
+#include "scene_names.hpp"
 
 #include <cstring>
 

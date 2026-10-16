@@ -4,8 +4,9 @@
 // fixtures/t09d/gen_traces.py under python -I. Trace functions named trace_dev_* carry
 // the documented release-safety deviations; each step checks the C++ result and that
 // the source result differs where the generator recorded it.
-#include "domain/modules/registry.hpp"
-#include "domain/modules/gate_chopper_retrigger.hpp"
+#include "modules/generated/module_counts_generated.hpp"
+#include "modules/common/registry.hpp"
+#include "modules/core/gate/gate_chopper_retrigger.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstddef>
@@ -111,7 +112,7 @@ void test_descriptors() {
   const auto* chopper = find_module("chopper");
   const auto* retrigger = find_module("retrigger");
   assert(gate && chopper && retrigger && !find_module("phraser"));
-  assert(module_count() == 18);  // Shared registry (source order): empty, arp, arp_walk, bounce, chord, chopper, delay, drop, euclid, gate, latch, pick, quantize, randomize, retrigger, strum, transpose, wander.
+  assert(module_count() == orbit::kGeneratedProcessorCount);  // Shared registry (source order): empty, arp, arp_walk, bounce, chord, chopper, delay, drop, euclid, gate, latch, pick, quantize, randomize, retrigger, strum, transpose, wander.
   assert(module_at(9) == gate && module_at(5) == chopper && module_at(14) == retrigger);
   assert(gate == &gate_module_descriptor() && chopper == &chopper_module_descriptor() &&
          retrigger == &retrigger_module_descriptor());

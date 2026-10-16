@@ -8,8 +8,8 @@
 
 #include "app/module_descriptors.hpp"
 #include "app/ui_model.hpp"
-#include "domain/modules/input_registry.hpp"
-#include "domain/modules/registry.hpp"
+#include "modules/common/input_registry.hpp"
+#include "modules/common/registry.hpp"
 
 namespace {
 int g_failures = 0;

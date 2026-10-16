@@ -1,0 +1,110 @@
+{
+  "package_format": 1,
+  "module_id": "strum",
+  "scene_key": "strum",
+  "display_name": "Strum",
+  "label": "STRUM",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "ROLLS CHORDS",
+  "state": {
+    "type": "StrumModuleState",
+    "bytes": 88
+  },
+  "parameters": [
+    {
+      "name": "amount",
+      "type": "integer",
+      "default": 30,
+      "minimum": 0,
+      "maximum": 1000000,
+      "step": 1,
+      "label": "AMT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "order",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "ORDR",
+      "options": [
+        "ORD",
+        "UP",
+        "DOWN",
+        "UPDWN",
+        "RAND"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "tilt",
+      "type": "decimal",
+      "default": 0.0,
+      "minimum": -1.0,
+      "maximum": 1.0,
+      "step": 0.0500000007,
+      "label": "TILT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "tilt_note_count",
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 12,
+      "step": 1,
+      "label": "CNT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "articulate",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 8,
+      "step": 1,
+      "label": "ARTC",
+      "options": [
+        "EVEN",
+        "RNDLTE",
+        "RNDSTR",
+        "ACCL",
+        "DECL",
+        "HUMN",
+        "RAKE",
+        "SWNG",
+        "FLAM"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "quantize",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/quantize/quantize_strum.hpp",
+  "registry_index": 15,
+  "selector_index": 15
+}

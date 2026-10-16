@@ -1,5 +1,5 @@
 #pragma once
-#include "basics.hpp"
+#include "../../common/module_state.hpp"
 
 namespace orbit {
 // Source: circuitpython-source/src/apps/Orion/modules/euclid.py. Six lanes share one held-note

@@ -3,8 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "persistence/fs_format.hpp"
-#include "persistence/scene_service.hpp"
+#include "fs_format.hpp"
+#include "scene_service.hpp"
 
 // CDC maintenance protocol (host side: tools/arduino/scene_transfer.py).
 //
@@ -15,9 +15,13 @@
 // Requests: 'L' list, 'G' get <name>, 'P' put <name> <payload>, 'X' abort,
 // 'F' format <token> (name = kFormatToken exactly, empty payload; erases the
 // LittleFS partition and is only accepted while stopped with the storage window
-// open).
-// Responses: 'D' data (list text or file bytes), 'A' ack (after verified
-// commit or verified format), 'N' nak (name echo; payload = one NakReason byte).
+// open), 'I' info (empty name and payload; text reply, allowed in normal run and in
+// maintenance), 'E' exit <EXIT-MAINT> (returns to normal run in place).
+// Normal run accepts only 'I' and 'M' enter <ENTER-MAINT> (see maintenance_command.hpp);
+// every other request there is NAKed NotInMaintenance.
+// Responses: 'D' data (list or info text, file bytes), 'A' ack (after verified
+// commit, verified format, or once maintenance is entered or exited), 'N' nak (name
+// echo; payload = one NakReason byte).
 //
 // Names are an exact allowlist: Scene01..Scene16, _activescene, user_settings, scene_names.
 // Payload bounds are per file. Transfers write only to the temp file of the
@@ -39,9 +43,15 @@ constexpr std::size_t kListBytes = 256;
 // with an empty payload and a valid CRC. Existing frame types never format.
 constexpr char kFormatToken[] = "ERASE-FS";
 constexpr std::size_t kFormatTokenLength = 8;
+// Entry and exit tokens of the host-initiated maintenance commands. Names must match exactly.
+constexpr char kEnterToken[] = "ENTER-MAINT";
+constexpr std::size_t kEnterTokenLength = sizeof(kEnterToken) - 1;
+constexpr char kExitToken[] = "EXIT-MAINT";
+constexpr std::size_t kExitTokenLength = sizeof(kExitToken) - 1;
 
 enum class FrameType : std::uint8_t {
-  List = 'L', Get = 'G', Put = 'P', Abort = 'X', Format = 'F', Ack = 'A', Nak = 'N', Data = 'D'
+  List = 'L', Get = 'G', Put = 'P', Abort = 'X', Format = 'F', Info = 'I', Enter = 'M', Exit = 'E',
+  Ack = 'A', Nak = 'N', Data = 'D'
 };
 
 enum class NakReason : std::uint8_t {
@@ -55,11 +65,23 @@ enum class NakReason : std::uint8_t {
   StorageError = 7,
   InvalidContent = 8,
   NotFound = 9,
-  BadToken = 10,     // FORMAT name is not the confirmation token
+  BadToken = 10,     // FORMAT, ENTER or EXIT name is not its token (nothing changed)
   FormatFailed = 11, // partition could not be formatted (or the window was closed)
   MountFailed = 12,  // formatted, but the filesystem did not mount afterwards
-  VerifyFailed = 13  // mounted, but the probe or stamp did not verify
+  VerifyFailed = 13, // mounted, but the probe or stamp did not verify
+  NotInMaintenance = 14,     // EXIT, or a data request, while the engine runs normally
+  AlreadyInMaintenance = 15, // ENTER while maintenance is already active
+  NotStopped = 16,           // ENTER while the transport runs or output is held, owed or pending
+  QuiesceTimeout = 17,       // ENTER: core 1 did not quiesce in time; performance continues
+  ReplyOverflow = 18         // INFO: the device could not compose or queue its reply (bounds are
+                             // checked at build time, so this is a bounded-capacity refusal only)
 };
+
+// Frame encoder for replies. Writes sync, type, name, payload and CRC-32 into out.
+// Returns the frame length, or 0 when the name or payload is too large or capacity is short.
+std::size_t encode_frame(FrameType type, const std::uint8_t* name, std::size_t name_length,
+                         const std::uint8_t* payload, std::size_t payload_length,
+                         std::uint8_t* out, std::size_t capacity) noexcept;
 
 // CRC-32 with the zlib/IEEE polynomial. Start with crc32_init, feed bytes with
 // crc32_update, and finish with crc32_final.
@@ -130,6 +152,10 @@ class MaintenanceSession {
   const MaintenanceCounters& counters() const noexcept { return counters_; }
   bool transfer_open() const noexcept { return transfer_open_; }
   bool mid_frame() const noexcept { return state_ != State::Hunt; }
+  // One-shot requests for the application, set after a verified frame. The application
+  // replies to INFO (it owns the text) and ends maintenance after EXIT (the ACK is already sent).
+  bool take_info_request() noexcept { const bool v = info_requested_; info_requested_ = false; return v; }
+  bool take_exit_request() noexcept { const bool v = exit_requested_; exit_requested_ = false; return v; }
 
  private:
   enum class State : std::uint8_t { Hunt, Header, Name, Payload, Checksum, Discard };
@@ -138,6 +164,7 @@ class MaintenanceSession {
   void dispatch() noexcept;
   void begin_put(SceneFileId id) noexcept;
   void abort_after_frame() noexcept;
+  void exit_after_frame() noexcept;
   void finish_frame() noexcept;
   void flush_chunk() noexcept;
   void reject(NakReason reason) noexcept;
@@ -183,6 +210,8 @@ class MaintenanceSession {
   SceneFileId backup_{};
   bool target_valid_ = false;
   bool transfer_open_ = false;
+  bool info_requested_ = false;
+  bool exit_requested_ = false;
   NakReason pending_ = NakReason::None;
   std::uint8_t chunk_[kChunkBytes]{};
   std::size_t chunk_count_ = 0;

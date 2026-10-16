@@ -1,0 +1,44 @@
+{
+  "package_format": 1,
+  "module_id": "quantize",
+  "scene_key": "quantize",
+  "display_name": "Quantize",
+  "label": "QNT",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "SNAPS TO GRID",
+  "state": {
+    "type": "QuantizeModuleState",
+    "bytes": 488
+  },
+  "parameters": [
+    {
+      "name": "rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "RATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "quantize_strum.cpp"
+  ],
+  "source_group": "quantize",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/quantize/quantize_strum.hpp",
+  "registry_index": 12,
+  "selector_index": 12
+}

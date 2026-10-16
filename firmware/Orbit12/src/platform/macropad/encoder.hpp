@@ -4,7 +4,7 @@
 // core 1; take_delta() is called from the same core. Arduino includes: .cpp only.
 #include <cstdint>
 
-#include "platform/macropad/quadrature.hpp"
+#include "quadrature.hpp"
 
 namespace orbit {
 namespace platform {

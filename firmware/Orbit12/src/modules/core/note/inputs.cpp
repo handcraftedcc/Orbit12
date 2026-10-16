@@ -1,5 +1,5 @@
-#include "inputs.hpp"
-#include "../music.hpp"
+#include "../../common/input_state.hpp"
+#include "../../../domain/music.hpp"
 #include <new>
 
 namespace orbit {

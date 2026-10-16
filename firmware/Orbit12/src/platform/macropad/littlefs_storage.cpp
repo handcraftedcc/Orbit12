@@ -1,4 +1,4 @@
-#include "platform/macropad/littlefs_storage.hpp"
+#include "littlefs_storage.hpp"
 
 #include <Arduino.h>
 #include <LittleFS.h>

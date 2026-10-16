@@ -1,5 +1,5 @@
-#include "basics.hpp"
-#include "../music.hpp"
+#include "../../common/module_state.hpp"
+#include "../../../domain/music.hpp"
 #include <cstdint>
 #include <limits>
 #include <new>

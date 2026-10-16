@@ -1,5 +1,5 @@
 #include "euclid.hpp"
-#include "../music.hpp"
+#include "../../../domain/music.hpp"
 #include <cstdint>
 #include <limits>
 #include <new>

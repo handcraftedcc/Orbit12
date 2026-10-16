@@ -9,10 +9,10 @@
 // Peripherals are reached only through src/platform/macropad adapters; this file is glue.
 #include <Arduino.h>
 
-#include "app/app_main.hpp"
-#include "platform/macropad/gpio.hpp"
-#include "platform/macropad/littlefs_storage.hpp"
-#include "platform/macropad/usb_midi.hpp"
+#include "src/app/app_main.hpp"
+#include "src/platform/macropad/gpio.hpp"
+#include "src/platform/macropad/littlefs_storage.hpp"
+#include "src/platform/macropad/usb_midi.hpp"
 
 namespace {
 orbit::SharedLink g_link;

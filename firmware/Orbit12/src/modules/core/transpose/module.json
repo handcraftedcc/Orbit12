@@ -1,0 +1,68 @@
+{
+  "package_format": 1,
+  "module_id": "transpose",
+  "scene_key": "transpose",
+  "display_name": "Transpose",
+  "label": "TRNS",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "SHIFTS PITCH",
+  "state": {
+    "type": "TransposeModuleState",
+    "bytes": 40
+  },
+  "parameters": [
+    {
+      "name": "semitones",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "SEMI",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octaves",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "scale_aware",
+      "type": "boolean",
+      "default": true,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "INSCL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "empty",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/common/module_state.hpp",
+  "registry_index": 16,
+  "selector_index": 16
+}

@@ -1,4 +1,4 @@
-#include "platform/macropad/gpio.hpp"
+#include "gpio.hpp"
 
 #include <Arduino.h>
 

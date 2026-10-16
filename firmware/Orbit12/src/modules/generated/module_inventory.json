@@ -1,0 +1,33 @@
+{
+  "marker": "GENERATED - do not edit. Regenerate with tools/modules/gen_registry.py.",
+  "core": [
+    "empty",
+    "arp",
+    "arp_walk",
+    "bounce",
+    "chord",
+    "chopper",
+    "delay",
+    "drop",
+    "euclid",
+    "gate",
+    "latch",
+    "pick",
+    "quantize",
+    "randomize",
+    "retrigger",
+    "strum",
+    "transpose",
+    "wander",
+    "note",
+    "drum",
+    "chords",
+    "matrix",
+    "note_walk",
+    "chord_walk"
+  ],
+  "user": [],
+  "core_count": 24,
+  "user_count": 0,
+  "total_count": 24
+}

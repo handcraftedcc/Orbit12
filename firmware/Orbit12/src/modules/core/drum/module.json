@@ -1,0 +1,87 @@
+{
+  "package_format": 1,
+  "module_id": "drum",
+  "scene_key": "drum",
+  "display_name": "Drum",
+  "label": "DRUM",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "DRUM PAD LAYOUT",
+  "state": {
+    "type": "DrumInputState",
+    "bytes": 32
+  },
+  "parameters": [
+    {
+      "name": "layout",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "LAY",
+      "options": [
+        "ORD",
+        "L12",
+        "R12",
+        "B3R",
+        "B3F"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "base_note",
+      "type": "integer",
+      "default": 36,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "BASE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "key_offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "PADOFS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "key_offset"
+    },
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 127,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "note",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/common/input_state.hpp",
+  "registry_index": 1,
+  "selector_index": 2
+}

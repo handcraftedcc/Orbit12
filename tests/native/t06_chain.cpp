@@ -1,3 +1,4 @@
+#include "modules/generated/module_counts_generated.hpp"
 #include "domain/chain.hpp"
 #include <cassert>
 
@@ -46,7 +47,7 @@ int main() {
   ProcessContext context{{1,1000},global,{},random};
   NoteBatch input{}; input.on.append({60,100,0}); input.off.append({59,0,0});
   Chain chain;
-  assert(module_count() == 18 && find_module("empty") == &empty_module_descriptor());
+  assert(module_count() == orbit::kGeneratedProcessorCount && find_module("empty") == &empty_module_descriptor());
   assert(module_at(0) == &empty_module_descriptor() && module_at(16) == find_module("transpose"));
   assert(find_module("phraser") == nullptr); // Registry-only Python label remains hidden.
   assert(chain.set_module(0, &plus1)); assert(chain.set_module(1, &plus2));

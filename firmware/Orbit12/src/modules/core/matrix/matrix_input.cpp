@@ -1,5 +1,5 @@
 #include "matrix_input.hpp"
-#include "../music.hpp"
+#include "../../../domain/music.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <limits>

@@ -4,6 +4,7 @@
 // Verifies behavior (key -> note-on/off, release safety, clock error accounting, sleep/wake,
 // serial dump framing, boot load, in-place scene switch, failed switch with recovery,
 // maintenance entry/exit with notes released), not implementation.
+#include "modules/generated/module_counts_generated.hpp"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -12,7 +13,8 @@
 #include <vector>
 
 #include "app/app_main.hpp"
-#include "domain/modules/registry.hpp"
+#include "app/build_info.hpp"
+#include "modules/common/registry.hpp"
 #include "t13_fs.hpp"
 
 namespace {
@@ -401,6 +403,11 @@ void serial_dump_is_framed_and_read_only() {
   CHECK(g_serial_out.find("TICK_LATE_US") != std::string::npos);
   CHECK(g_serial_out.find("C1_PERIOD_US") != std::string::npos);
   CHECK(g_serial_out.find("STORAGE mounted=1") != std::string::npos);
+  // Build identity line: wiring from app/build_info.hpp (the committed placeholder in host builds).
+  const std::string version_line = std::string("VERSION fw=") + orbit::build::kFirmwareVersion +
+      " git=" + orbit::build::kGitSha + " engine_api=" + std::to_string(orbit::build::kEngineApi) +
+      " board=" + orbit::build::kBoardId;
+  CHECK(g_serial_out.find(version_line) != std::string::npos);
   CHECK(g_serial_out.find("MAINT state=0") != std::string::npos);
   CHECK(g_sent.size() == sent_before);     // the dump never touches the MIDI path
   g_serial_out.clear();
@@ -992,7 +999,8 @@ void registry_order_matches_source() {
       "empty", "arp", "arp_walk", "bounce", "chord", "chopper", "delay", "drop", "euclid",
       "gate", "latch", "pick", "quantize", "randomize", "retrigger", "strum", "transpose", "wander"};
   constexpr std::size_t kCount = sizeof kSource / sizeof kSource[0];
-  CHECK(module_count() == kCount);
+  // The source list is the core prefix; enabled user modules are appended after it.
+  CHECK(module_count() == orbit::kGeneratedProcessorCount && kCount <= module_count());
   for (std::size_t i = 0; i < kCount; ++i) {
     const ModuleDescriptor* d = module_at(static_cast<std::uint8_t>(i));
     CHECK(d != nullptr && std::strcmp(d->id, kSource[i]) == 0);
@@ -1003,6 +1011,248 @@ void registry_order_matches_source() {
   CHECK(processor_selector_count() == kCount);
   for (std::size_t i = 0; i < kCount; ++i)
     CHECK(std::strcmp(processor_selector(static_cast<std::uint8_t>(i)).id, kSource[i]) == 0);
+}
+
+// ---- Host-initiated maintenance (ENTER-MAINT / EXIT-MAINT / INFO in normal run) ----
+// Start (encoder held + the second pad) and stop (encoder held + the first pad), as the device.
+void start_clock_shortcut(Rig& r) {
+  r.run_until_idle();
+  r.encoder(true);
+  r.run(3);
+  r.key(1, true);
+  r.run(3);
+  r.key(1, false);
+  r.run(3);
+  r.encoder(false);
+  r.run(3);
+  r.run_until_idle();
+}
+
+// True when out holds a complete frame of the given type whose name is the given text.
+bool reply_is(const std::string& out, char type, const std::string& name) {
+  return out.size() >= 8 + name.size() && out[2] == type &&
+         static_cast<unsigned char>(out[3]) == name.size() && out.compare(8, name.size(), name) == 0;
+}
+
+// ENTER is refused, with a reason and no change, while the engine is not safely stopped:
+// transport running, a note held, or the name editor open. Nothing is sent to the sound output.
+// ENTER is refused with NotStopped while the transport runs. The performance continues.
+void enter_refused_while_transport_runs() {
+  auto r = std::make_unique<Rig>();
+  start_clock_shortcut(*r);
+  CHECK(r->ctl().transport().running());
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT");
+  r->run(20);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::NotStopped));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  CHECK(r->ctl().transport().running());
+  CHECK(!r->ctl().maintenance_hold());
+}
+
+// ENTER is refused with NotStopped while a note is held on the input pad; the note keeps sounding
+// and nothing is sent to the output by the refused request.
+void enter_refused_while_note_held() {
+  auto r = std::make_unique<Rig>();
+  r->run(200);
+  r->key(3, true);
+  r->run(60);
+  CHECK(r->ctl().output().held_count() >= 1);
+  const std::size_t sounding = r->count(MidiKind::NoteOn);
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT");
+  r->run(20);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::NotStopped));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  CHECK(r->count(MidiKind::NoteOn) == sounding);
+  CHECK(r->ctl().output().held_count() >= 1);
+}
+
+// ENTER is refused with Busy while the name editor is open ([NEW] on the SCENE row).
+void enter_refused_in_name_editor() {
+  auto r = std::make_unique<Rig>();
+  goto_slot(*r, kSlotSettings);
+  click(*r);                                   // SCENE row: parameter selection
+  click(*r);                                   // parameter edit
+  turn(*r, 10);                                // ten named slots: index 10 is [NEW]
+  click(*r);                                   // the name editor opens
+  CHECK(r->ctl().section() == UiSection::NameEdit);
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT");
+  r->run(20);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::Busy));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  CHECK(r->ctl().section() == UiSection::NameEdit);   // nothing changed in the editor
+}
+
+// A scene operation in flight refuses ENTER (Busy); the operation completes unchanged.
+void enter_refused_while_scene_operation_runs() {
+  auto r = std::make_unique<Rig>();
+  CHECK(r->engine.controller().scene_service().request(SceneOperation::Save));
+  CHECK(r->ctl().scene_busy());
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT");
+  r->run(2);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::Busy));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  CHECK(r->run_until_idle());
+  CHECK(g_unguarded_writes == 0);
+}
+
+// Refused frames in normal run change nothing: a wrong token, a bad CRC, and EXIT (not in
+// maintenance). A partial ENTER completes across passes and is then accepted.
+void normal_run_frame_rules() {
+  auto r = std::make_unique<Rig>();
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAIN");
+  r->run(10);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::BadToken));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+
+  g_serial_out.clear();
+  std::string bad = cdc_frame('M', "ENTER-MAINT");
+  bad.back() = static_cast<char>(bad.back() ^ 0x01);
+  g_serial_in = bad;
+  r->run(10);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::BadChecksum));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('E', "EXIT-MAINT");
+  r->run(10);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::NotInMaintenance));
+
+  g_serial_out.clear();
+  const std::string enter = cdc_frame('M', "ENTER-MAINT");
+  g_serial_in = enter.substr(0, 5);
+  r->run(20);
+  CHECK(g_serial_out.empty());
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  g_serial_in = enter.substr(5);
+  r->run(60);
+  CHECK(reply_is(g_serial_out, 'A', "ENTER-MAINT"));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Active);
+  g_serial_in += 'Q';
+  r->run(200);
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+}
+
+// The normal run takes the INFO frame and the '?' dump in any order, around garbage; the dump
+// text is unchanged and the INFO reply carries the device state.
+void info_and_dump_in_normal_run() {
+  auto r = std::make_unique<Rig>();
+  g_serial_out.clear();
+  g_serial_in = std::string("zz?") + cdc_frame('I', "") + std::string("\x4F\x00", 2) + "?";
+  r->run(600);
+  const std::size_t info_at = g_serial_out.find(std::string("\x4F\x31\x44\x00", 4));
+  CHECK(info_at != std::string::npos);
+  CHECK(g_serial_out.find("INFO fw=", info_at) != std::string::npos);
+  CHECK(g_serial_out.find("MODULES count=24 core=note,chords", info_at) != std::string::npos);
+  CHECK(g_serial_out.find("STORAGE mounted=1 scenes=10 names_ok=1", info_at) != std::string::npos);
+  CHECK(g_serial_out.find("STATE maint=0 transport=0", info_at) != std::string::npos);
+  CHECK(g_serial_out.find("ORBIT12-SLICE") != std::string::npos);     // the dump still answers '?'
+  CHECK(g_serial_out.find("RUNCMD commands=") != std::string::npos);
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  CHECK(r->engine.controller().scene_service().failure_count() == 0);
+}
+
+// ENTER is accepted when stopped and ACKed only once Active; LIST and INFO work in maintenance;
+// ENTER and a stray data request are refused there; EXIT returns to normal in place; scene
+// editing and notes work afterwards; no note is left stuck.
+void enter_and_exit_round_trip() {
+  auto r = std::make_unique<Rig>();
+  r->run(200);
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT");
+  r->run(50);
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Active);
+  CHECK(g_window_open);
+  CHECK(reply_is(g_serial_out, 'A', "ENTER-MAINT"));
+  CHECK(r->ctl().maintenance_hold());
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('L', "");
+  r->run(200);
+  CHECK(g_serial_out.size() >= 3 && g_serial_out[2] == 'D');
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('G', "scene_names");      // GET in maintenance: the names file is served
+  r->run(200);
+  CHECK(g_serial_out.size() >= 3 && g_serial_out[2] == 'D');
+  CHECK(r->engine.maintenance_session().counters().served == 2);
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT");
+  r->run(50);
+  CHECK(nak_reason(g_serial_out) == static_cast<int>(maintenance::NakReason::AlreadyInMaintenance));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Active);
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('I', "");
+  r->run(50);
+  CHECK(g_serial_out.size() >= 3 && g_serial_out[2] == 'D');
+  CHECK(g_serial_out.find("STATE maint=1 transport=0") != std::string::npos);
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('E', "EXIT-MAINT");
+  r->run(100);
+  CHECK(reply_is(g_serial_out, 'A', "EXIT-MAINT"));
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+  CHECK(!r->ctl().maintenance_hold());
+  CHECK(!g_window_open);
+  CHECK(g_unguarded_writes == 0);
+  r->run(50);                                           // resync after the exit, as with 'Q'
+
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('I', "");
+  r->run(50);
+  CHECK(g_serial_out.find("STATE maint=0 transport=0") != std::string::npos);
+
+  const std::size_t before = r->count(MidiKind::NoteOn);
+  r->key(3, true);
+  r->run(5);
+  CHECK(r->count(MidiKind::NoteOn) == before + 1);      // performance input works again in place
+  r->key(3, false);
+  r->run(20);
+  CHECK(r->count(MidiKind::NoteOn) == r->count(MidiKind::NoteOff));   // no stuck note
+
+  CHECK(r->engine.controller().scene_service().request(SceneOperation::Save));
+  CHECK(r->run_until_idle());
+  CHECK(r->engine.controller().scene_service().failure_count() == 0);
+  CHECK(g_unguarded_writes == 0);
+}
+
+// A reply queued while a dump streams waits until the dump ends: INFO never lands inside the dump
+// text, and the dump is complete before the frame starts.
+void reply_never_splices_into_a_dump() {
+  auto r = std::make_unique<Rig>();
+  g_serial_out.clear();
+  g_serial_in = "?";
+  r->run(2);                                             // the dump is mid-stream (64 bytes a pass)
+  CHECK(g_serial_out.find("END\n") == std::string::npos);
+  g_serial_in = cdc_frame('I', "");
+  r->run(800);
+  const std::size_t end = g_serial_out.find("END\n");
+  const std::size_t info = g_serial_out.find(std::string("\x4F\x31\x44\x00", 4));
+  CHECK(end != std::string::npos && info != std::string::npos && info > end);
+  CHECK(g_serial_out.find("INFO fw=", info) != std::string::npos);
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
+}
+
+// A stray '?' (or a frame) inside a partial frame that stops: the partial frame is abandoned, its
+// bytes are scanned again, and the '?' after the gap still dumps.
+void partial_frame_gap_keeps_question_mark() {
+  auto r = std::make_unique<Rig>();
+  g_serial_out.clear();
+  g_serial_in = cdc_frame('M', "ENTER-MAINT").substr(0, 6);
+  r->run(20);
+  CHECK(g_serial_out.empty());
+  r->run(3000);                                          // more than the 250 ms gap
+  g_serial_out.clear();
+  g_serial_in = "?";
+  r->run(600);
+  CHECK(g_serial_out.find("ORBIT12-SLICE") != std::string::npos);
+  CHECK(r->engine.maintenance_state() == MaintenanceState::Off);
 }
 
 }  // namespace
@@ -1027,6 +1277,15 @@ int main() {
   failed_recovery_counts_each_failure();
   maintenance_entry_and_exit_release_notes();
   maintenance_rejects_frames_and_stops_on_idle_host();
+  enter_refused_while_transport_runs();
+  enter_refused_while_note_held();
+  enter_refused_in_name_editor();
+  enter_refused_while_scene_operation_runs();
+  normal_run_frame_rules();
+  info_and_dump_in_normal_run();
+  enter_and_exit_round_trip();
+  partial_frame_gap_keeps_question_mark();
+  reply_never_splices_into_a_dump();
   unmounted_boot_maintenance_format_recovers();
   stalled_host_fails_get_fast();
   pad_pressed_after_boot_does_not_enter_maintenance();

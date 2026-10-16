@@ -1,5 +1,5 @@
 #pragma once
-#include "inputs.hpp"
+#include "../../common/input_state.hpp"
 
 namespace orbit {
 // T08b's state is part of InputState's concrete union; this header names the

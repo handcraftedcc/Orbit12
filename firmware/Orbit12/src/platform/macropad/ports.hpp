@@ -1,7 +1,7 @@
 #pragma once
 // Domain-facing port structs (function pointer + context), per contracts.md.
 // MidiPort lives in domain/output.hpp; Storage ports belong to T13.
-#include "domain/types.hpp"
+#include "../../domain/types.hpp"
 
 namespace orbit {
 

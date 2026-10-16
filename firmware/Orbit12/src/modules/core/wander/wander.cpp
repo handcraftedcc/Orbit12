@@ -1,6 +1,6 @@
 #include "wander.hpp"
-#include "drop_randomize.hpp"
-#include "../music.hpp"
+#include "../drop/drop_randomize.hpp"
+#include "../../../domain/music.hpp"
 #include <cmath>
 #include <cstdint>
 #include <new>

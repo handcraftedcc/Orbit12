@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "domain/time.hpp"
+#include "../domain/time.hpp"
 
 namespace orbit {
 

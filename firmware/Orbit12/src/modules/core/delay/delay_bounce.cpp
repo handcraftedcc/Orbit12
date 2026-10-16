@@ -39,8 +39,8 @@
 //     a note while the output is full, as the source does, and emits no orphan
 //     release for it.
 #include "delay_bounce.hpp"
-#include "drop_randomize.hpp"
-#include "../music.hpp"
+#include "../drop/drop_randomize.hpp"
+#include "../../../domain/music.hpp"
 #include <cmath>
 #include <cstdint>
 #include <limits>

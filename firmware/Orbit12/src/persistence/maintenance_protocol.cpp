@@ -1,10 +1,10 @@
-#include "persistence/maintenance_protocol.hpp"
+#include "maintenance_protocol.hpp"
 
 #include <cstring>
 
-#include "persistence/fs_format.hpp"
-#include "persistence/scene_names.hpp"
-#include "persistence/user_settings.hpp"
+#include "fs_format.hpp"
+#include "scene_names.hpp"
+#include "user_settings.hpp"
 
 namespace orbit {
 namespace maintenance {
@@ -25,7 +25,16 @@ bool valid_type(std::uint8_t type) noexcept {
          type == static_cast<std::uint8_t>(FrameType::Get) ||
          type == static_cast<std::uint8_t>(FrameType::Put) ||
          type == static_cast<std::uint8_t>(FrameType::Abort) ||
-         type == static_cast<std::uint8_t>(FrameType::Format);
+         type == static_cast<std::uint8_t>(FrameType::Format) ||
+         type == static_cast<std::uint8_t>(FrameType::Info) ||
+         type == static_cast<std::uint8_t>(FrameType::Enter) ||
+         type == static_cast<std::uint8_t>(FrameType::Exit);
+}
+
+bool name_equals(const std::uint8_t* name, std::size_t name_length, const char* token,
+                 std::size_t token_length) noexcept {
+  return name_length == token_length &&
+         std::memcmp(name, token, token_length) == 0;
 }
 
 NakReason format_nak(fsformat::FormatResult result) noexcept {
@@ -127,6 +136,33 @@ std::size_t format_name(SceneFileId id, char* output, std::size_t capacity) noex
     return kNamesNameLength;
   }
   return 0;
+}
+
+std::size_t encode_frame(FrameType type, const std::uint8_t* name, std::size_t name_length,
+                         const std::uint8_t* payload, std::size_t payload_length,
+                         std::uint8_t* out, std::size_t capacity) noexcept {
+  if (out == nullptr || name_length > kNameMax || payload_length > 0xFFFFFFFFU) return 0;
+  if (name_length != 0 && name == nullptr) return 0;
+  if (payload_length != 0 && payload == nullptr) return 0;
+  const std::size_t total = kHeaderBytes + name_length + payload_length + kCrcBytes;
+  if (total > capacity) return 0;
+  const auto length = static_cast<std::uint32_t>(payload_length);
+  std::size_t at = 0;
+  out[at++] = kSync0;
+  out[at++] = kSync1;
+  out[at++] = static_cast<std::uint8_t>(type);
+  out[at++] = static_cast<std::uint8_t>(name_length);
+  out[at++] = static_cast<std::uint8_t>(length);
+  out[at++] = static_cast<std::uint8_t>(length >> 8);
+  out[at++] = static_cast<std::uint8_t>(length >> 16);
+  out[at++] = static_cast<std::uint8_t>(length >> 24);
+  for (std::size_t i = 0; i < name_length; ++i) out[at++] = name[i];
+  for (std::size_t i = 0; i < payload_length; ++i) out[at++] = payload[i];
+  std::uint32_t crc = crc32_init();
+  for (std::size_t i = 0; i < at; ++i) crc = crc32_update(crc, out[i]);
+  crc = crc32_final(crc);
+  for (int shift = 0; shift < 32; shift += 8) out[at++] = static_cast<std::uint8_t>(crc >> shift);
+  return at;
 }
 
 std::size_t max_payload(SceneFileId id) noexcept {
@@ -252,6 +288,22 @@ void MaintenanceSession::dispatch() noexcept {
       if (!named) nak = NakReason::DisallowedName;
       else if (!stopped) nak = NakReason::Busy;
       else if (payload_length_ > max_payload(id)) nak = NakReason::Oversize;
+      break;
+    case FrameType::Info:
+      // Served in maintenance as well as in normal run; the application composes the text.
+      if (name_length_ != 0 || payload_length_ != 0) nak = NakReason::BadFrame;
+      break;
+    case FrameType::Exit:
+      if (!name_equals(name_, name_length_, kExitToken, kExitTokenLength))
+        nak = NakReason::BadToken;
+      else if (payload_length_ != 0) nak = NakReason::BadFrame;
+      break;
+    case FrameType::Enter:
+      // Maintenance is already active here: a valid ENTER is refused, never re-entered.
+      if (!name_equals(name_, name_length_, kEnterToken, kEnterTokenLength))
+        nak = NakReason::BadToken;
+      else if (payload_length_ != 0) nak = NakReason::BadFrame;
+      else nak = NakReason::AlreadyInMaintenance;
       break;
     default:
       nak = NakReason::BadFrame;
@@ -379,6 +431,12 @@ void MaintenanceSession::finish_frame() noexcept {
     case FrameType::Abort:
       abort_after_frame();
       break;
+    case FrameType::Info:
+      info_requested_ = true;   // the application writes the reply (it owns the state)
+      break;
+    case FrameType::Exit:
+      exit_after_frame();
+      break;
     case FrameType::Format: {
       // Re-checked at the commit point: the gate may have closed during the frame.
       if (!stopped()) {
@@ -400,6 +458,9 @@ void MaintenanceSession::finish_frame() noexcept {
       send_end();
       break;
     }
+    case FrameType::Enter:
+      reject(NakReason::AlreadyInMaintenance);   // unreachable: dispatch always refuses ENTER here
+      break;
     case FrameType::Put: {
       if (pending_ == NakReason::None && !stopped()) pending_ = NakReason::Busy;
       if (pending_ != NakReason::None) {
@@ -446,6 +507,14 @@ void MaintenanceSession::abort_after_frame() noexcept {
   }
   send_begin(FrameType::Ack, name_, name_length_, 0);
   send_end();
+}
+
+// EXIT: the ACK is sent first; the application then ends maintenance (window closed, core 1
+// resumed, transfer discarded) in the same pass.
+void MaintenanceSession::exit_after_frame() noexcept {
+  send_begin(FrameType::Ack, name_, name_length_, 0);
+  send_end();
+  exit_requested_ = true;
 }
 
 NakReason MaintenanceSession::verify_temp() noexcept {
@@ -679,6 +748,11 @@ void MaintenanceSession::reject(NakReason reason) noexcept {
     case NakReason::FormatFailed: break;
     case NakReason::MountFailed: break;
     case NakReason::VerifyFailed: break;
+    case NakReason::NotInMaintenance: break;
+    case NakReason::AlreadyInMaintenance: break;
+    case NakReason::NotStopped: break;
+    case NakReason::QuiesceTimeout: break;
+    case NakReason::ReplyOverflow: break;
     case NakReason::None: break;
   }
   const std::uint8_t code = static_cast<std::uint8_t>(reason);

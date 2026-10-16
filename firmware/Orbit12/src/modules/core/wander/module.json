@@ -1,0 +1,178 @@
+{
+  "package_format": 1,
+  "module_id": "wander",
+  "scene_key": "wander",
+  "display_name": "Wander",
+  "label": "WANDR",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "RANDOM WALK LINE",
+  "state": {
+    "type": "WanderModuleState",
+    "bytes": 144
+  },
+  "parameters": [
+    {
+      "name": "rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "RATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gravity",
+      "type": "integer",
+      "default": 50,
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "label": "GRAV",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "min_step",
+      "type": "integer",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 16,
+      "step": 1,
+      "label": "MIN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "max_step",
+      "type": "integer",
+      "default": 2,
+      "minimum": 0,
+      "maximum": 16,
+      "step": 1,
+      "label": "MAX",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "max_deviation",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 24,
+      "step": 1,
+      "label": "DEV",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "tension",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "label": "TENS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rand_seed",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10000,
+      "step": 1,
+      "label": "SEED",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "loop_length",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 128,
+      "step": 1,
+      "label": "LOOP",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "retrigger_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "RTRG",
+      "options": [
+        "STBL",
+        "CONT",
+        "RTRG"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rhythm",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 24,
+      "step": 1,
+      "label": "RTHM",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate",
+      "type": "decimal",
+      "default": 100.0,
+      "minimum": -100000.0,
+      "maximum": 100000.0,
+      "step": 5.0,
+      "label": "GATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "wander.cpp"
+  ],
+  "source_group": "wander",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/wander/wander.hpp",
+  "registry_index": 17,
+  "selector_index": 17
+}

@@ -1,6 +1,16 @@
-#include "app/app_main.hpp"
+#include "app_main.hpp"
+#include "build_info.hpp"
+#include "maintenance_info.hpp"
 
 namespace orbit {
+
+// Build-time bounds for the INFO reply, evaluated on the stamped identity (build_info.hpp): an
+// overlong version or sha fails the build here, not as a refused INFO at run time.
+static_assert(info_text_bound(build::kFirmwareVersion, build::kGitSha, build::kBoardId,
+                              kModuleDescriptions, kModuleDescriptionCount) <= kInfoTextMaxBytes,
+              "INFO text bound exceeds kInfoTextMaxBytes for the stamped identity");
+static_assert(kOutboxBytes >= 8 + kInfoTextMaxBytes + 4 + 2 * (8 + 16 + 1 + 4),
+              "the outbox holds one INFO frame and two NAK frames");
 
 // ---------------------------------------------------------------------------
 // LatencyStats
@@ -209,13 +219,26 @@ void EngineApp::service_gesture(const TimeSample& now) noexcept {
     return;
   }
   if (elapsed(now.ms, combo_since_ms_) < kEntryHoldMs) return;
-  if (!ctl_.enter_maintenance()) return;  // a scene operation or boot load is still running
+  (void)start_maintenance(now, false);  // false: a scene operation or boot load is still running
+}
+
+bool EngineApp::start_maintenance(const TimeSample& now, bool from_host) noexcept {
+  if (maint_ != MaintenanceState::Off || !ctl_.enter_maintenance()) return false;
   maint_ = MaintenanceState::Quiescing;
   ++maint_entries_;
   maint_seq_ = link_.maintenance.request(now.ms, kQuiesceTimeoutMs);
   maint_started_ms_ = now.ms;
   last_maint_byte_ms_ = now.ms;
   write_stalled_ = false;
+  enter_pending_ = from_host;
+  // The normal run's streams end here: a dump in progress is abandoned (no half dump resumes
+  // after the exit), queued replies are dropped, and a partial frame is never completed later.
+  dump_sent_ = dump_len_;
+  dump_requested_ = false;
+  run_framer_.resync();
+  if (out_len_ != out_sent_) ++reply_dropped_;
+  out_len_ = out_sent_ = 0;
+  return true;
 }
 
 // Stopped = transport stopped and pending releases accepted (the controller drains them in
@@ -225,6 +248,13 @@ void EngineApp::service_quiesce(const TimeSample& now) noexcept {
     if (storage_.set_window != nullptr) storage_.set_window(storage_.context, true);
     maint_ = MaintenanceState::Active;
     last_maint_byte_ms_ = now.ms;
+    if (enter_pending_) {
+      // ACK only now: the engine is stopped, core 1 is quiesced and the window is open.
+      enter_pending_ = false;
+      send_frame_blocking(maintenance::FrameType::Ack,
+                          reinterpret_cast<const std::uint8_t*>(maintenance::kEnterToken),
+                          maintenance::kEnterTokenLength, nullptr, 0);
+    }
     return;
   }
   if (elapsed(now.ms, maint_started_ms_) >= kQuiesceTimeoutMs) {
@@ -233,6 +263,12 @@ void EngineApp::service_quiesce(const TimeSample& now) noexcept {
     ctl_.leave_maintenance();
     maint_ = MaintenanceState::Off;
     ++maint_quiesce_timeouts_;
+    if (enter_pending_) {
+      enter_pending_ = false;
+      ++enter_refused_;
+      queue_nak(reinterpret_cast<const std::uint8_t*>(maintenance::kEnterToken),
+                maintenance::kEnterTokenLength, maintenance::NakReason::QuiesceTimeout);
+    }
   }
 }
 
@@ -247,6 +283,21 @@ void EngineApp::service_maintenance_serial(const TimeSample& now) noexcept {
       return;
     }
     session_.feed(static_cast<std::uint8_t>(byte));
+    if (session_.take_exit_request()) {   // EXIT-MAINT: ACK already sent by the session
+      end_maintenance();
+      return;
+    }
+    if (session_.take_info_request()) {   // INFO: the reply is composed here
+      const std::size_t length = compose_info();
+      if (length == 0) {
+        const std::uint8_t code = static_cast<std::uint8_t>(maintenance::NakReason::ReplyOverflow);
+        send_frame_blocking(maintenance::FrameType::Nak, nullptr, 0, &code, 1);
+      } else {
+        ++info_served_;
+        send_frame_blocking(maintenance::FrameType::Data, nullptr, 0,
+                            reinterpret_cast<const std::uint8_t*>(info_text_), length);
+      }
+    }
   }
   if (elapsed(now.ms, last_maint_byte_ms_) >= kMaintenanceIdleMs) {
     ++maint_idle_exits_;
@@ -261,7 +312,134 @@ void EngineApp::end_maintenance() noexcept {
   ctl_.leave_maintenance();  // epoch change: physical events are resynced before notes
   maint_ = MaintenanceState::Off;
   combo_held_ = false;
+  enter_pending_ = false;
+  out_len_ = out_sent_ = 0;
+  run_framer_.resync();   // no frame begun before or during maintenance is completed afterwards
   ++maint_exits_;
+}
+
+// ---- Normal-run commands (core 0) -------------------------------------------
+void EngineApp::run_command(void* context, const maintenance::RunCommand& command) noexcept {
+  static_cast<EngineApp*>(context)->handle_run_command(command);
+}
+
+void EngineApp::run_passthrough(void* context, std::uint8_t byte) noexcept {
+  // Bytes outside frames: the '?' dump request, as before the framer existed.
+  if (byte == '?') static_cast<EngineApp*>(context)->dump_requested_ = true;
+}
+
+void EngineApp::handle_run_command(const maintenance::RunCommand& command) noexcept {
+  using maintenance::FrameType;
+  using maintenance::NakReason;
+  const std::uint8_t* name = command.name;
+  if (command.verdict == NakReason::None &&
+      command.type == static_cast<std::uint8_t>(FrameType::Info)) {
+    const std::size_t length = compose_info();
+    if (length == 0 ||
+        !queue_frame(FrameType::Data, nullptr, 0,
+                     reinterpret_cast<const std::uint8_t*>(info_text_), length)) {
+      queue_nak(nullptr, 0, NakReason::ReplyOverflow);
+    } else {
+      ++info_served_;
+    }
+    return;
+  }
+  if (command.verdict == NakReason::None &&
+      command.type == static_cast<std::uint8_t>(FrameType::Enter)) {
+    NakReason refusal = host_entry_refusal();
+    if (refusal == NakReason::None && !start_maintenance(TimeSample{run_now_ms_, 0}, true))
+      refusal = NakReason::Busy;
+    if (refusal != NakReason::None) {
+      ++enter_refused_;
+      queue_nak(name, command.name_length, refusal);
+    } else {
+      ++enter_accepted_;   // the ACK follows when maintenance is Active
+    }
+    return;
+  }
+  // Refused request. An EXIT in normal run gets NotInMaintenance (verdict None).
+  queue_nak(name, command.name_length,
+            command.verdict == NakReason::None ? NakReason::NotInMaintenance : command.verdict);
+}
+
+// Stopped enough for maintenance (the same gate as the boot gesture plus output state):
+// transport stopped, no held or owed notes, nothing pending, scene service idle, not Failed,
+// no name editor open, boot complete.
+maintenance::NakReason EngineApp::host_entry_refusal() noexcept {
+  if (ctl_.transport().running() || ctl_.output().held_count() != 0 ||
+      ctl_.output().owed_count() != 0 || ctl_.output().pending() != 0)
+    return maintenance::NakReason::NotStopped;
+  if (!ctl_.boot_complete() || ctl_.scene_busy() || ctl_.scene_failed() ||
+      ctl_.maintenance_hold() || ctl_.section() == UiSection::NameEdit)
+    return maintenance::NakReason::Busy;
+  return maintenance::NakReason::None;
+}
+
+std::size_t EngineApp::compose_info() noexcept {
+  const SceneService& scenes = ctl_.scene_service();
+  InfoFields fields;
+  fields.firmware = build::kFirmwareVersion;
+  fields.git_sha = build::kGitSha;
+  fields.engine_api = build::kEngineApi;
+  fields.board = build::kBoardId;
+  fields.core_modules = kModuleDescriptions;
+  fields.core_module_count = kModuleDescriptionCount;
+  fields.storage_mounted = storage_mounted_;
+  fields.names_loaded = scenes.names_loaded();
+  fields.scenes = fields.names_loaded ? scenes.occupied_count() : 0U;
+  fields.maintenance = maint_ != MaintenanceState::Off;
+  fields.transport_running = ctl_.transport().running();
+  return encode_info(fields, info_text_, sizeof info_text_);
+}
+
+bool EngineApp::queue_frame(maintenance::FrameType type, const std::uint8_t* name,
+                            std::size_t name_length, const std::uint8_t* payload,
+                            std::size_t payload_length) noexcept {
+  if (out_sent_ == out_len_) out_sent_ = out_len_ = 0;
+  const std::size_t length = maintenance::encode_frame(type, name, name_length, payload, payload_length,
+                                                       outbox_ + out_len_, kOutboxBytes - out_len_);
+  if (length == 0) {
+    ++reply_dropped_;
+    return false;
+  }
+  out_len_ += length;
+  return true;
+}
+
+void EngineApp::queue_nak(const std::uint8_t* name, std::size_t name_length,
+                          maintenance::NakReason reason) noexcept {
+  const auto code = static_cast<std::uint8_t>(reason);
+  (void)queue_frame(maintenance::FrameType::Nak, name, name_length, &code, 1);
+}
+
+// Non-blocking: writes what the port accepts now. No host (zero bytes accepted) drops the rest.
+void EngineApp::drain_outbox() noexcept {
+  if (out_sent_ == out_len_) {
+    out_sent_ = out_len_ = 0;
+    return;
+  }
+  std::size_t n = out_len_ - out_sent_;
+  const std::size_t room = platform::serial_writable();
+  if (n > room) n = room;
+  if (n == 0) return;
+  const std::size_t wrote = platform::serial_write(reinterpret_cast<const char*>(outbox_ + out_sent_), n);
+  if (wrote == 0) {
+    ++reply_dropped_;
+    out_sent_ = out_len_;
+    return;
+  }
+  out_sent_ += wrote;
+}
+
+// Maintenance replies (the engine is stopped, so a bounded wait is acceptable). Uses the outbox,
+// which is empty while maintenance is active.
+void EngineApp::send_frame_blocking(maintenance::FrameType type, const std::uint8_t* name,
+                                    std::size_t name_length, const std::uint8_t* payload,
+                                    std::size_t payload_length) noexcept {
+  out_len_ = out_sent_ = 0;
+  if (!queue_frame(type, name, name_length, payload, payload_length)) return;
+  (void)maintenance_write(this, outbox_, out_len_);
+  out_len_ = out_sent_ = 0;
 }
 
 // FORMAT runs only inside the session (stopped, window open). The mounted flag reported in
@@ -373,7 +551,7 @@ void EngineApp::poll() noexcept {
   if (maint_ == MaintenanceState::Quiescing) service_quiesce(after);
   else if (maint_ == MaintenanceState::Active) service_maintenance_serial(after);
   service_diagnostics(after);
-  if (maint_ == MaintenanceState::Off) service_serial();  // '?' dump: normal run only
+  if (maint_ == MaintenanceState::Off) service_serial(now);  // normal run only
 }
 
 void EngineApp::fill_diag(std::uint32_t now_ms) noexcept {
@@ -414,8 +592,12 @@ void EngineApp::service_diagnostics(const TimeSample& now) noexcept {
   }
 }
 
-void EngineApp::service_serial() noexcept {
-  if (dump_sent_ < dump_len_) {
+void EngineApp::service_serial(const TimeSample& now) noexcept {
+  // One stream owns the port until it ends: a dump that has started finishes first (so a reply
+  // never lands inside it), otherwise the queued replies are written.
+  if (dump_sent_ >= dump_len_) {
+    drain_outbox();
+  } else {
     const std::size_t room = platform::serial_writable();
     std::size_t n = dump_len_ - dump_sent_;
     if (n > room) n = room;
@@ -425,15 +607,26 @@ void EngineApp::service_serial() noexcept {
       dump_sent_ = wrote == 0 ? dump_len_ : dump_sent_ + wrote;
     }
   }
-  for (std::uint8_t n = 0; n < 8U; ++n) {
+  run_now_ms_ = now.ms;
+  const maintenance::RunSink sink{this, &EngineApp::run_command, &EngineApp::run_passthrough};
+  for (std::size_t n = 0; n < kRunBytesPerPass; ++n) {
     const int byte = platform::serial_read();
     if (byte < 0) break;
-    if (byte == '?') dump_requested_ = true;
+    run_framer_.feed(static_cast<std::uint8_t>(byte), now.ms, sink);
+    // An accepted ENTER-MAINT stops the normal run: the rest of the input belongs to the session.
+    if (maint_ != MaintenanceState::Off) return;
   }
+  run_framer_.poll(now.ms, sink);
+  if (maint_ != MaintenanceState::Off) return;
   if (dump_requested_) {
-    dump_requested_ = false;
-    if (dump_sent_ < dump_len_) ++diag_.dump_busy;
-    else build_dump();
+    if (dump_sent_ < dump_len_) {
+      dump_requested_ = false;
+      ++diag_.dump_busy;
+    } else if (out_sent_ == out_len_) {
+      // A reply queued in this pass goes first; the dump is built once the outbox is empty.
+      dump_requested_ = false;
+      build_dump();
+    }
   }
 }
 
@@ -460,6 +653,8 @@ void EngineApp::build_dump() noexcept {
   fill_diag(now.ms);
   TextOut o(dump_, kDumpCapacity - kDumpTailBytes);  // tail reserved for close_dump()
   o.s("ORBIT12-SLICE up_ms=").u(diag_.uptime_ms).s(" loops=").u(diag_.loops).nl();
+  o.s("VERSION fw=").s(build::kFirmwareVersion).s(" git=").s(build::kGitSha)
+      .s(" engine_api=").u(build::kEngineApi).s(" board=").s(build::kBoardId).nl();
   o.s("SIZES controller=").u(sizeof(Controller)).s(" engine=").u(sizeof(EngineApp))
       .s(" uiworker=").u(sizeof(UiWorker)).s(" link=").u(sizeof(SharedLink))
       .s(" ui_model=").u(sizeof(UiModel)).s(" diag=").u(sizeof(DiagSnapshot))
@@ -512,6 +707,12 @@ void EngineApp::build_dump() noexcept {
       .s(" accepted=").u(session_.counters().accepted).s(" rejected=").u(session_.counters().rejected)
       .s(" aborted=").u(session_.counters().aborted).s(" out_fail=").u(session_.counters().output_failures)
       .nl();
+  o.s("RUNCMD commands=").u(run_framer_.counters().commands).s(" refused=").u(run_framer_.counters().refused)
+      .s(" bad_frames=").u(run_framer_.counters().bad_frames).s(" bad_crc=").u(run_framer_.counters().bad_checksum)
+      .s(" bad_token=").u(run_framer_.counters().bad_token).s(" gap_resync=").u(run_framer_.counters().gap_resyncs)
+      .s(" discard_drop=").u(run_framer_.counters().discard_drops).s(" info=").u(info_served_)
+      .s(" enter=").u(enter_accepted_).s(" enter_refused=").u(enter_refused_)
+      .s(" reply_dropped=").u(reply_dropped_).nl();
   o.s("BRIDGE fault_gen=").u(diag_.bridge_fault_generation).nl();
   o.s("USB tx_refused=").u(diag_.usb.tx_refused).s(" tx_invalid=").u(diag_.usb.tx_invalid)
       .s(" rx_overflow=").u(diag_.usb.rx_overflow).s(" rx_ignored=").u(diag_.usb.rx_ignored)

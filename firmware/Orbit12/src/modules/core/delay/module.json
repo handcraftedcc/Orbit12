@@ -1,0 +1,57 @@
+{
+  "package_format": 1,
+  "module_id": "delay",
+  "scene_key": "delay",
+  "display_name": "Delay",
+  "label": "DELAY",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "DELAYS NOTES",
+  "state": {
+    "type": "DelayModuleState",
+    "bytes": 632
+  },
+  "parameters": [
+    {
+      "name": "delay",
+      "type": "integer",
+      "default": 100,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 5,
+      "label": "DLY",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "delay_random",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 5,
+      "label": "DLRND",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "delay_bounce.cpp"
+  ],
+  "source_group": "delay",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/delay/delay_bounce.hpp",
+  "registry_index": 6,
+  "selector_index": 6
+}

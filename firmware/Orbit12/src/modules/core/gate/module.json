@@ -1,0 +1,70 @@
+{
+  "package_format": 1,
+  "module_id": "gate",
+  "scene_key": "gate",
+  "display_name": "Gate",
+  "label": "GATE",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "SETS NOTE LENGTH",
+  "state": {
+    "type": "GateModuleState",
+    "bytes": 116
+  },
+  "parameters": [
+    {
+      "name": "gate",
+      "type": "integer",
+      "default": 100,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 5,
+      "label": "GATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate_random",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 5,
+      "label": "GTRND",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern_length",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 128,
+      "step": 1,
+      "label": "PTLEN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "gate_chopper_retrigger.cpp"
+  ],
+  "source_group": "gate",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/gate/gate_chopper_retrigger.hpp",
+  "registry_index": 9,
+  "selector_index": 9
+}

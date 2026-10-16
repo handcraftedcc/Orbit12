@@ -1,0 +1,70 @@
+{
+  "package_format": 1,
+  "module_id": "note_walk",
+  "scene_key": "note_walk",
+  "display_name": "Note Walk",
+  "label": "NOTEWLK",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "WALKING NOTE LINE",
+  "state": {
+    "type": "NoteWalkInputState",
+    "bytes": 64
+  },
+  "parameters": [
+    {
+      "name": "octave",
+      "type": "integer",
+      "default": 3,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "octave"
+    },
+    {
+      "name": "key_offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "PADOFS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "key_offset"
+    },
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 127,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "walk_inputs.cpp"
+  ],
+  "source_group": "note_walk",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/note_walk/walk_inputs.hpp",
+  "registry_index": 4,
+  "selector_index": 4
+}

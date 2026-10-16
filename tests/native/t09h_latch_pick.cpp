@@ -3,8 +3,9 @@
 // fixtures/t09h/gen_traces.py under python -I (run from the repository root).
 // Trace functions named trace_dev_* carry the documented release-safety deviations (latch_pick.cpp);
 // each such step checks the C++ result and that the source (python -I) result differs.
-#include "domain/modules/registry.hpp"
-#include "domain/modules/latch_pick.hpp"
+#include "modules/generated/module_counts_generated.hpp"
+#include "modules/common/registry.hpp"
+#include "modules/core/latch/latch_pick.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstddef>
@@ -128,7 +129,7 @@ void test_descriptor() {
   const auto* pick = find_module("pick");
   assert(latch && latch == &latch_module_descriptor() && pick && pick == &pick_module_descriptor());
   assert(!find_module("phraser"));
-  assert(module_count() == 18 && module_at(10) == latch && module_at(11) == pick);
+  assert(module_count() == orbit::kGeneratedProcessorCount && module_at(10) == latch && module_at(11) == pick);
 
   // latch.py: POLY=12, range 1..12, persisted name polyphony.
   assert(latch->version == 1 && latch->param_count == 1);

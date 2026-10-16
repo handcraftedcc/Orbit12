@@ -1,5 +1,5 @@
 #include "chords_input.hpp"
-#include "../music.hpp"
+#include "../../../domain/music.hpp"
 #include <new>
 #include <algorithm>
 #include <cstdint>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "basics.hpp"
+#include "../../common/module_state.hpp"
 
 namespace orbit {
 

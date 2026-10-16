@@ -1,5 +1,5 @@
-#include "domain/modules/input_registry.hpp"
-#include "domain/modules/matrix_input.hpp"
+#include "modules/common/input_registry.hpp"
+#include "modules/core/matrix/matrix_input.hpp"
 #include "domain/music.hpp"
 #include <cassert>
 #include <cstdint>

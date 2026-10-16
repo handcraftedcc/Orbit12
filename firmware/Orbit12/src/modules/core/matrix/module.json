@@ -1,0 +1,287 @@
+{
+  "package_format": 1,
+  "module_id": "matrix",
+  "scene_key": "matrix",
+  "display_name": "Matrix",
+  "label": "MTRX",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "CUSTOM PAD MAP",
+  "state": {
+    "type": "MatrixInputState",
+    "bytes": 228
+  },
+  "parameters": [
+    {
+      "name": "pad",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 11,
+      "step": 1,
+      "label": "PAD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "note",
+      "type": "integer",
+      "default": 1,
+      "minimum": -24,
+      "maximum": 24,
+      "step": 1,
+      "label": "NOTE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "chord",
+      "type": "boolean",
+      "default": true,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "CHORD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "seventh",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "7TH",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "ninth",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "9TH",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "inversion",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 3,
+      "step": 1,
+      "label": "INV",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "sus",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SUS",
+      "options": [
+        "OFF",
+        "SUS2",
+        "SUS4"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "dim",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "DIM",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "power",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "PWR",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "bass",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "BASS",
+      "options": [
+        "NONE",
+        "ROOT",
+        "2ND",
+        "LOW",
+        "HIGH"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "spread",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SPRD",
+      "options": [
+        "TIGHT",
+        "MED",
+        "WIDE"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octave",
+      "type": "integer",
+      "default": 3,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "octave"
+    },
+    {
+      "name": "key_offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "PADOFS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "key_offset"
+    },
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 127,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "reset",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "RESET",
+      "options": [
+        ">",
+        "DEG",
+        "CHRD",
+        "NOTE",
+        "HALF"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "notes",
+      "type": "integer",
+      "element_count": 12
+    },
+    {
+      "name": "chords",
+      "type": "byte",
+      "element_count": 12
+    },
+    {
+      "name": "sevenths",
+      "type": "byte",
+      "element_count": 12
+    },
+    {
+      "name": "ninths",
+      "type": "byte",
+      "element_count": 12
+    },
+    {
+      "name": "inversions",
+      "type": "byte",
+      "element_count": 12
+    },
+    {
+      "name": "sus",
+      "type": "byte",
+      "element_count": 12
+    },
+    {
+      "name": "power",
+      "type": "byte",
+      "element_count": 12
+    },
+    {
+      "name": "dim",
+      "type": "byte",
+      "element_count": 12
+    }
+  ],
+  "sources": [
+    "matrix_input.cpp"
+  ],
+  "source_group": "matrix",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/common/input_state.hpp",
+  "registry_index": 3,
+  "selector_index": 3
+}

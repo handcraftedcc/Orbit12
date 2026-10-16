@@ -1,0 +1,153 @@
+{
+  "package_format": 1,
+  "module_id": "bounce",
+  "scene_key": "bounce",
+  "display_name": "Bounce",
+  "label": "BOUNCE",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "REPEATS, DECAYS",
+  "state": {
+    "type": "BounceModuleState",
+    "bytes": 432
+  },
+  "parameters": [
+    {
+      "name": "bounces",
+      "type": "integer",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 64,
+      "step": 1,
+      "label": "BOUNCE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "interval_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "MODE",
+      "options": [
+        "MS",
+        "RATE"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "interval_ms",
+      "type": "integer",
+      "default": 150,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 5,
+      "label": "INTMS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "interval_rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "INTRT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate",
+      "type": "decimal",
+      "default": 100.0,
+      "minimum": -3.40282347e+38,
+      "maximum": 3.40282347e+38,
+      "step": 5.0,
+      "label": "GATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "interval_mod",
+      "type": "decimal",
+      "default": 0.0,
+      "minimum": -3.40282347e+38,
+      "maximum": 3.40282347e+38,
+      "step": 0.0500000007,
+      "label": "INTMOD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "velocity_mod",
+      "type": "decimal",
+      "default": 1.0,
+      "minimum": -3.40282347e+38,
+      "maximum": 3.40282347e+38,
+      "step": 0.0500000007,
+      "label": "VELMOD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate_mod",
+      "type": "decimal",
+      "default": 0.0,
+      "minimum": -3.40282347e+38,
+      "maximum": 3.40282347e+38,
+      "step": 0.0500000007,
+      "label": "GTEMOD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "mod_curve",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "MODCRV",
+      "options": [
+        "LIN",
+        "CUBIC",
+        "RAND"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "delay",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/delay/delay_bounce.hpp",
+  "registry_index": 3,
+  "selector_index": 3
+}

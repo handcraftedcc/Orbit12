@@ -1,0 +1,211 @@
+{
+  "package_format": 1,
+  "module_id": "arp",
+  "scene_key": "arp",
+  "display_name": "Arp",
+  "label": "ARP",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "ARPEGGIATES NOTES",
+  "state": {
+    "type": "ArpModuleState",
+    "bytes": 264
+  },
+  "parameters": [
+    {
+      "name": "rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "RATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "sort_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SORT",
+      "options": [
+        "UP",
+        "DOWN",
+        "ORD"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "play_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 8,
+      "step": 1,
+      "label": "PLAY",
+      "options": [
+        "SORT",
+        "MIRR",
+        "THUMB",
+        "PINKY",
+        "DIV",
+        "CONV",
+        "CDIV",
+        "RND",
+        "RPT"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "transpose_steps",
+      "type": "integer",
+      "default": 0,
+      "minimum": -24,
+      "maximum": 24,
+      "step": 1,
+      "label": "TRNS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "max_transpose",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 48,
+      "step": 1,
+      "label": "MAXTRN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "boundary_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "BND",
+      "options": [
+        "WRPU",
+        "WRPB",
+        "FLDU",
+        "FLDB",
+        "CLMP"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate",
+      "type": "decimal",
+      "default": 100.0,
+      "minimum": 0.0,
+      "maximum": 100000.0,
+      "step": 5.0,
+      "label": "GATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 24,
+      "step": 1,
+      "label": "RYTM",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern_shift",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "RYSHFT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "random_pattern_length",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 128,
+      "step": 1,
+      "label": "RNDLEN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rand_seed",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10000,
+      "step": 1,
+      "label": "SEED",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "retrigger_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "RTRG",
+      "options": [
+        "RTRG",
+        "CONT",
+        "STBL"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "arp.cpp"
+  ],
+  "source_group": "arp",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/arp/arp.hpp",
+  "registry_index": 1,
+  "selector_index": 1
+}

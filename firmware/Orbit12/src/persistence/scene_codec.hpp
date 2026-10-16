@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "persistence/scene_schema.hpp"
+#include "scene_schema.hpp"
 
 namespace orbit {
 

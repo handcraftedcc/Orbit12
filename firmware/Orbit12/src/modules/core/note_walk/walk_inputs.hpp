@@ -1,6 +1,6 @@
 #pragma once
 
-#include "inputs.hpp"
+#include "../../common/input_state.hpp"
 
 namespace orbit {
 void construct_note_walk_input(InputState&) noexcept;

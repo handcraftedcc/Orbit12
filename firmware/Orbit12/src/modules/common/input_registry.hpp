@@ -1,5 +1,5 @@
 #pragma once
-#include "inputs.hpp"
+#include "input_state.hpp"
 
 namespace orbit {
 const InputDescriptor* find_input_module(const char* id) noexcept;

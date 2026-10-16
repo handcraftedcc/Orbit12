@@ -1,7 +1,7 @@
 #include "arp.hpp"
-#include "drop_randomize.hpp"
-#include "../music.hpp"
-#include "../time.hpp"
+#include "../drop/drop_randomize.hpp"
+#include "../../../domain/music.hpp"
+#include "../../../domain/time.hpp"
 #include <cstdint>
 #include <limits>
 #include <new>

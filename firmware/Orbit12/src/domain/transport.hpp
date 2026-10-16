@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "domain/types.hpp"
+#include "types.hpp"
 
 namespace orbit {
 

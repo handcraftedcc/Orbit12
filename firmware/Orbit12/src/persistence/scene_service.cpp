@@ -1,8 +1,8 @@
-#include "persistence/scene_service.hpp"
+#include "scene_service.hpp"
 
 #include <cstring>
 
-#include "persistence/scene_names.hpp"
+#include "scene_names.hpp"
 
 namespace orbit {
 namespace {

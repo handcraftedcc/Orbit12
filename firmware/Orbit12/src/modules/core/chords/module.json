@@ -1,0 +1,221 @@
+{
+  "package_format": 1,
+  "module_id": "chords",
+  "scene_key": "chords",
+  "display_name": "Chords",
+  "label": "CHRD",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "CHORD ROOTS+MODS",
+  "state": {
+    "type": "ChordInputState",
+    "bytes": 64
+  },
+  "parameters": [
+    {
+      "name": "octave",
+      "type": "integer",
+      "default": 3,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "octave"
+    },
+    {
+      "name": "key_offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "PADOFS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "key_offset"
+    },
+    {
+      "name": "modifier_select",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 6,
+      "step": 1,
+      "label": "SEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "modifier_action",
+      "type": "enumeration",
+      "default": 4,
+      "minimum": 0,
+      "maximum": 10,
+      "step": 1,
+      "label": "MOD",
+      "options": [
+        "OFF",
+        "INV1",
+        "INV2",
+        "INV3",
+        "SEV",
+        "ADD9",
+        "SUS2",
+        "SUS4",
+        "PWR",
+        "DIM",
+        "BRRW"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "bass",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "BASS",
+      "options": [
+        "NONE",
+        "ROOT",
+        "2ND",
+        "LOW",
+        "HIGH"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "spread",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SPRD",
+      "options": [
+        "TIGHT",
+        "MED",
+        "WIDE"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "borrow_scale",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 20,
+      "step": 1,
+      "label": "BRWSCL",
+      "options": [
+        "AUTO",
+        "MAJ",
+        "MIN",
+        "HMIN",
+        "MMIN",
+        "ION",
+        "DOR",
+        "PHR",
+        "LYD",
+        "MIX",
+        "AEO",
+        "LOC",
+        "MAJP",
+        "MINP",
+        "SPEN",
+        "BLU",
+        "MIN6",
+        "M7B",
+        "WT",
+        "DIMH",
+        "DIMW"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "max_chords",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 6,
+      "step": 1,
+      "label": "MAXCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 127,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "layout",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "LAY",
+      "options": [
+        "SPLT",
+        "4&8"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "split_drop",
+      "type": "integer",
+      "default": 7,
+      "minimum": 1,
+      "maximum": 7,
+      "step": 1,
+      "label": "SPLDRP",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "chords_input.cpp"
+  ],
+  "source_group": "chords",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/common/input_state.hpp",
+  "registry_index": 2,
+  "selector_index": 1
+}

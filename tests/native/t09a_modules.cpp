@@ -1,4 +1,4 @@
-#include "domain/modules/registry.hpp"
+#include "modules/common/registry.hpp"
 #include <cassert>
 #include <cstring>
 #include <limits>

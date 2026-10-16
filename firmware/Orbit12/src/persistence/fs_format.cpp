@@ -1,4 +1,4 @@
-#include "persistence/fs_format.hpp"
+#include "fs_format.hpp"
 
 #include <cstring>
 

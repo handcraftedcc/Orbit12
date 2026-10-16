@@ -3,7 +3,7 @@
 // Callers translate active-low pins to "pressed" bits.
 #include <cstdint>
 
-#include "domain/time.hpp"
+#include "../../domain/time.hpp"
 
 namespace orbit {
 namespace platform {

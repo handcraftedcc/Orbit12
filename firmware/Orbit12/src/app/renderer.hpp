@@ -12,8 +12,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "app/ui_model.hpp"
-#include "domain/time.hpp"
+#include "ui_model.hpp"
+#include "../domain/time.hpp"
 
 namespace orbit::render {
 

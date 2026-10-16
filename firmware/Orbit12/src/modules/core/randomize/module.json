@@ -1,0 +1,194 @@
+{
+  "package_format": 1,
+  "module_id": "randomize",
+  "scene_key": "randomize",
+  "display_name": "Randomize",
+  "label": "RND",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "RANDOM VARIATION",
+  "state": {
+    "type": "RandomizeModuleState",
+    "bytes": 76
+  },
+  "parameters": [
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "VELRNG",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "velocity_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "VELMDE",
+      "options": [
+        "UNI",
+        "BI"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "note",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "NTRNG",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "note_increment",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 128,
+      "step": 1,
+      "label": "NTINC",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "note_chance",
+      "type": "decimal",
+      "default": 0.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "step": 0.0500000007,
+      "label": "NTCHNC",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "note_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "NTMDE",
+      "options": [
+        "UNI",
+        "BI"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "scale_aware",
+      "type": "boolean",
+      "default": true,
+      "minimum": false,
+      "maximum": true,
+      "step": true,
+      "label": "INSCL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octave",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCRNG",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octave_chance",
+      "type": "decimal",
+      "default": 0.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "step": 0.0500000007,
+      "label": "OCCHNC",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octave_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "OCMDE",
+      "options": [
+        "UNI",
+        "BI"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern_length",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 128,
+      "step": 1,
+      "label": "PTLEN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "random_seed_user",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10000,
+      "step": 1,
+      "label": "SEED",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "drop",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/drop/drop_randomize.hpp",
+  "registry_index": 13,
+  "selector_index": 13
+}

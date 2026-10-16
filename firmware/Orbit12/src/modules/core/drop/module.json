@@ -1,0 +1,86 @@
+{
+  "package_format": 1,
+  "module_id": "drop",
+  "scene_key": "drop",
+  "display_name": "Drop",
+  "label": "DROP",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "DROPS NOTE-ONS",
+  "state": {
+    "type": "DropModuleState",
+    "bytes": 16
+  },
+  "parameters": [
+    {
+      "name": "drop",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 100,
+      "step": 5,
+      "label": "DROP",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "MDE",
+      "options": [
+        "NOTE",
+        "STEP"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern_length",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 128,
+      "step": 1,
+      "label": "PTLEN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10000,
+      "step": 1,
+      "label": "SEED",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "drop_randomize.cpp"
+  ],
+  "source_group": "drop",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/drop/drop_randomize.hpp",
+  "registry_index": 7,
+  "selector_index": 7
+}

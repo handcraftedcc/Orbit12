@@ -1,0 +1,86 @@
+{
+  "package_format": 1,
+  "module_id": "note",
+  "scene_key": "note",
+  "display_name": "Note",
+  "label": "NOTE",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "PADS IN SCALE",
+  "state": {
+    "type": "NoteInputState",
+    "bytes": 32
+  },
+  "parameters": [
+    {
+      "name": "octave",
+      "type": "integer",
+      "default": 3,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "octave"
+    },
+    {
+      "name": "key_offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "PADOFS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "key_offset"
+    },
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 127,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "layout",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 1,
+      "label": "LAY",
+      "options": [
+        "KEY",
+        "CHRM"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [
+    "inputs.cpp"
+  ],
+  "source_group": "note",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/common/input_state.hpp",
+  "registry_index": 0,
+  "selector_index": 0
+}

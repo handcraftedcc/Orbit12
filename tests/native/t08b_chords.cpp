@@ -1,5 +1,5 @@
-#include "domain/modules/chords_input.hpp"
-#include "domain/modules/input_registry.hpp"
+#include "modules/core/chords/chords_input.hpp"
+#include "modules/common/input_registry.hpp"
 #include "domain/music.hpp"
 #include <cassert>
 #include <cstdint>

@@ -1,0 +1,98 @@
+{
+  "package_format": 1,
+  "module_id": "chopper",
+  "scene_key": "chopper",
+  "display_name": "Chopper",
+  "label": "CHOPPR",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "CHOPS HELD NOTES",
+  "state": {
+    "type": "ChopperModuleState",
+    "bytes": 128
+  },
+  "parameters": [
+    {
+      "name": "rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "RATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "chop",
+      "type": "decimal",
+      "default": 0.5,
+      "minimum": -3.40282347e+38,
+      "maximum": 3.40282347e+38,
+      "step": 0.0500000007,
+      "label": "CHOP",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern_length",
+      "type": "integer",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 128,
+      "step": 1,
+      "label": "PTLEN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rand_seed",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10000,
+      "step": 1,
+      "label": "SEED",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "retrigger_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "RTRG",
+      "options": [
+        "STBL",
+        "CONT",
+        "RTRG"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "gate",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/gate/gate_chopper_retrigger.hpp",
+  "registry_index": 5,
+  "selector_index": 5
+}

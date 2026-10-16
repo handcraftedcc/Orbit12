@@ -1,7 +1,7 @@
-#include "app/renderer.hpp"
+#include "renderer.hpp"
 
-#include "domain/music.hpp"
-#include "platform/macropad/orion_assets.hpp"
+#include "../domain/music.hpp"
+#include "../platform/macropad/orion_assets.hpp"
 
 // Coordinates and ink follow ui.py exactly (see the comments on each draw
 // function). Text is drawn cell by cell, like displayio TileGrid cells: blank

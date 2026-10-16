@@ -23,8 +23,8 @@
 //  - Close errors are not observable through the Arduino File API; the
 //    verify-by-read step in the callers detects corrupt content.
 
-#include "persistence/fs_format.hpp"
-#include "persistence/scene_service.hpp"
+#include "../../persistence/fs_format.hpp"
+#include "../../persistence/scene_service.hpp"
 
 namespace orbit {
 

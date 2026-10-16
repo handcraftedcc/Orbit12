@@ -13,8 +13,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "domain/music.hpp"
-#include "domain/types.hpp"
+#include "../domain/music.hpp"
+#include "../domain/types.hpp"
 
 namespace orbit {
 

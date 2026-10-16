@@ -1,8 +1,8 @@
 // Source oracle: circuitpython-source/src/apps/Orion/inputmodules/matrix.py
 // Expected pitches assume GlobalState defaults (key C, Major, octave 3, offset 0)
 // unless a case sets otherwise. Pad p is driven by physical key music::kPadMap[p].
-#include "domain/modules/matrix_input.hpp"
-#include "domain/modules/input_registry.hpp"
+#include "modules/core/matrix/matrix_input.hpp"
+#include "modules/common/input_registry.hpp"
 #include "domain/music.hpp"
 #include <cstdint>
 #include <cstdio>

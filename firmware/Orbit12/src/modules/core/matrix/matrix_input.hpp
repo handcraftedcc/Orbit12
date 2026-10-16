@@ -1,5 +1,5 @@
 #pragma once
-#include "inputs.hpp"
+#include "../../common/input_state.hpp"
 
 namespace orbit {
 // Core-0 controller calls these at reset parameter enter/exit boundaries.

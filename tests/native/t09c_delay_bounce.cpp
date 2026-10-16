@@ -4,8 +4,9 @@
 // starts at a relative base, so 32-bit wrap cases hold identical relative
 // ordering. Deviations are listed in delay_bounce.cpp and covered by the
 // hand-written tests after the generated traces.
-#include "domain/modules/delay_bounce.hpp"
-#include "domain/modules/registry.hpp"
+#include "modules/generated/module_counts_generated.hpp"
+#include "modules/core/delay/delay_bounce.hpp"
+#include "modules/common/registry.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -508,7 +509,7 @@ void test_descriptors() {
   CHECK(delay == &delay_module_descriptor());
   CHECK(bounce == &bounce_module_descriptor());
   CHECK(module_at(6) == delay && module_at(3) == bounce);
-  CHECK(module_count() == 18);
+  CHECK(module_count() == orbit::kGeneratedProcessorCount);
   CHECK(find_module("phraser") == nullptr);
 
   CHECK(delay->version == 1 && delay->param_count == 2);

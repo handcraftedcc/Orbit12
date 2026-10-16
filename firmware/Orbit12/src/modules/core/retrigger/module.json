@@ -1,0 +1,59 @@
+{
+  "package_format": 1,
+  "module_id": "retrigger",
+  "scene_key": "retrigger",
+  "display_name": "Retrigger",
+  "label": "RTRGR",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "RETRIGGERS NOTES",
+  "state": {
+    "type": "RetriggerModuleState",
+    "bytes": 64
+  },
+  "parameters": [
+    {
+      "name": "mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "MODE",
+      "options": [
+        "PRESS",
+        "REL",
+        "BOTH"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "threshold",
+      "type": "integer",
+      "default": 50,
+      "minimum": 0,
+      "maximum": 1000,
+      "step": 1,
+      "label": "THRSH",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [],
+  "sources": [],
+  "source_group": "gate",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/gate/gate_chopper_retrigger.hpp",
+  "registry_index": 14,
+  "selector_index": 14
+}

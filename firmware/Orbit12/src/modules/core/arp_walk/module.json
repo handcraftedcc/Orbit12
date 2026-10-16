@@ -1,0 +1,220 @@
+{
+  "package_format": 1,
+  "module_id": "arp_walk",
+  "scene_key": "arp_walk",
+  "display_name": "Arp Walk",
+  "label": "ARPWLK",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "ARP WALK PATTERN",
+  "state": {
+    "type": "ArpWalkModuleState",
+    "bytes": 320
+  },
+  "parameters": [
+    {
+      "name": "rate",
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "maximum": 12,
+      "step": 1,
+      "label": "RATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "sort_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SORT",
+      "options": [
+        "UP",
+        "DOWN",
+        "ORD"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "step_length",
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "maximum": 8,
+      "step": 1,
+      "label": "LEN",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "step_select",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 7,
+      "step": 1,
+      "label": "SEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "step_value",
+      "type": "integer",
+      "default": -1,
+      "minimum": -24,
+      "maximum": 24,
+      "step": 1,
+      "label": "VAL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "randomize_steps",
+      "type": "action",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 0,
+      "step": 1,
+      "label": "RAND",
+      "options": [],
+      "saved": false,
+      "ui_only": true,
+      "global_binding": "none"
+    },
+    {
+      "name": "invert",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "INV",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "max_walk",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 48,
+      "step": 1,
+      "label": "MAXWLK",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "boundary_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "step": 1,
+      "label": "BND",
+      "options": [
+        "WRPU",
+        "WRPB",
+        "FLDU",
+        "FLDB",
+        "CLMP"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "gate",
+      "type": "decimal",
+      "default": 100.0,
+      "minimum": 0.0,
+      "maximum": 100000.0,
+      "step": 5.0,
+      "label": "GATE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "rhythm_pattern",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 24,
+      "step": 1,
+      "label": "RYTM",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "pattern_shift",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "RYSHFT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "retrigger_mode",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "RTRG",
+      "options": [
+        "RTRG",
+        "CONT",
+        "STBL"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "step_values",
+      "type": "integer",
+      "element_count": 8
+    }
+  ],
+  "sources": [
+    "arp_walk.cpp"
+  ],
+  "source_group": "arp_walk",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/arp_walk/arp_walk.hpp",
+  "registry_index": 2,
+  "selector_index": 2
+}

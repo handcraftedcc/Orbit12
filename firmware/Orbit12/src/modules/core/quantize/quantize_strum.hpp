@@ -1,5 +1,5 @@
 #pragma once
-#include "basics.hpp"
+#include "../../common/module_state.hpp"
 
 namespace orbit {
 // Processors ported from circuitpython-source/src/apps/Orion/modules/quantize.py and strum.py.

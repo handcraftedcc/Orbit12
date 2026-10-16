@@ -1,4 +1,4 @@
-#include "platform/macropad/diag_io.hpp"
+#include "diag_io.hpp"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_NeoPixel.h>
@@ -8,7 +8,7 @@
 
 #include <cstring>
 
-#include "platform/macropad/launchscreen_bitmap.h"
+#include "launchscreen_bitmap.h"
 
 extern "C" {
 extern char __StackBottom, __StackTop, __StackOneBottom, __StackOneTop;

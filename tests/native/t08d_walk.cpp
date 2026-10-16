@@ -2,8 +2,8 @@
 // Expected values are derived by hand from the Python algorithms with GlobalState
 // defaults (key C, Major scale, octave 3). ChordWalk's __init__ forces key_offset to -2;
 // the controller applies that request, which these fixtures model explicitly.
-#include "domain/modules/input_registry.hpp"
-#include "domain/modules/walk_inputs.hpp"
+#include "modules/common/input_registry.hpp"
+#include "modules/core/note_walk/walk_inputs.hpp"
 #include "domain/music.hpp"
 #include <cstdint>
 #include <cstdio>

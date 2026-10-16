@@ -1,5 +1,5 @@
 #pragma once
-#include "../types.hpp"
+#include "../../domain/types.hpp"
 
 namespace orbit {
 struct NoteRelationships {
@@ -329,28 +329,14 @@ struct WanderModuleState {
   std::uint32_t output_overflow = 0;   // Emissions refused: batch full (unreachable with 1 on/1 off per pass)
 };
 
+// The union of state structs is generated from module.json (modules/generated/module_state_generated.hpp):
+// it includes the core structs above and user state headers.
+}  // namespace orbit
+#include "../generated/module_state_generated.hpp"
+namespace orbit {
+
 struct ModuleState {
-  union Storage {
-    EmptyModuleState empty;
-    TransposeModuleState transpose;
-    ChordModuleState chord;
-    DropModuleState drop;
-    RandomizeModuleState randomize;
-    GateModuleState gate;
-    ChopperModuleState chopper;
-    RetriggerModuleState retrigger;
-    DelayModuleState delay;
-    BounceModuleState bounce;
-    EuclidModuleState euclid;
-    ArpModuleState arp;
-    ArpWalkModuleState arp_walk;
-    LatchModuleState latch;
-    PickModuleState pick;
-    QuantizeModuleState quantize;
-    StrumModuleState strum;
-    WanderModuleState wander;
-    constexpr Storage() : empty{} {}
-  } storage;
+  ModuleStorage storage;
   constexpr ModuleState() : storage{} {}
 };
 void construct_empty_state(ModuleState& state) noexcept;

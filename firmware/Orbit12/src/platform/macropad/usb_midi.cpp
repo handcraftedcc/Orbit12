@@ -1,4 +1,4 @@
-#include "platform/macropad/usb_midi.hpp"
+#include "usb_midi.hpp"
 
 #include <Adafruit_TinyUSB.h>
 #include <Arduino.h>

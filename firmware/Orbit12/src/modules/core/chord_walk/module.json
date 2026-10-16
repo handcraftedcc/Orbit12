@@ -1,0 +1,171 @@
+{
+  "package_format": 1,
+  "module_id": "chord_walk",
+  "scene_key": "chord_walk",
+  "display_name": "Chord Walk",
+  "label": "CHRDWLK",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "CHORD TONE WALK",
+  "state": {
+    "type": "ChordWalkInputState",
+    "bytes": 344
+  },
+  "parameters": [
+    {
+      "name": "pad",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 3,
+      "step": 1,
+      "label": "PAD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "note",
+      "type": "integer",
+      "default": 1,
+      "minimum": -24,
+      "maximum": 24,
+      "step": 1,
+      "label": "NOTE",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "seventh",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "7TH",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "sus",
+      "type": "enumeration",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 2,
+      "step": 1,
+      "label": "SUS",
+      "options": [
+        "OFF",
+        "SUS2",
+        "SUS4"
+      ],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "power",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "PWR",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "preview_chord",
+      "type": "boolean",
+      "default": false,
+      "minimum": false,
+      "maximum": true,
+      "step": false,
+      "label": "PRVCRD",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "octave",
+      "type": "integer",
+      "default": 3,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "OCT",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "octave"
+    },
+    {
+      "name": "key_offset",
+      "type": "integer",
+      "default": 0,
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "step": 1,
+      "label": "PADOFS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "key_offset"
+    },
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 127,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "notes",
+      "type": "integer",
+      "element_count": 4
+    },
+    {
+      "name": "sevenths",
+      "type": "byte",
+      "element_count": 4
+    },
+    {
+      "name": "sus",
+      "type": "byte",
+      "element_count": 4
+    },
+    {
+      "name": "power",
+      "type": "byte",
+      "element_count": 4
+    }
+  ],
+  "sources": [],
+  "source_group": "note_walk",
+  "provenance": {
+    "origin": "shipped",
+    "license": "MIT",
+    "oracle": "circuitpython-source (Orion)"
+  },
+  "enabled_in_release": true,
+  "header": "modules/core/note_walk/walk_inputs.hpp",
+  "registry_index": 5,
+  "selector_index": 5
+}

@@ -1,7 +1,7 @@
 #include "gate_chopper_retrigger.hpp"
-#include "drop_randomize.hpp"
-#include "../music.hpp"
-#include "../time.hpp"
+#include "../drop/drop_randomize.hpp"
+#include "../../../domain/music.hpp"
+#include "../../../domain/time.hpp"
 #include <cfloat>
 #include <cstdint>
 #include <limits>

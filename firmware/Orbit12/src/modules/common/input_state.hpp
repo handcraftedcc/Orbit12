@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../types.hpp"
+#include "../../domain/types.hpp"
 
 namespace orbit {
 struct InputRelationships {
@@ -133,16 +133,13 @@ struct ChordWalkInputState {
   std::uint32_t output_overflow = 0;
 };
 
+// The union of input state structs is generated from module.json (modules/generated/input_state_generated.hpp).
+}  // namespace orbit
+#include "../generated/input_state_generated.hpp"
+namespace orbit {
+
 struct InputState {
-  union Storage {
-    NoteInputState note;
-    DrumInputState drum;
-    ChordInputState chords;
-    MatrixInputState matrix;
-    NoteWalkInputState note_walk;
-    ChordWalkInputState chord_walk;
-    constexpr Storage() : note{} {}
-  } storage;
+  InputStorage storage;
   constexpr InputState() : storage{} {}
 };
 void construct_note_input(InputState&) noexcept;

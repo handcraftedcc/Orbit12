@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/registry.hpp"
+#include "../modules/common/registry.hpp"
 #include "output.hpp"
 
 namespace orbit {
