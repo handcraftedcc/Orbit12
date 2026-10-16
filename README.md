@@ -10,11 +10,15 @@ The whole app is scale aware, and includes a variety of input modules, and midi 
 
 Start here:
 
-- [UX guide](docs/UX.md)
-- [Input modules](docs/Input-Modules.md)
-- [Processing modules](docs/Modules.md)
-- [Architecture](docs/Architecture.md)
-- [Module development guide](docs/Module-Dev-Guide.md)
+- [CircuitPython UX guide](circuitpython-source/docs/UX.md)
+- [CircuitPython input modules](circuitpython-source/docs/Input-Modules.md)
+- [CircuitPython processing modules](circuitpython-source/docs/Modules.md)
+- [CircuitPython architecture](circuitpython-source/docs/Architecture.md)
+- [CircuitPython module development guide](circuitpython-source/docs/Module-Dev-Guide.md)
+
+## CircuitPython edition
+
+The existing CircuitPython implementation is preserved under [`circuitpython-source/`](circuitpython-source/). Its source, generated deployment tree, tools, UI assets, and documentation remain available as a behavioral reference while the Arduino migration is developed.
 
 ## What You Need
 
@@ -42,18 +46,18 @@ If you use a release build, you still need the board to be running CircuitPython
 
 1. Install CircuitPython on the MacroPad, ideally version 10.1.4.
 2. Clone or unpack this repository.
-3. Build the CircuitPython tree with the helpers in `tools/`.
+3. Build the CircuitPython tree with the helpers in `circuitpython-source/tools/`.
 4. Copy the generated tree to the `CIRCUITPY` drive.
 
-The project keeps source under `src/` and generated `.mpy` output under `src_mpy/`. Loading plain `.py` files directly to the MacroPad works, but it increases memory pressure, so built `.mpy` files are strongly recommended.
+The project keeps source under `circuitpython-source/src/` and generated `.mpy` output under `circuitpython-source/src_mpy/`. Loading plain `.py` files directly to the MacroPad works, but it increases memory pressure, so built `.mpy` files are strongly recommended.
 
 The main helpers are:
 
-- `tools/build_mpy.py`
-- `tools/build_sync_mpy.sh`
-- `tools/build_sync_current_mpy.py`
+- `circuitpython-source/tools/build_mpy.py`
+- `circuitpython-source/tools/build_sync_mpy.sh`
+- `circuitpython-source/tools/build_sync_current_mpy.py`
 
-The `tools/` folder also includes a PyCharm settings zip. It installs external tools and macros for building and sending files to the MacroPad, and it is the recommended way to work on both `.py` and `.mpy` files while developing this project.
+The `circuitpython-source/tools/` folder also includes a PyCharm settings zip. It installs external tools and macros for building and sending files to the MacroPad, and it is the recommended way to work on both `.py` and `.mpy` files while developing this project.
 
 Useful supporting resources:
 
@@ -62,10 +66,11 @@ Useful supporting resources:
 
 ## Project Layout
 
-- `src/`: source tree that lands on the board
-- `src_mpy/`: compiled output tree for release/build sync
-- `tools/`: build and sync helpers
-- `docs/`: user and contributor documentation
+- `circuitpython-source/src/`: CircuitPython source tree that lands on the board
+- `circuitpython-source/src_mpy/`: compiled output tree for release/build sync
+- `circuitpython-source/tools/`: CircuitPython build and sync helpers
+- `circuitpython-source/docs/`: CircuitPython user and contributor documentation
+- `docs/migration/`: Arduino migration contracts, plans, and evidence
 
 ## About AI Involvement
 

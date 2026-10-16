@@ -1,0 +1,30 @@
+name: Native tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native-asan-ubsan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify original bitmap bytes
+        run: python3 tools/arduino/convert_assets.py --check
+      - name: Configure
+        run: cmake -S tests/native -B build/native-asan -DCMAKE_BUILD_TYPE=Debug -DORBIT_NATIVE_ASAN_UBSAN=ON
+      - name: Build
+        run: cmake --build build/native-asan --parallel
+      - name: Run
+        run: ctest --test-dir build/native-asan --output-on-failure
+
+  bridge-tsan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S tests/native -B build/native-tsan -DCMAKE_BUILD_TYPE=Debug -DORBIT_NATIVE_TSAN=ON
+      - name: Build bridge stress fixture
+        run: cmake --build build/native-tsan --target t11a_bridge --parallel
+      - name: Run bridge stress fixture
+        run: ctest --test-dir build/native-tsan -R t11a_bridge --output-on-failure

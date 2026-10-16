@@ -1,0 +1,18 @@
+profiles:
+  macropad:
+    notes: >-
+      Arduino-Pico 6.3.0, resolved from the official package index on 2026-10-15.
+      MacroPad defaults retained at 200 MHz, with TinyUSB and a 1 MiB filesystem partition.
+    fqbn: rp2040:rp2040:adafruit_macropad2040:flash=8388608_1048576,freq=200,opt=Small,os=none,profile=Disabled,rtti=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,boot2=boot2_w25q080_2_padded_checksum,usbstack=tinyusb,ipbtstack=ipv4only
+    platforms:
+      - platform: rp2040:rp2040 (6.3.0)
+        platform_index_url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+    libraries:
+      - Adafruit TinyUSB Library (3.7.7)
+      - MIDI Library (5.0.2)
+      - Adafruit SH110X (2.1.15)
+      - Adafruit GFX Library (1.12.6)
+      - Adafruit BusIO (1.17.4)
+      - Adafruit NeoPixel (1.15.5)
+      - Adafruit SPIFlash (5.1.1)
+      - SdFat - Adafruit Fork (2.3.103)
