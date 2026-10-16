@@ -42,7 +42,7 @@ This is the source-backed behavioral checklist for implementing note logic. It r
 
 - SET defaults and callbacks: `KEY=C`, `SCL=1` (Major), `BPM=120` (1..300), `SWNG=0` (0..1, step .05), `TRMDE=INT`. Key/scale changes all-notes-off; mode change stops/resets clock (`circuitpython-source/src/apps/Orion/core/_modules/_set.py:10-70`).
 - OUT defaults: `OUTCH=1` (1..16), `PRNT=off`; sends current arrays to MIDI and optionally prints (`circuitpython-source/src/apps/Orion/core/_modules/_output.py:6-46`).
-- SETTINGS parameters are UI actions and are omitted from scene parameter persistence: scene selection/save/copy/reset, RAM print, key brightness (`circuitpython-source/src/apps/Orion/core/_modules/_settings.py`; `circuitpython-source/src/apps/Orion/core/scenes.py:25-31`).
+- SETTINGS parameters are UI actions and are omitted from scene parameter persistence: scene selection/save/copy/reset, key brightness (the source RAM print button is not in the C++ STTNGS rows, see known-quirks.md) (`circuitpython-source/src/apps/Orion/core/_modules/_settings.py`; `circuitpython-source/src/apps/Orion/core/scenes.py:25-31`).
 
 ## Exact encoder/key shortcuts
 

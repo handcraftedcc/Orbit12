@@ -84,7 +84,7 @@ enum class ParamSpecial : std::uint8_t {
   None,  // module descriptor parameter (index = descriptor index)
   SetKey, SetScale, SetBpm, SetSwing, SetTransportMode,
   OutChannel, OutPrint,
-  SettingsScene, SettingsSave, SettingsCopy, SettingsReset, SettingsRam, SettingsBrightness,
+  SettingsScene, SettingsSave, SettingsCopy, SettingsReset, SettingsBrightness,
   RouteSource, RouteOperation, RouteChannel,
   EmptyPick, MatrixReset
 };

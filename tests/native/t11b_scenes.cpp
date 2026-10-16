@@ -335,9 +335,9 @@ void settings_slot_actions() {
   CHECK(!s.fs->cell({SceneFileKind::Scene, 1}).bytes.empty());
   CHECK(r.c.section() == UiSection::ParmSelection);   // button returns to selection
   // KEYBRI: brightness edit flags the user-settings file for the storage owner.
-  r.turn(4); r.step();
+  r.turn(3); r.step();   // SAVSCN -> KEYBRI (RAM row removed: KEYBRI is row 4)
   r.enc_down(); r.enc_up(); r.step();
-  r.turn(-4); r.step();
+  r.turn(-4); r.step();   // edit KEYBRI 1.0 -> 0.8
   r.enc_down(); r.enc_up(); r.step();
   CHECK(std::fabs(r.c.key_brightness() - 0.8f) < 1e-6f);
   // T14: leaving the KEYBRI edit saves while stopped; the save consumes the dirty flag.

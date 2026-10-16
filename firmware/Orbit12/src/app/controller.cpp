@@ -324,7 +324,7 @@ void Controller::build_system_rows() noexcept {
 void Controller::build_settings_rows(SlotRecord& rec) const noexcept {
   rec.id = "settings";
   rec.label = "STTNGS";
-  rec.row_count = 6;
+  rec.row_count = 5;  // RAM (no-op print button) removed: user-requested, see known-quirks.md
   ParamRow* r = rec.rows;
   r[0] = ParamRow{}; r[0].label = "SCENE"; r[0].kind = RowKind::Enum; r[0].spec_type = ParamType::Enumeration;
   r[0].special = ParamSpecial::SettingsScene; r[0].options = kSceneOptions; r[0].option_count = 10;
@@ -335,11 +335,9 @@ void Controller::build_settings_rows(SlotRecord& rec) const noexcept {
   r[2].special = ParamSpecial::SettingsCopy; r[2].options = kCopySceneOptions; r[2].option_count = 11; r[2].max_i = 10;
   r[3] = ParamRow{}; r[3].label = "RSTSCN"; r[3].kind = RowKind::Enum; r[3].spec_type = ParamType::Enumeration;
   r[3].special = ParamSpecial::SettingsReset; r[3].options = kResetOptions; r[3].option_count = 2; r[3].max_i = 1;
-  r[4] = ParamRow{}; r[4].label = "RAM"; r[4].kind = RowKind::Button; r[4].spec_type = ParamType::Action;
-  r[4].special = ParamSpecial::SettingsRam;
-  r[5] = ParamRow{}; r[5].label = "KEYBRI"; r[5].kind = RowKind::Decimal; r[5].spec_type = ParamType::Decimal;
-  r[5].special = ParamSpecial::SettingsBrightness; r[5].bounded = true; r[5].min_f = 0.0f; r[5].max_f = 1.0f;
-  r[5].step_f = 0.05f; r[5].value_f = brightness_;
+  r[4] = ParamRow{}; r[4].label = "KEYBRI"; r[4].kind = RowKind::Decimal; r[4].spec_type = ParamType::Decimal;
+  r[4].special = ParamSpecial::SettingsBrightness; r[4].bounded = true; r[4].min_f = 0.0f; r[4].max_f = 1.0f;
+  r[4].step_f = 0.05f; r[4].value_f = brightness_;
 }
 
 void Controller::init_row_from_spec(ParamRow& row, const ParamSpec& spec, std::uint8_t index,
@@ -716,7 +714,6 @@ void Controller::run_edit_callback(std::uint8_t slot, std::uint8_t row_index) no
     case ParamSpecial::SettingsSave:
     case ParamSpecial::SettingsCopy:
     case ParamSpecial::SettingsReset:
-    case ParamSpecial::SettingsRam:
     case ParamSpecial::EmptyPick:
       break;
   }
@@ -1149,8 +1146,11 @@ void Controller::shortcut(std::uint8_t key) noexcept {
       nav_keys_state_ = static_cast<std::uint8_t>((nav_keys_state_ + 1) % 2);
       set_nav_state_colors(true);
       break;
-    case 3: jump_to_slot_parm_selection(kSlotIn); break;
-    case 6: jump_to_slot_parm_selection(kSlotOut); break;
+    // DEVIATION (user-requested, see known-quirks.md "Intentional deviations"): the source
+    // jumps to IN (key 3) / OUT (key 6) only. Pressing again cycles IN -> SET -> IN and
+    // OUT -> STTNGS -> OUT. The test uses active_chain_, which section exits never change.
+    case 3: jump_to_slot_parm_selection(active_chain_ == kSlotIn ? kSlotSet : kSlotIn); break;
+    case 6: jump_to_slot_parm_selection(active_chain_ == kSlotOut ? kSlotSettings : kSlotOut); break;
     case 9:
       if (section_ == UiSection::Chain) {
         if (chain_mode_ == UiChainMode::Swap) disable_chain_swap_mode();

@@ -525,6 +525,16 @@ void failed_switch_then_gesture_recovers_in_place() {
   CHECK(r->count(MidiKind::NoteOn) == before_failed);
   r->key(9, false);
   r->run(5);
+  // USER-REQUESTED TOGGLE (known-quirks.md): keys 3/6 cycle the chain shortcuts, but Failed
+  // drops every non-encoder event before the shortcut table, so neither key changes the UI.
+  {
+    const std::uint8_t chain_failed = r->ctl().active_chain();
+    const UiSection section_failed = r->ctl().section();
+    r->key(2, true); r->run(5); r->key(2, false); r->run(5);
+    r->key(5, true); r->run(5); r->key(5, false); r->run(5);
+    CHECK(r->ctl().scene_failed());
+    CHECK(r->ctl().active_chain() == chain_failed && r->ctl().section() == section_failed);
+  }
   // Power comes back; the encoder press is the recovery gesture.
   t13::shared_fs().reboot();
   r->encoder(true);
