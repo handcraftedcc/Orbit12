@@ -1,6 +1,6 @@
 # Adding a module to the C++ firmware
 
-This guide describes the pattern the existing modules follow (`firmware/Orbit12/src/domain/modules/`, T09a to T09j). The Python source in `circuitpython-source/src/apps/Orion/` is the behavioral oracle; `behavior-contracts.md` indexes each module's source-backed defaults and ranges. Read `AGENTS.md` first for the platform rules (no heap in the performance loop, fixed capacities, zero-based channels, no exceptions or RTTI).
+This guide describes the pattern the existing modules follow (`firmware/Orbit12/src/modules/core/`, T09a to T09j; the sources moved there from `domain/modules/`). The Python source in `circuitpython-source/src/apps/Orion/` is the behavioral oracle; `behavior-contracts.md` indexes each module's source-backed defaults and ranges. Read `AGENTS.md` first for the platform rules (no heap in the performance loop, fixed capacities, zero-based channels, no exceptions or RTTI).
 
 Two kinds of module exist:
 
@@ -13,25 +13,25 @@ Use `quantize_strum` and `wander` as the reference pair for processors. Use `cho
 
 | Step | File | Change |
 |---|---|---|
-| 1 | `domain/modules/<name>.hpp/.cpp` | Declare the construct, process, reset, set_param, attributes and descriptor accessor functions. The `.cpp` file header lists every deviation from the Python source, numbered, with the reason. |
-| 2 | `domain/modules/basics.hpp` | Add a `<Name>ModuleState` struct with default member initializers, and add a member to the `ModuleState::Storage` union. |
-| 3 | `domain/modules/registry.cpp` | Include the header, add `case N:` to `module_at`, and set `module_count()` to N+1. The index is the registry index, not a chain slot. |
-| 4 | `tests/native/CMakeLists.txt` | Add `orbit_native_test(...)` for the new test and list every module `.cpp` it needs (see step 6). Append `target_sources(...)` for the new `.cpp` to each earlier test that links `registry.cpp`. |
-| 5 | Earlier tests | Bump every `module_count() == N` assertion. Current tests that assert it: `t06_chain`, `t09b` through `t09j`. |
+| 1 | `modules/core/<group>/<name>.hpp/.cpp` (or `modules/user/<author>/<name>/` for third-party code) | Declare the construct, process, reset, set_param, attributes and descriptor accessor functions. The `.cpp` file header lists every deviation from the Python source, numbered, with the reason. |
+| 2 | `modules/common/module_state.hpp` (core) or `modules/user/<author>/<name>/<name>_state.hpp` (user) | Add a `<Name>ModuleState` struct with default member initializers. The union member is generated from `module.json` (`state.type`, and `state_header` for user code). |
+| 3 | `firmware/Orbit12/src/modules/core/<id>/module.json` | Write the manifest (fields in `docs/modules/README.md`). Run `python -I tools/modules/gen_registry.py`; it regenerates the registry, descriptor table, module inventory and scene bounds under `modules/generated/`. Do not hand-edit the generated files; `--check` fails when they are stale. |
+| 4 | `tests/native/CMakeLists.txt` | Add `orbit_native_test(...)` for the new test and list every module `.cpp` it needs (see step 6). Tests that link the registry also link `modules/generated/registry_generated.cpp`. |
+| 5 | Earlier tests | Bump every `module_count() == N` assertion. Current tests that assert it: `t06_chain`, `t09b` through `t09j`, and `t16_registry_equality`. |
 | 6 | `tests/native/fixtures/<id>/` | Add `gen_traces.py` and `shims/adafruit_ticks.py` (copy from `t09j`). Run the generator; commit its output `tests/native/fixtures/<id>_source_traces.inc`. |
 | 7 | `tests/native/<id>_<name>.cpp` | Include the `.inc` inside the test's anonymous namespace, run its traces, and add invariant tests. |
 
-Registry entries are hand-edited. There is no manifest generator yet (plan item E01). Chain code and scene persistence look modules up through the registry, so they need no per-module change.
+Registry entries, scene keys, footer descriptions, UI selector tables, the scene input layout and the scene bounds are generated from `module.json` (`tools/modules/gen_registry.py`, plan item E01 done for these tables). The state union is generated from `module.json` (`modules/generated/module_state_generated.hpp`); a core state struct is still written in `modules/common/module_state.hpp`. Chain code and scene persistence look modules up through the registry, so they need no per-module change.
 
 Hidden entries stay hidden. `phraser` has no implementation; `find_module("phraser")` must return `nullptr` (checked in the tests).
 
 ## 2. State
 
-Put every runtime field in a state struct in `basics.hpp`:
+Put every runtime field in a state struct in `modules/common/module_state.hpp`:
 
 - Use fixed arrays and `NoteBuffer` (`FixedBuffer<Note, kPolyphony>`) for held notes and scheduled items. `NoteBuffer` carries a sticky `overflowed` flag and `count`.
 - Give fields the source's default values through default member initializers. `construct_*` uses placement new (`new (&state.storage.<name>) <Name>ModuleState{}`).
-- Keep the union small. `ModuleState` is as large as its largest member (632 bytes at T09j, set by an existing module; `WanderModuleState` is 144 bytes and does not change it). The chain asserts `sizeof(ModuleState) * 6 <= 128 KiB` (`chain.hpp`). Report the new size in the task report.
+- Keep the union small. `ModuleStorage` (generated) is as large as its largest member (632 bytes at T09j, set by an existing module; `WanderModuleState` is 144 bytes and does not change it). The chain asserts `sizeof(ModuleState) * 6 <= 128 KiB` (`chain.hpp`). Report the new size in the task report.
 - Keep the transport tick as the unwrapped 64-bit value, not the raw `uint32`. The source's `midi_tick` is unbounded, and grid bins, step counters and seeds depend on it. `quantize_strum` and `wander` track `tick_known`, `last_tick` and `tick` and unwrap 32-bit deltas.
 
 ## 3. Descriptor and parameters
@@ -94,16 +94,16 @@ Note: `tests/native/README.md` describes JSONL fixtures. The modules from T09a o
 
 ## 7. Input modules
 
-- Add a `<Name>InputState` struct, a member to the `InputState::Storage` union (`modules/inputs.hpp`), and `construct/process/reset/set_param/attributes` functions.
+- Add a `<Name>InputState` struct, a member in the generated `InputStorage` union (the member comes from `module.json`), and `construct/process/reset/set_param/attributes` functions.
 - `process` receives an `InputFrame` (key events with `at_ms`, encoder deltas and button edges), writes a `NoteBatch`, and writes `InputView` pad colors and labels. Labels must point at static or module storage valid until the next call.
-- Register the descriptor in `modules/input_registry.cpp` (`input_module_at`, `input_module_count`). The input count is fixed at six by the current plan. Adding a seventh changes the chain's input contract and needs an architecture decision first.
+- Input descriptors are registered by the generator (`modules/generated/input_registry_generated.cpp`) from `module.json`. A user input is supported (ADR-12): it gets a scene bank in every scene file, and the generator enforces the bounds (`docs/modules/README.md`).
 
 ## 8. Checklist
 
 - [ ] Source read (`circuitpython-source/src/apps/Orion/modules/<name>.py`) and `behavior-contracts.md` entry checked; discrepancies recorded.
 - [ ] Deviations listed in the `.cpp` header, each with its reason.
-- [ ] State struct and union member added; `sizeof` reported.
-- [ ] `registry.cpp` case, `module_count()` bumped, and every earlier test's count bumped.
+- [ ] State struct written (`state_header` for user code); the generator's `sizeof` check passes.
+- [ ] `module.json` written; `gen_registry.py --check` passes; the registry and descriptor tables are generated, not edited.
 - [ ] Parameter order, defaults, ranges, clamp or reject, flags and labels match the source.
 - [ ] Every note-on has a tracked release; capacity checked before emitting a pair; `overflowed()` never cleared.
 - [ ] Stop and reset behavior matches the source; the controller `all_notes_off` requirement is noted.

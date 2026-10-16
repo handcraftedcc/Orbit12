@@ -1,0 +1,30 @@
+{
+  "package_format": 1,
+  "module_id": "user.example.octave_shift",
+  "scene_key": "ex_oct",
+  "display_name": "Octave Shift (example)",
+  "label": "OCTUP",
+  "kind": "processor",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "RAISES BY OCTAVE",
+  "state": {
+    "type": "EmptyModuleState",
+    "bytes": 1
+  },
+  "parameters": [],
+  "attributes": [],
+  "header": "octave_shift.hpp",
+  "header_note": "Stateless: notes are shifted by a fixed +12 with no per-note memory. A stateful module needs a ModuleState union member (hand edit until the union is generated).",
+  "sources": [
+    "octave_shift.cpp"
+  ],
+  "source_group": "octave_shift",
+  "provenance": {
+    "origin": "example",
+    "author": "example",
+    "license": "MIT",
+    "note": "Sample for docs/modules/README.md. Not compiled into firmware (lives outside firmware/Orbit12/src)."
+  },
+  "enabled_in_release": false
+}

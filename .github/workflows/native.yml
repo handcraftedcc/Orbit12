@@ -11,6 +11,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify original bitmap bytes
         run: python3 tools/arduino/convert_assets.py --check
+      - name: Module tables are current (gen_registry --check)
+        run: python3 -I tools/modules/gen_registry.py --check
+      - name: Module generator and scaffold unit tests
+        run: python3 -I -m unittest discover -s tools/modules/tests -v
       - name: Configure
         run: cmake -S tests/native -B build/native-asan -DCMAKE_BUILD_TYPE=Debug -DORBIT_NATIVE_ASAN_UBSAN=ON
       - name: Build

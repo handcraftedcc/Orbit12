@@ -17,6 +17,14 @@ Usage:
     python scene_transfer.py export --port COM5 --out DIR [--force]
     python scene_transfer.py import --port COM5 --from DIR [--only NAME ...] [--dry-run]
     python scene_transfer.py format --port COM5 --yes-erase-partition
+    python scene_transfer.py info   --port COM5
+    python scene_transfer.py enter  --port COM5
+    python scene_transfer.py exit   --port COM5
+
+INFO prints the firmware identity and state (works in normal run and in maintenance). ENTER
+asks a running device to enter maintenance; it is refused unless the engine is stopped, and
+the device ACKs only once maintenance is active. EXIT returns a maintenance device to normal
+run in place. Neither needs a pad held.
 
 FORMAT erases the whole LittleFS partition (every file, including scenes and user
 settings). It needs the device in maintenance mode and the flag above; it prints what
@@ -49,6 +57,14 @@ TYPE_FORMAT = ord("F")
 FORMAT_TOKEN = b"ERASE-FS"
 # Format waits this long per response: erase and verify take several seconds on flash.
 FORMAT_TIMEOUT_S = 60.0
+TYPE_INFO = ord("I")
+TYPE_ENTER = ord("M")
+TYPE_EXIT = ord("E")
+# Host-initiated maintenance tokens: must match kEnterToken and kExitToken in maintenance_protocol.hpp.
+ENTER_TOKEN = b"ENTER-MAINT"
+EXIT_TOKEN = b"EXIT-MAINT"
+# Enter waits for core 1 to quiesce (device bound 1 s); allow for the response and the ACK.
+ENTER_TIMEOUT_S = 5.0
 
 # Must match maintenance_protocol.cpp and scene_schema.hpp / user_settings.hpp.
 SCENE_MAX_BYTES = 38637          # kSceneMaxBytes: 243 lines x 159 bytes (incl. 76 input bank lines)
@@ -70,10 +86,15 @@ NAK_REASONS = {
     7: "storage error (prior file kept)",
     8: "content rejected by device validation (prior file kept)",
     9: "not found on device",
-    10: "format token rejected (nothing erased)",
+    10: "token rejected (nothing changed or erased)",
     11: "format failed; the partition is NOT mounted",
     12: "formatted but did not mount; the partition is NOT mounted",
     13: "format verification failed; the partition is NOT mounted",
+    14: "not in maintenance (the device runs normally; nothing changed)",
+    15: "already in maintenance",
+    16: "not stopped (transport running, a note held or output pending; nothing changed)",
+    17: "core 1 did not quiesce in time (the device keeps performing)",
+    18: "the device could not compose its reply (capacity)",
 }
 
 ALLOWED = (
@@ -177,6 +198,21 @@ def selftest() -> int:
     check(golden_format.hex().upper() == "4F3146080000000045524153452D46533202957C",
           "golden FORMAT frame")
     check(parse_frame(golden_format)[1] == FORMAT_TOKEN, "FORMAT frame carries the token")
+    # Host-initiated maintenance frames (goldens checked byte-for-byte by t13e_run_commands).
+    golden_info = build_frame(TYPE_INFO)
+    check(golden_info.hex().upper() == "4F314900000000006AFADCB3", "golden INFO frame")
+    golden_enter = build_frame(TYPE_ENTER, ENTER_TOKEN)
+    check(golden_enter.hex().upper() == "4F314D0B00000000454E5445522D4D41494E54A95EA0C5",
+          "golden ENTER-MAINT frame")
+    golden_exit = build_frame(TYPE_EXIT, EXIT_TOKEN)
+    check(golden_exit.hex().upper() == "4F31450A00000000455849542D4D41494E54F2E28AB3",
+          "golden EXIT-MAINT frame")
+    check(build_frame(TYPE_ACK, ENTER_TOKEN).hex().upper() == "4F31410B00000000454E5445522D4D41494E54F836B850",
+          "golden ACK ENTER-MAINT frame")
+    check(build_frame(TYPE_NAK, ENTER_TOKEN, bytes([16])).hex().upper() ==
+          "4F314E0B01000000454E5445522D4D41494E541008089424", "golden NAK NotStopped frame")
+    check(parse_frame(golden_enter)[1] == ENTER_TOKEN and parse_frame(golden_exit)[1] == EXIT_TOKEN,
+          "maintenance frames carry their tokens")
     check(parse_frame(golden_put)[0] == TYPE_PUT and parse_frame(golden_put)[1] == b"user_settings", "round-trip parse")
     tampered = bytearray(golden_put)
     tampered[30] ^= 1
@@ -340,6 +376,47 @@ def command_format(args) -> int:
     return listed
 
 
+def command_info(args) -> int:
+    link = Link(args.port, args.timeout)
+    try:
+        frame_type, _, payload = link.request(TYPE_INFO)
+    finally:
+        link.close()
+    if frame_type != TYPE_DATA:
+        print("info refused:", describe("info", (frame_type, b"", payload)))
+        return 1
+    sys.stdout.write(payload.decode("ascii", "replace"))
+    return 0
+
+
+def command_enter(args) -> int:
+    link = Link(args.port, max(args.timeout, ENTER_TIMEOUT_S))
+    try:
+        frame_type, _, payload = link.request(TYPE_ENTER, ENTER_TOKEN)
+    finally:
+        link.close()
+    if frame_type != TYPE_ACK:
+        print("maintenance NOT entered:", describe("enter", (frame_type, ENTER_TOKEN, payload)))
+        return 1
+    print("maintenance entered (ACK): the engine is stopped and the storage window is open.")
+    print("Run list/export/import/format now. Leave with: scene_transfer.py exit --port", args.port,
+          "(or a plain Q byte, or 60 s without traffic).")
+    return 0
+
+
+def command_exit(args) -> int:
+    link = Link(args.port, args.timeout)
+    try:
+        frame_type, _, payload = link.request(TYPE_EXIT, EXIT_TOKEN)
+    finally:
+        link.close()
+    if frame_type != TYPE_ACK:
+        print("exit NOT done:", describe("exit", (frame_type, EXIT_TOKEN, payload)))
+        return 1
+    print("returned to normal run (ACK). No reset: scenes and the pads continue in place.")
+    return 0
+
+
 def command_import(args) -> int:
     names = args.only or ALLOWED
     plan = []
@@ -400,6 +477,13 @@ def main(argv=None) -> int:
     format_parser.add_argument("--yes-erase-partition", action="store_true",
                                help="required: confirms that every file on the partition is erased")
 
+    info_parser = sub.add_parser("info", help="print firmware identity and state (normal run or maintenance)")
+    add_port(info_parser)
+    enter_parser = sub.add_parser("enter", help="ask a stopped device to enter maintenance (no pad held)")
+    add_port(enter_parser)
+    exit_parser = sub.add_parser("exit", help="return a maintenance device to normal run in place")
+    add_port(exit_parser)
+
     import_parser = sub.add_parser("import", help="send files from a host folder to the device")
     add_port(import_parser)
     import_parser.add_argument("--from", dest="source", required=True)
@@ -415,6 +499,12 @@ def main(argv=None) -> int:
         return command_export(args)
     if args.command == "format":
         return command_format(args)
+    if args.command == "info":
+        return command_info(args)
+    if args.command == "enter":
+        return command_enter(args)
+    if args.command == "exit":
+        return command_exit(args)
     return command_import(args)
 
 

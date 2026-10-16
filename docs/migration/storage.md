@@ -68,7 +68,8 @@ Procedure (device side):
    The tool then waits up to 60 s for the device's answer, and on ACK runs `list` to confirm.
 3. Start the format within 60 s of entering maintenance: the idle timer restarts with every byte the
    device receives, and 60 s without one ends maintenance. The format itself takes several seconds.
-4. Exit maintenance with a plain `Q` byte sent from a serial terminal (the tool does not send it).
+4. Exit maintenance with a plain `Q` byte sent from a serial terminal (the tool does not send it), or
+   with an `EXIT-MAINT` frame (`scene_transfer.py exit --port COMx`; see "Host-initiated maintenance").
    Then power-cycle the device. The boot mount then runs on the new filesystem: confirm
    `STORAGE mounted=1` in the `?` dump, and run `scene_transfer.py list`. Import the scenes as described
    in the import workflow.
@@ -522,6 +523,120 @@ design), and the entry gesture is not visible on the device. Both are accepted f
 hardware check. `LittleFS` program and erase also call `rp2040.idleOtherCore()` themselves, so the
 handshake is an additional guard and not the only one.
 
+## Host-initiated maintenance (INFO, ENTER, EXIT)
+
+These frames let a host enter and leave maintenance without the boot pad gesture. The pad gesture
+stays as it was. Implementation: `persistence/maintenance_command.{hpp,cpp}` (normal-run framer and
+the reply encoder), `persistence/maintenance_protocol.{hpp,cpp}` (maintenance session; INFO and EXIT
+handling), `app/maintenance_info.{hpp,cpp}` (INFO text), `app/app_main.cpp` (the gate, the reply
+outbox and the state changes). Host tool: `scene_transfer.py info | enter | exit`.
+
+Frame layout is the same as the rest of the protocol: `4F 31 | type | name_len | payload_len u32 LE |
+name | payload | crc32 u32 LE`, CRC-32 (zlib) over every byte before it.
+
+| Frame | type | name (exact) | payload | Reply |
+|---|---|---|---|---|
+| INFO | `I` | empty | empty | `D` text (normal run and maintenance) |
+| ENTER | `M` | `ENTER-MAINT` (11 bytes) | empty | `A` (name echo) once maintenance is Active; else `N` |
+| EXIT | `E` | `EXIT-MAINT` (10 bytes) | empty | `A` (sent before the device leaves maintenance); in normal run `N` 14 |
+
+Golden frames (zlib, as hex):
+
+- INFO: `4F314900000000006AFADCB3`
+- ENTER: `4F314D0B00000000454E5445522D4D41494E54A95EA0C5`
+- EXIT: `4F31450A00000000455849542D4D41494E54F2E28AB3`
+- ACK for ENTER: `4F31410B00000000454E5445522D4D41494E54F836B850`
+- NAK 16 (NotStopped) for ENTER: `4F314E0B01000000454E5445522D4D41494E541008089424`
+
+The INFO reply is a `D` frame with an empty name echo and an ASCII payload, one `key=value` group per
+line (LF terminated, at most 512 bytes; the build asserts that the stamped identity fits):
+
+```
+INFO fw=<firmware version> sha=<git sha> api=<engine api> board=<board id>
+MODULES count=<n> core=<id,id,...> user=
+STORAGE mounted=<0|1> scenes=<named slots in memory> names_ok=<0|1>
+STATE maint=<0 normal|1 maintenance> transport=<0|1>
+```
+
+`core` lists the registry ids in registry order (24 today; `user` is empty, there are no user modules yet).
+`scenes` is the number of named slots held in memory and is 0 while the names are not trusted (`names_ok=0`).
+The text comes from `build_info.hpp` (`fw`, `sha`, `api`, `board`) and is never truncated: a text that does
+not fit is not sent.
+
+NAK reasons added for these frames (the existing reasons are unchanged):
+
+| Code | Name | When |
+|---|---|---|
+| 1 | BadFrame | INFO or ENTER carries a payload, or INFO carries a name; an unknown type or a name longer than 16 |
+| 2 | BadChecksum | CRC mismatch (nothing changes) |
+| 5 | Busy | ENTER: boot load or scene operation in flight, scene service Failed, name editor open, or already held |
+| 10 | BadToken | ENTER or EXIT name is not its token exactly (nothing changes) |
+| 14 | NotInMaintenance | EXIT while in normal run, or any data request (`L`, `G`, `P`, `X`, `F`) in normal run |
+| 15 | AlreadyInMaintenance | ENTER while maintenance is active |
+| 16 | NotStopped | ENTER while the transport runs, a note is held or owed, or output is pending |
+| 17 | QuiesceTimeout | ENTER: core 1 did not quiesce within 1 s; the request was cancelled and the device keeps performing |
+| 18 | ReplyOverflow | INFO: the reply could not be composed or queued (the build-time assert keeps this unreachable for the stamped identity) |
+
+ENTER gate (checked in normal run, before anything changes): transport stopped, no held or owed note,
+output nothing pending, boot complete, scene service idle and not Failed, no name editor open, not already
+in maintenance. A refusal leaves the device exactly as it was. An accepted ENTER runs the same sequence as
+the boot gesture: the controller stops (notes released), core 1 is quiesced through the existing handshake,
+the storage window opens, and only then the `A` is sent. A host must not send data requests before that ACK.
+
+Known limit: a MIDI unplug with a note sounding leaves that note held (its sounding bit survives the
+disconnect) until the MIDI host is connected again, so ENTER answers `N 16` in that state. The pad
+gesture is not affected by this check (it has always stopped and released first). Hardware not checked.
+
+Normal-run framing (`RunCommandFramer`): only complete frames with the sync bytes are consumed. Every other
+byte is passed to the `?` dump, unchanged. Commands are `I`, `M` and `E`. A data request (`L`, `G`, `P`, `X`,
+`F`) is refused with 14 at its header and its payload is discarded (at most 38,701 bytes; a longer declared
+payload is scanned, not discarded). A partial frame that stops arriving for 250 ms is abandoned and its
+bytes after the sync are scanned again, so a `?` that followed it still dumps. The framer holds at most
+the 28 bytes of one frame. A discard that stops arriving is dropped without replay (payload is data).
+
+Replies in normal run go through a 592-byte outbox (one INFO frame and two NAKs) written without waiting.
+A stream owns the port until it ends: a dump that has started finishes before any queued reply, and a
+new dump is built only when the outbox is empty, so a reply never lands inside dump text. Entering
+maintenance abandons a dump in progress and drops its queued replies. A host that does not read
+loses its reply (`reply_dropped=` in the `?` dump counts it). Maintenance replies are written with the
+existing bounded wait.
+
+Maintenance mode: the session accepts INFO and EXIT as well as its data requests. ENTER there is refused
+with 15. EXIT sends the ACK and then ends maintenance in place (window closed, core 1 resumed, an open
+transfer discarded, the physical epoch resynced), exactly as `Q` and the 60 s idle exit do. No reset.
+
+Exit paths, all the same: an `EXIT-MAINT` frame, a plain `Q` byte between frames, or 60 s without a byte.
+
+Dump: the `?` dump has a `RUNCMD` line (`commands`, `refused`, `bad_frames`, `bad_crc`, `bad_token`,
+`gap_resync`, `discard_drop`, `info`, `enter`, `enter_refused`, `reply_dropped`). At worst it is 237 bytes
+(eleven 10-digit counters). The dump was about 3.1 KB worst case before it, so about 3.3 KB now, still
+under the 4032-byte body limit (`kDumpCapacity` 4096 less the 64-byte tail).
+
+### For the installer
+
+Contract for the tool that reflashes the device (`tools/installer/**` belongs to another worker, who builds
+on this section). Steps in order:
+
+1. INFO. Check `board=adafruit_macropad_rp2040` and `api=1`. `STATE maint=1` means the device is already in
+   maintenance (a pad gesture or an earlier session): go to step 3.
+2. If `transport=1`, the operator stops playback first (encoder held and the first pad). Then ENTER. `N 16`:
+   playback runs, a note is held, or output is pending; stop and retry. `N 5`: a scene operation, the name
+   editor, or the Failed state; wait and retry. `N 15`: already in maintenance; go to step 3. ACK: active.
+3. Idle timeout: 60 s without a received byte ends maintenance. Every byte resets the timer, and opening the
+   port sends nothing. Start the backup within 60 s of the ACK, or send INFO as a keepalive at least every
+   60 s during long steps. A data request answered with `N 14` means maintenance timed out: go back to step 2.
+4. Back up: `scene_transfer.py export --port COMx --out <folder>`. Keep the folder until the restore is verified.
+5. Reflash. The firmware has no reboot-to-bootloader frame. How the host reaches the UF2 bootloader (BOOTSEL,
+   or the 1200-baud touch on this TinyUSB build) is not verified on hardware: hardware-pending. No EXIT is
+   needed after a reflash: the new firmware boots in normal run.
+6. After the reflash, INFO shows the new firmware. If `STORAGE mounted=0`, ENTER again, then
+   `format --yes-erase-partition`, then `import --from <folder>`, then verify with `list`, then EXIT.
+7. Abort path (no reflash, or a failed step): EXIT (`scene_transfer.py exit --port COMx`). The ACK means the
+   device is back in normal run in place; no reboot is involved.
+
+A second ENTER sent while the first is still entering is read after the ACK and answered `N 15`. A missing
+reply is not success: the device state is unknown, so send INFO before any further action.
+
 ## Verified and not verified
 
 T14 (host, Release, CTest 35/35 in `build/native-t14`; `t14_slice` is the integration rig with
@@ -630,3 +745,23 @@ Not verified: LittleFS power-loss behavior on the partition, flash timing of com
 format (the erase of the 1 MiB partition takes an unmeasured time), CDC throughput and jitter during
 maintenance, the maintenance entry gesture, the device-side serial pump (T14), the format on the real
 partition (the first run is hardware-only), and scene switch timing on hardware.
+
+Host-initiated maintenance (INFO, ENTER, EXIT; this change):
+
+- Host-verified (`tests/native`, `t13e_run_commands` and `t14_slice`): exact tokens and golden bytes for
+  INFO, ENTER, EXIT, their ACK and NAK; refusals with no change (wrong token, bad CRC, transport running,
+  a note held, a scene operation in flight, name editor open, EXIT in normal run, ENTER in maintenance);
+  an accepted ENTER ACKs only once Active, LIST and INFO work in maintenance, EXIT returns in place with
+  scene save working afterwards and no stuck note; the `?` dump answers before, between and after
+  frames, and after an abandoned partial frame; a reply queued during a streaming dump never lands inside
+  it; GET of `scene_names` in maintenance; the discard and partial-frame bounds; wrap-safe gap time; and
+  the INFO text for a 46-character stamped sha, a long version and 16 scenes fits its bound.
+  Python: `scene_transfer.py selftest` (goldens above).
+- Not hardware-verified: the ENTER round trip over the real CDC port and the host's write pattern (the
+  250 ms gap), reply delivery to a host that does not read, the OLED while maintenance is entered this
+  way (frozen, as for the gesture), and the timing of the quiesce (1 s bound). The quiesce-timeout NAK
+  path is not exercised by a host test (it needs core 1 to stall).
+- Build (pinned toolchain, `build-firmware.sh`, no upload): 0 warnings. `test-target-domain.ps1` (`-Werror
+  -Wstack-usage=8192`) passes. Largest new frames in `maintenance_command.cpp`: `replay` 64 bytes, `feed` 32,
+  `finish_trailer` 24. New static RAM: outbox 592 bytes and INFO text 512 bytes (the framer adds a 28-byte
+  replay buffer and small state inside `EngineApp`).

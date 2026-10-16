@@ -1,6 +1,6 @@
 # Module selector footer descriptions
 
-Shown in the footer (bottom-left, 17 cells of the 6px font) while a module is highlighted in the module selection view. Code: `firmware/Orbit12/src/app/module_descriptors.hpp`. Test: `tests/native/t15_module_descriptors.cpp`.
+Shown in the footer (bottom-left, 17 cells of the 6px font) while a module is highlighted in the module selection view. Code: `firmware/Orbit12/src/app/module_descriptors.hpp`; the table itself is generated from the `module.json` manifests into `firmware/Orbit12/src/modules/generated/descriptors_generated.hpp` (edit the manifest's `descriptor`, then run `tools/modules/gen_registry.py`). Test: `tests/native/t15_module_descriptors.cpp`.
 
 Font rule: only characters in the renderer charset (`kFontChars` in `firmware/Orbit12/src/app/renderer.cpp`, the ui.py FONTCHARS order). Uppercase, digits, space and punctuation. Lowercase is not drawable.
 
@@ -35,8 +35,8 @@ Lookup: `module_descriptor(id_or_label)` matches the registry id first. A select
 
 Notes:
 - The `phraser` entry is hidden in the firmware and has no descriptor.
-- The selector labels were copied from the `kProcessorSelectors` and `kInputSelectors` tables in `firmware/Orbit12/src/app/ui_model.cpp`. The test checks them through `module_label_for`.
-- Descriptions were taken from `circuitpython-source/docs/Modules.md` and `Input-Modules.md`, then checked against the C++ descriptors in `firmware/Orbit12/src/domain/modules/`. No Python docstring gave a shorter one-line summary. Ids were taken from the `ModuleDescriptor` and `InputDescriptor` constants.
+- The selector labels come from the `kProcessorSelectors` and `kInputSelectors` tables, which are generated into `firmware/Orbit12/src/modules/generated/selectors_generated.hpp` from the manifests' `label` fields. The test checks them through `module_label_for`.
+- Descriptions were taken from `circuitpython-source/docs/Modules.md` and `Input-Modules.md`, then checked against the C++ descriptors in `firmware/Orbit12/src/modules/core/`. No Python docstring gave a shorter one-line summary. Ids were taken from the `ModuleDescriptor` and `InputDescriptor` constants.
 
 
 ## Footer rule
