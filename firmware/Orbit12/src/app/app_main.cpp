@@ -501,7 +501,11 @@ void EngineApp::build_dump() noexcept {
       .s(" status=").u(static_cast<std::uint32_t>(ctl_.last_scene_status()))
       .s(" failed=").u(ctl_.scene_failed() ? 1U : 0U)
       .s(" boot_defaults=").u(diag_.ctl.boot_default_fallbacks)
-      .s(" settings_saves=").u(diag_.ctl.settings_saves).nl();
+      .s(" settings_saves=").u(diag_.ctl.settings_saves)
+      // Named slots: occupied count, whether the set is trusted, and skipped names-file lines.
+      .s(" names=").u(static_cast<std::uint32_t>(ctl_.scene_service().occupied_count()))
+      .s(" names_ok=").u(ctl_.scene_service().names_loaded() ? 1U : 0U)
+      .s(" names_bad=").u(ctl_.scene_service().scene_names().malformed_lines).nl();
   o.s("MAINT state=").u(static_cast<std::uint32_t>(maint_)).s(" entries=").u(maint_entries_)
       .s(" exits=").u(maint_exits_).s(" qtimeout=").u(maint_quiesce_timeouts_)
       .s(" idle_exit=").u(maint_idle_exits_)

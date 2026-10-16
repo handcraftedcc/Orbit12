@@ -1,4 +1,5 @@
 #include "app/controller.hpp"
+#include "app/module_descriptors.hpp"
 
 #include "domain/time.hpp"
 
@@ -192,6 +193,7 @@ struct SceneBridge {
     return c(x).scene_apply_attribute(slot, a);
   }
   static bool finish(void* x) noexcept { return c(x).scene_finish(); }
+  static bool apply_banks(void* x, const SceneDto& d) noexcept { return c(x).scene_apply_banks(d); }
   static void rebuild(void* x) noexcept { c(x).scene_rebuild_ui(); }
   static bool resolve(void* x, std::uint8_t slot, const char* id, SceneModuleSchema& out) noexcept {
     return c(x).scene_resolve(slot, id, out);
@@ -215,6 +217,7 @@ struct SceneBridge {
     p.apply_attribute = &apply_attr;
     p.finish_scene = &finish;
     p.rebuild_ui = &rebuild;
+  p.apply_banks = &apply_banks;
     return p;
   }
   static SceneSchemaResolver schema(Controller* self) noexcept {
@@ -324,20 +327,28 @@ void Controller::build_system_rows() noexcept {
 void Controller::build_settings_rows(SlotRecord& rec) const noexcept {
   rec.id = "settings";
   rec.label = "STTNGS";
-  rec.row_count = 5;  // RAM (no-op print button) removed: user-requested, see known-quirks.md
+  rec.row_count = 6;  // RAM (no-op print button) removed: user-requested, see known-quirks.md
   ParamRow* r = rec.rows;
-  r[0] = ParamRow{}; r[0].label = "SCENE"; r[0].kind = RowKind::Enum; r[0].spec_type = ParamType::Enumeration;
-  r[0].special = ParamSpecial::SettingsScene; r[0].options = kSceneOptions; r[0].option_count = 10;
-  r[0].max_i = 9; r[0].value_i = scene_.active_scene();
+  r[0] = ParamRow{}; r[0].label = "SCENE"; r[0].kind = RowKind::SceneSelect; r[0].spec_type = ParamType::Enumeration;
+  // Dynamic list: occupied slots in slot order, then [NEW]. value_i is the list index of the
+  // active slot (the active slot is always occupied); option_count is the list length.
+  const std::uint16_t occupied = scene_.scene_names().occupied_mask;
+  r[0].special = ParamSpecial::SettingsScene;
+  r[0].option_count = scene_list_count(occupied);
+  r[0].min_i = 0;
+  r[0].max_i = static_cast<std::int32_t>(r[0].option_count) - 1;
+  r[0].value_i = scene_list_index(occupied, scene_.active_scene());
   r[1] = ParamRow{}; r[1].label = "SAVSCN"; r[1].kind = RowKind::Button; r[1].spec_type = ParamType::Action;
   r[1].special = ParamSpecial::SettingsSave;
-  r[2] = ParamRow{}; r[2].label = "CPYSCN"; r[2].kind = RowKind::Enum; r[2].spec_type = ParamType::Enumeration;
-  r[2].special = ParamSpecial::SettingsCopy; r[2].options = kCopySceneOptions; r[2].option_count = 11; r[2].max_i = 10;
-  r[3] = ParamRow{}; r[3].label = "RSTSCN"; r[3].kind = RowKind::Enum; r[3].spec_type = ParamType::Enumeration;
-  r[3].special = ParamSpecial::SettingsReset; r[3].options = kResetOptions; r[3].option_count = 2; r[3].max_i = 1;
-  r[4] = ParamRow{}; r[4].label = "KEYBRI"; r[4].kind = RowKind::Decimal; r[4].spec_type = ParamType::Decimal;
-  r[4].special = ParamSpecial::SettingsBrightness; r[4].bounded = true; r[4].min_f = 0.0f; r[4].max_f = 1.0f;
-  r[4].step_f = 0.05f; r[4].value_f = brightness_;
+  r[2] = ParamRow{}; r[2].label = "RNMSCN"; r[2].kind = RowKind::Button; r[2].spec_type = ParamType::Action;
+  r[2].special = ParamSpecial::SettingsRename;
+  r[3] = ParamRow{}; r[3].label = "CPYSCN"; r[3].kind = RowKind::Enum; r[3].spec_type = ParamType::Enumeration;
+  r[3].special = ParamSpecial::SettingsCopy; r[3].options = kCopySceneOptions; r[3].option_count = 11; r[3].max_i = 10;
+  r[4] = ParamRow{}; r[4].label = "RSTSCN"; r[4].kind = RowKind::Enum; r[4].spec_type = ParamType::Enumeration;
+  r[4].special = ParamSpecial::SettingsReset; r[4].options = kResetOptions; r[4].option_count = 2; r[4].max_i = 1;
+  r[5] = ParamRow{}; r[5].label = "KEYBRI"; r[5].kind = RowKind::Decimal; r[5].spec_type = ParamType::Decimal;
+  r[5].special = ParamSpecial::SettingsBrightness; r[5].bounded = true; r[5].min_f = 0.0f; r[5].max_f = 1.0f;
+  r[5].step_f = 0.05f; r[5].value_f = brightness_;
 }
 
 void Controller::init_row_from_spec(ParamRow& row, const ParamSpec& spec, std::uint8_t index,
@@ -529,7 +540,8 @@ void Controller::edit_row(ParamRow& row, int delta) noexcept {
     case RowKind::Boolean:
       row.value_i = floor_mod(row.value_i + delta, 2);
       break;
-    case RowKind::Enum: {
+    case RowKind::Enum:
+    case RowKind::SceneSelect: {  // list index over option_count entries (SCENE: names + [NEW])
       const int count = row.option_count != 0 ? row.option_count : 1;
       row.value_i = floor_mod(row.value_i + delta, count);
       break;
@@ -714,6 +726,7 @@ void Controller::run_edit_callback(std::uint8_t slot, std::uint8_t row_index) no
     case ParamSpecial::SettingsSave:
     case ParamSpecial::SettingsCopy:
     case ParamSpecial::SettingsReset:
+    case ParamSpecial::SettingsRename:
     case ParamSpecial::EmptyPick:
       break;
   }
@@ -729,7 +742,21 @@ void Controller::run_exit_callback(std::uint8_t slot, std::uint8_t row_index) no
       transport_.set_mode(global_.transport_mode, now_.us);
       break;
     case ParamSpecial::SettingsScene:
-      (void)request_scene_switch(static_cast<std::uint8_t>(row.value_i));
+      // The list index maps to a slot through the live names; [NEW] opens the name editor
+      // (section_ is no longer ParmEdit, so exit_parm_edit leaves it in place).
+      {
+        const std::uint16_t occupied = scene_.scene_names().occupied_mask;
+        const std::uint8_t target = scene_list_slot(occupied, row.value_i);
+        if (target == kSceneListNewValue) {
+          enter_name_edit();
+          break;
+        }
+        // A refused switch (busy) leaves the row showing the active index.
+        if (!request_scene_switch(target)) {
+          build_settings_rows(slots_[kSlotSettings]);
+          queue_ui(UiCb::RebuildParm);
+        }
+      }
       break;
     case ParamSpecial::SettingsCopy:
       if (row.value_i > 0) (void)request_scene_copy(static_cast<std::uint8_t>(row.value_i - 1));
@@ -762,6 +789,10 @@ Controller::EnterResult Controller::run_enter_callback(std::uint8_t slot, std::u
   switch (row.special) {
     case ParamSpecial::SettingsSave:
       (void)request_scene_save();
+      break;
+    case ParamSpecial::SettingsRename:
+      // The editor takes over the section; enter_parm_edit then keeps NameEdit.
+      enter_rename_edit();
       break;
     case ParamSpecial::SettingsReset:
       row.armed = true;  // display "SUR?"
@@ -870,6 +901,7 @@ void Controller::exit_parm_edit() noexcept {
 }
 
 void Controller::edit_parm(int delta) noexcept {
+  active_input_dirty_ = true;  // a parameter edit: the input bank of the active input is touched
   ui_dirty_ = true;
   ParamRow* row = active_row();
   if (row == nullptr) { enter_chain_view(); return; }
@@ -884,6 +916,187 @@ void Controller::edit_parm(int delta) noexcept {
   } else {
     run_edit_callback(slot, index);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Scene name editor (SCENE row [NEW]). Ring: A-Z, 0-9, [C] confirm, [X] cancel,
+// [<] delete last character. The ring wraps in both directions.
+// ---------------------------------------------------------------------------
+static_assert(kNameEditBytes == kSceneNameBytes, "editor buffer matches the persisted name size");
+static_assert(kNameEditChars == kSceneNameMaxChars, "editor limit matches the persisted name limit");
+
+void Controller::enter_name_edit() noexcept {
+  ui_dirty_ = true;
+  name_rename_ = false;
+  section_ = UiSection::NameEdit;
+  name_message_ = NameEditMessage::None;
+  name_length_ = 0;
+  name_text_[0] = '\0';
+  name_ring_ = kNameRingConfirm;  // one [C] press accepts the prefilled suggestion
+  char suggestion[kSceneNameBytes];
+  std::uint8_t free_slot = 0;
+  // No suggestion when every slot is named: the confirm then reports NO FREE SLOT.
+  if (first_free_slot(scene_.scene_names(), free_slot) &&
+      suggest_name(scene_.scene_names(), suggestion, sizeof suggestion)) {
+    std::size_t n = 0;
+    while (suggestion[n] != '\0' && n < kNameEditChars) {
+      name_text_[n] = suggestion[n];
+      ++n;
+    }
+    name_text_[n] = '\0';
+    name_length_ = static_cast<std::uint8_t>(n);
+  }
+}
+
+void Controller::name_edit_scroll(int delta) noexcept {
+  ui_dirty_ = true;
+  name_message_ = NameEditMessage::None;  // a message is about the last accepted item
+  if (name_length_ >= kNameEditChars) {
+    // Full name: the ring holds only the three controls (DELETE, CONFIRM, CANCEL) and wraps
+    // among them; letters and digits are not selectable.
+    const int controls = static_cast<int>(kNameRingSize) - static_cast<int>(kNameRingFirstControl);
+    const int position = name_ring_ >= kNameRingFirstControl ? name_ring_ - kNameRingFirstControl : 0;
+    name_ring_ = static_cast<std::uint8_t>(
+        kNameRingFirstControl + floor_mod(position + delta, controls));
+    return;
+  }
+  name_ring_ = static_cast<std::uint8_t>(
+      floor_mod(static_cast<int>(name_ring_) + delta, static_cast<int>(kNameRingSize)));
+}
+
+void Controller::name_edit_press() noexcept {
+  ui_dirty_ = true;
+  const std::uint8_t item = name_ring_;
+  if (name_length_ >= kNameEditChars && item < kNameRingFirstControl) return;  // full: no letters
+  if (item == kNameRingConfirm) {
+    (void)name_edit_confirm();
+  } else if (item == kNameRingCancel) {
+    name_edit_cancel();
+  } else if (item == kNameRingDelete) {
+    name_edit_delete();
+  } else {
+    name_edit_append(name_ring_char(item));
+  }
+}
+
+void Controller::name_edit_append(char c) noexcept {
+  ui_dirty_ = true;
+  name_message_ = NameEditMessage::None;
+  if (c == '\0' || name_length_ >= kNameEditChars) return;  // full: further characters are ignored
+  name_text_[name_length_] = c;
+  ++name_length_;
+  name_text_[name_length_] = '\0';
+  if (name_length_ >= kNameEditChars) name_ring_ = kNameRingConfirm;  // full: rest on [C]
+}
+
+void Controller::name_edit_delete() noexcept {
+  ui_dirty_ = true;
+  name_message_ = NameEditMessage::None;
+  if (name_length_ == 0) return;
+  --name_length_;
+  name_text_[name_length_] = '\0';
+}
+
+bool Controller::name_edit_confirm() noexcept {
+  if (name_rename_) return name_edit_rename_confirm();
+  ui_dirty_ = true;
+  // Refusals stay in the editor with a message; the scene is not touched.
+  auto refuse = [this](NameEditMessage message) noexcept {
+    name_message_ = message;
+    ++diag_.scene_requests_ignored;
+    return false;
+  };
+  if (scene_.busy()) return refuse(NameEditMessage::Busy);
+  if (!scene_.names_loaded()) return refuse(NameEditMessage::NamesUnavailable);
+  std::uint8_t free_slot = 0;
+  if (!first_free_slot(scene_.scene_names(), free_slot)) return refuse(NameEditMessage::NoFreeSlot);
+  if (name_length_ == 0) return refuse(NameEditMessage::Invalid);
+  if (!scene_.request_create(name_text_)) {
+    switch (scene_.status()) {
+      case SceneServiceStatus::NameTaken: return refuse(NameEditMessage::Taken);
+      case SceneServiceStatus::NameInvalid: return refuse(NameEditMessage::Invalid);
+      case SceneServiceStatus::NoFreeSlot: return refuse(NameEditMessage::NoFreeSlot);
+      case SceneServiceStatus::NamesUnavailable: return refuse(NameEditMessage::NamesUnavailable);
+      default: return refuse(NameEditMessage::Failed);
+    }
+  }
+  // Accepted: the create outcome arrives through poll(); the editor is left now. The
+  // rebuild after the create returns the UI to the chain, as for any scene transition.
+  name_message_ = NameEditMessage::None;
+  name_length_ = 0;
+  name_text_[0] = '\0';
+  name_ring_ = kNameRingConfirm;
+  show_scene_row_selection();
+  return true;
+}
+
+void Controller::name_edit_cancel() noexcept {
+  ui_dirty_ = true;
+  name_message_ = NameEditMessage::None;
+  name_length_ = 0;
+  name_text_[0] = '\0';
+  name_ring_ = kNameRingConfirm;
+  // Back to the row that opened the editor: RNMSCN for a rename, otherwise SCENE.
+  show_settings_row(name_rename_ ? std::uint8_t{2} : std::uint8_t{0});
+}
+
+void Controller::show_scene_row_selection() noexcept { show_settings_row(0); }
+
+void Controller::show_settings_row(std::uint8_t row) noexcept {
+  section_ = UiSection::ParmSelection;
+  active_chain_ = kSlotSettings;
+  active_parm_ = static_cast<std::int8_t>(row);
+  name_rename_ = false;
+  build_settings_rows(slots_[kSlotSettings]);  // the active index again (nothing changed on cancel)
+  queue_ui(UiCb::RebuildParm);
+  ui_dirty_ = true;
+}
+
+void Controller::enter_rename_edit() noexcept {
+  ui_dirty_ = true;
+  section_ = UiSection::NameEdit;
+  name_message_ = NameEditMessage::None;
+  name_rename_ = true;
+  name_length_ = 0;
+  name_text_[0] = '\0';
+  name_ring_ = kNameRingConfirm;  // one [C] press keeps the name; the cursor follows the last letter
+  if (scene_.names_loaded()) {
+    const char* current = scene_.slot_name(scene_.active_slot());
+    std::size_t n = 0;
+    while (current[n] != '\0' && n < kNameEditChars) {
+      name_text_[n] = current[n];
+      ++n;
+    }
+    name_text_[n] = '\0';
+    name_length_ = static_cast<std::uint8_t>(n);
+  }
+}
+
+bool Controller::name_edit_rename_confirm() noexcept {
+  ui_dirty_ = true;
+  auto refuse = [this](NameEditMessage message) noexcept {
+    name_message_ = message;
+    ++diag_.scene_requests_ignored;
+    return false;
+  };
+  if (scene_.busy()) return refuse(NameEditMessage::Busy);
+  if (!scene_.names_loaded()) return refuse(NameEditMessage::NamesUnavailable);
+  if (name_length_ == 0) return refuse(NameEditMessage::Invalid);
+  if (std::strcmp(name_text_, scene_.slot_name(scene_.active_slot())) == 0) {
+    show_settings_row(2);  // the same name: nothing to write
+    return true;
+  }
+  if (!scene_.request_rename(name_text_)) {
+    switch (scene_.status()) {
+      case SceneServiceStatus::NameTaken: return refuse(NameEditMessage::Taken);
+      case SceneServiceStatus::NameInvalid: return refuse(NameEditMessage::Invalid);
+      case SceneServiceStatus::NamesUnavailable: return refuse(NameEditMessage::NamesUnavailable);
+      default: return refuse(NameEditMessage::Failed);
+    }
+  }
+  // Accepted: the outcome arrives through poll(); the editor is left for the RNMSCN row.
+  show_settings_row(2);
+  return true;
 }
 
 void Controller::enter_parm_selection() noexcept {
@@ -941,7 +1154,9 @@ bool Controller::apply_module_selection() noexcept {
   release_all(-1, true);
   bool loaded;
   if (active_chain_ == kSlotIn) {
+    park_input();  // keep the edits of the input being left (per scene)
     loaded = install_input(selected.id) && same(slots_[kSlotIn].id, selected.id);
+    if (loaded) restore_parked_input();
   } else {
     loaded = install_processor(active_chain_, selected.id) && same(slots_[active_chain_].id, selected.id);
   }
@@ -1061,6 +1276,7 @@ void Controller::on_encoder_delta(int delta) noexcept {
     case UiSection::ModuleSelection: move_module_selection(delta); break;
     case UiSection::ParmSelection: move_active_parm_element(delta); break;
     case UiSection::ParmEdit: edit_parm(delta); break;
+    case UiSection::NameEdit: name_edit_scroll(delta); break;
   }
 }
 
@@ -1097,6 +1313,7 @@ void Controller::on_encoder_up() noexcept {
       case UiSection::ModuleSelection: exit_module_selection(); break;
       case UiSection::ParmSelection: enter_parm_edit(); break;
       case UiSection::ParmEdit: exit_parm_edit(); break;
+      case UiSection::NameEdit: name_edit_press(); break;
     }
   }
   exit_nav_state_colors();
@@ -1108,7 +1325,14 @@ void Controller::on_encoder_up() noexcept {
 
 void Controller::on_key_down(std::uint8_t key) noexcept {
   consumed_ = 1;  // any key press marks the encoder press as consumed
+  if (section_ == UiSection::NameEdit) {
+    // Name editor: no note starts and the clock does not start. Stop (encoder held + KEY1)
+    // still works. Key-ups are forwarded by on_key_up, so a note held on entry is released.
+    if (encoder_down_ && key == 0) stop_clock();
+    return;
+  }
   if (chain_swap_mode_ == 1) disable_chain_swap_mode();
+  active_input_dirty_ = true;  // any key reaches the active input module (matrix pads edit its attributes)
   if (encoder_down_) {
     shortcut(key);
   } else {
@@ -1216,6 +1440,8 @@ void Controller::nav_parms(std::uint8_t key) noexcept {
       break;
     case UiSection::ParmEdit:
       edit_parm((up || right) ? 1 : -1);
+      break;
+    case UiSection::NameEdit:  // unreachable: shortcut() returns early in the name editor
       break;
   }
 }
@@ -1476,12 +1702,10 @@ void Controller::finish_scene_operation(bool ok) noexcept {
   settings_op_ = SettingsOp::None;
 
   if (boot_stage_ == BootStage::Settings) {
-    boot_stage_ = BootStage::Scene;
-    if (!scene_.request(SceneOperation::LoadActive)) {
-      boot_stage_ = BootStage::Idle;
-      ++diag_.boot_default_fallbacks;
-      (void)scene_reset_defaults();
-    }
+    request_boot_names();
+  } else if (boot_stage_ == BootStage::Names) {
+    // Names are a catalogue: a failed or corrupt names load still lets the active scene load.
+    request_boot_active();
   } else if (boot_stage_ == BootStage::Scene) {
     boot_stage_ = BootStage::Idle;
     if (!ok) {
@@ -1499,15 +1723,25 @@ bool Controller::begin_boot() noexcept {
   settings_op_ = SettingsOp::Load;
   if (!scene_.request(SceneOperation::LoadUserSettings)) {
     settings_op_ = SettingsOp::None;
-    boot_stage_ = BootStage::Scene;
-    if (!scene_.request(SceneOperation::LoadActive)) {
-      boot_stage_ = BootStage::Idle;
-      ++diag_.boot_default_fallbacks;
-      (void)scene_reset_defaults();
-      return false;
-    }
+    return request_boot_names();
   }
   return true;
+}
+
+// Boot order: user settings, scene names (first run creates ALFA in slot 0), active scene.
+bool Controller::request_boot_names() noexcept {
+  boot_stage_ = BootStage::Names;
+  if (scene_.request(SceneOperation::LoadNames)) return true;
+  return request_boot_active();
+}
+
+bool Controller::request_boot_active() noexcept {
+  boot_stage_ = BootStage::Scene;
+  if (scene_.request(SceneOperation::LoadActive)) return true;
+  boot_stage_ = BootStage::Idle;
+  ++diag_.boot_default_fallbacks;
+  (void)scene_reset_defaults();
+  return false;
 }
 
 bool Controller::editing_brightness() const noexcept {
@@ -1568,6 +1802,15 @@ void Controller::publish_failure_pixels(UiModel& m) const noexcept {
 // ---------------------------------------------------------------------------
 bool Controller::request_load_active() noexcept { return scene_.request(SceneOperation::LoadActive); }
 bool Controller::request_scene_save() noexcept {
+  // Untrusted names (LoadNames failed, or a names file changed since boot): saving would write
+  // the active slot under names that were not read. Refuse without writing; report the failure.
+  if (!scene_.names_loaded()) {
+    last_scene_status_ = SceneServiceStatus::NamesUnavailable;
+    ++diag_.scene_failures;
+    ++diag_.scene_requests_ignored;
+    ui_dirty_ = true;
+    return false;
+  }
   const bool ok = scene_.request(SceneOperation::Save);
   if (!ok) ++diag_.scene_requests_ignored;
   return ok;
@@ -1606,6 +1849,135 @@ void Controller::scene_stop_release_drain() noexcept {
   stop_all_modules();
   transport_.stop(now_.us);  // reload_app: running = 0 (no MIDI Stop in the source)
   frame_.keys.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Input banks (SCN1 BANK sections). The parameter values and saved attributes of an input
+// module are kept per scene while another input is active. Only the active input runs.
+// ---------------------------------------------------------------------------
+namespace {
+struct BankAttrPark {
+  SceneInputBanks* banks = nullptr;
+  const SceneModuleSchema* schema = nullptr;
+  const SceneInputLayout* layout = nullptr;
+  std::uint8_t attributes = 0;
+  bool ok = true;
+};
+bool park_attribute(void* ctx, AttributeDescriptor& d) noexcept {
+  auto& p = *static_cast<BankAttrPark*>(ctx);
+  if (d.name == nullptr) return true;
+  for (std::uint8_t j = 0; j < p.schema->attr_count; ++j) {
+    const SceneAttributeSpec& spec = p.schema->attrs[j];
+    if (!same(spec.name, d.name)) continue;
+    if (d.type != spec.type || d.element_count != spec.element_count || d.values == nullptr) {
+      p.ok = false;
+      return false;
+    }
+    const std::size_t base = scene_bank_attribute_base(*p.layout, *p.schema, j);
+    for (std::uint16_t e = 0; e < d.element_count; ++e) {
+      SceneScalar& value = p.banks->values[base + e];
+      switch (d.type) {
+        case AttributeType::Integer: value.integer = static_cast<const std::int32_t*>(d.values)[e]; break;
+        case AttributeType::Byte: value.integer = static_cast<const std::uint8_t*>(d.values)[e]; break;
+        case AttributeType::Decimal: value.decimal = static_cast<const float*>(d.values)[e]; break;
+        case AttributeType::Boolean: value.boolean = static_cast<const bool*>(d.values)[e]; break;
+      }
+    }
+    p.attributes = static_cast<std::uint8_t>(p.attributes | (1U << j));
+    return true;
+  }
+  return true;
+}
+}  // namespace
+
+void Controller::park_input() noexcept {
+  if (input_desc_ == nullptr) return;
+  const std::size_t index = scene_bank_index(slots_[kSlotIn].id);
+  if (index == kSceneInputBanks) return;
+  // Untouched and not in a scene: nothing to keep.
+  if (!active_input_dirty_ && ((banks_.present >> index) & 1U) == 0) return;
+  SceneModuleSchema schema{};
+  if (!scene_resolve(kSlotIn, slots_[kSlotIn].id, schema)) return;
+  const SceneInputLayout& layout = kSceneInputLayout[index];
+  SceneInputBankMeta meta{};
+  std::size_t ordinal = 0;
+  for (std::uint8_t i = 0; i < schema.param_count && ordinal < layout.parameters; ++i) {
+    const ParamSpec& spec = schema.params[i];
+    if (!scene_param_persisted(spec)) continue;
+    const ParamRow* row = find_row(kSlotIn, spec.name);
+    // Global-bound rows (octave, key_offset) are shared, not per input.
+    if (row != nullptr && row->binding == GlobalBinding::None) {
+      SceneScalar& value = banks_.values[layout.offset + ordinal];
+      if (spec.type == ParamType::Decimal) value.decimal = row->value_f;
+      else if (spec.type == ParamType::Boolean) value.boolean = row->value_i != 0;
+      else value.integer = row->value_i;
+      meta.parameters |= 1U << ordinal;
+    }
+    ++ordinal;
+  }
+  BankAttrPark attrs{&banks_, &schema, &layout, 0, true};
+  AttributeVisitor visitor{&attrs, &park_attribute};
+  if (input_desc_->attributes != nullptr) input_desc_->attributes(input_state_, visitor);
+  if (!attrs.ok) return;
+  meta.attributes = attrs.attributes;
+  banks_.meta[index] = meta;
+  banks_.present = static_cast<std::uint8_t>(banks_.present | (1U << index));
+  active_input_dirty_ = false;
+}
+
+void Controller::restore_input(std::size_t index) noexcept {
+  if (index >= kSceneInputBanks) return;
+  SceneModuleSchema schema{};
+  if (!scene_resolve(kSlotIn, kSceneInputLayout[index].id, schema)) return;
+  const SceneInputLayout& layout = kSceneInputLayout[index];
+  const SceneInputBankMeta meta = banks_.meta[index];
+  std::size_t ordinal = 0;
+  for (std::uint8_t i = 0; i < schema.param_count && ordinal < layout.parameters; ++i) {
+    const ParamSpec& spec = schema.params[i];
+    if (!scene_param_persisted(spec)) continue;
+    if (((meta.parameters >> ordinal) & 1U) != 0) {
+      const ParamRow* row = find_row(kSlotIn, spec.name);
+      if (row != nullptr && row->binding == GlobalBinding::None) {
+        SceneParameter parameter{};
+        copy_text(parameter.name, sizeof(parameter.name), spec.name);
+        parameter.kind = scene_param_value_kind(spec);
+        parameter.value = banks_.values[layout.offset + ordinal];
+        (void)scene_apply_parameter(kSlotIn, parameter);
+      }
+    }
+    ++ordinal;
+  }
+  for (std::uint8_t j = 0; j < schema.attr_count; ++j) {
+    if (((meta.attributes >> j) & 1U) == 0) continue;
+    const SceneAttributeSpec& spec = schema.attrs[j];
+    SceneAttribute attribute{};
+    copy_text(attribute.name, sizeof(attribute.name), spec.name);
+    attribute.type = spec.type;
+    attribute.count = spec.element_count;
+    const std::size_t base = scene_bank_attribute_base(layout, schema, j);
+    for (std::uint16_t e = 0; e < spec.element_count; ++e) attribute.values[e] = banks_.values[base + e];
+    (void)scene_apply_attribute(kSlotIn, attribute);
+  }
+  active_input_dirty_ = false;
+}
+
+void Controller::restore_parked_input() noexcept {
+  const std::size_t index = scene_bank_index(slots_[kSlotIn].id);
+  if (index == kSceneInputBanks || ((banks_.present >> index) & 1U) == 0) return;
+  restore_input(index);
+}
+
+bool Controller::scene_apply_banks(const SceneDto& dto) noexcept {
+  banks_.present = dto.banks.present;
+  for (std::size_t i = 0; i < kSceneInputBanks; ++i) banks_.meta[i] = dto.banks.meta[i];
+  for (std::size_t v = 0; v < kSceneBankValues; ++v) banks_.values[v] = dto.banks.values[v];
+  return true;
+}
+
+void Controller::clear_input_banks() noexcept {
+  banks_.present = 0;
+  for (auto& meta : banks_.meta) meta = SceneInputBankMeta{};
+  active_input_dirty_ = false;
 }
 
 bool Controller::scene_capture(SceneDto& dto) noexcept {
@@ -1648,10 +2020,22 @@ bool Controller::scene_capture(SceneDto& dto) noexcept {
       proc_desc(slot)->attributes(*proc_state(slot), visitor);
     if (!collect.ok) return false;
   }
+  // Parked inputs (not the active one: that one is in its M record).
+  const std::size_t active_index = scene_bank_index(slots_[kSlotIn].id);
+  dto.banks.present = 0;
+  for (std::size_t i = 0; i < kSceneInputBanks; ++i) {
+    dto.banks.meta[i] = SceneInputBankMeta{};
+    if (i != active_index && ((banks_.present >> i) & 1U) != 0) {
+      dto.banks.present = static_cast<std::uint8_t>(dto.banks.present | (1U << i));
+      dto.banks.meta[i] = banks_.meta[i];
+    }
+  }
+  for (std::size_t v = 0; v < kSceneBankValues; ++v) dto.banks.values[v] = banks_.values[v];
   return true;
 }
 
 bool Controller::scene_prepare() noexcept {
+  clear_input_banks();
   // restore_stock_state_values + create_stock_chain_modules
   reset_globals();
   (void)transport_.set_bpm(global_.bpm);
@@ -1750,6 +2134,11 @@ void Controller::boot_ui_state() noexcept {
   paging_ = ParmPaging{};
   paging_.parm_count = 4;
   ui_queue_count_ = 0;
+  name_length_ = 0;
+  name_text_[0] = '\0';
+  name_ring_ = kNameRingConfirm;
+  name_message_ = NameEditMessage::None;
+  name_rename_ = false;
   build_settings_rows(slots_[kSlotSettings]);
   queue_ui(UiCb::RebuildParm);
   ui_dirty_ = true;
@@ -1806,6 +2195,22 @@ bool Controller::scene_resolve(std::uint8_t slot, const char* id, SceneModuleSch
 // ---------------------------------------------------------------------------
 // UI model
 // ---------------------------------------------------------------------------
+namespace {
+// Copies footer text into the snapshot (bounded; an empty text leaves the footer at "SCN NN").
+void set_footer_text(UiModel& m, const char* text) noexcept {
+  m.footer_text[0] = '\0';
+  m.footer_text_active = false;
+  if (text == nullptr || text[0] == '\0') return;
+  std::size_t n = 0;
+  while (text[n] != '\0' && n < kFooterTextChars) {
+    m.footer_text[n] = text[n];
+    ++n;
+  }
+  m.footer_text[n] = '\0';
+  m.footer_text_active = true;
+}
+}  // namespace
+
 const UiModel& Controller::model() noexcept {
   flush_ui_queue();
   UiModel& m = model_;
@@ -1827,7 +2232,20 @@ const UiModel& Controller::model() noexcept {
     const ParamRow& r = active.rows[index];
     ui.label = r.label;
     ui.kind = r.kind;
-    ui.ivalue = r.value_i;
+    // SCENE list index -> slot (or [NEW]) through the live names; formatting needs the slot.
+    ui.ivalue = r.kind == RowKind::SceneSelect
+                    ? scene_list_slot(scene_.scene_names().occupied_mask, r.value_i)
+                    : r.value_i;
+    if (r.kind == RowKind::SceneSelect && ui.ivalue != kSceneListNewValue) {
+      // The hovered entry's name, copied (the value field shows its first five characters).
+      const char* name = scene_.slot_name(static_cast<std::uint8_t>(ui.ivalue));
+      std::size_t n = 0;
+      while (n + 1 < kNameEditBytes && name[n] != 0) {
+        ui.text[n] = name[n];
+        ++n;
+      }
+      ui.text[n] = 0;
+    }
     ui.fvalue = r.value_f;
     ui.float_text = r.float_text;
     ui.options = r.options;
@@ -1858,6 +2276,58 @@ const UiModel& Controller::model() noexcept {
   m.activity = activity_;
   m.recovery = output_.recovering() || scene_failed();
   m.busy = scene_.busy();
+  // Name editor state (copied: the buffer is controller state, not a pointer).
+  for (std::size_t i = 0; i < kNameEditBytes; ++i) m.name_text[i] = name_text_[i];
+  m.name_length = name_length_;
+  m.name_ring = name_ring_;
+  m.name_message = name_message_;
+  // Footer text, first match wins: the editor message in the name editor; the highlighted
+  // parameter's preview (SCENE row: the active name when only highlighted, the hovered name
+  // or NEW while editing; Pattern row: the X/O steps of its current value when highlighted,
+  // of the hovered value while editing); otherwise the active scene's name. With no names
+  // read, the footer keeps the "SCN NN" text drawn by the renderer.
+  set_footer_text(m, nullptr);
+  const bool row_highlighted = (section_ == UiSection::ParmSelection || section_ == UiSection::ParmEdit) &&
+                               active_parm_ >= 0 && active_parm_ < active.row_count;
+  if (section_ == UiSection::NameEdit) {
+    // Editor footer: a message (cleared by the next ring move), else the meaning of the
+    // selected control, else the length of the name.
+    if (name_message_ != NameEditMessage::None) {
+      set_footer_text(m, name_edit_message_text(name_message_));
+    } else if (name_ring_ == kNameRingConfirm) {
+      set_footer_text(m, "CONFIRM");
+    } else if (name_ring_ == kNameRingCancel) {
+      set_footer_text(m, "CANCEL");
+    } else if (name_ring_ == kNameRingDelete) {
+      set_footer_text(m, "DELETE");
+    } else {
+      const char length_text[] = {'L', 'E', 'N', ' ', static_cast<char>('0' + name_length_), '/', '8', '\0'};
+      set_footer_text(m, length_text);
+    }
+  } else if (section_ == UiSection::ModuleSelection) {
+    // Highlighted module: its registry id (the label CHRD is ambiguous between the chord
+    // processor and the chords input). IN lists inputs; every other slot lists processors.
+    const SelectorEntry& entry = active_chain_ == kSlotIn ? input_selector(selector_index_)
+                                                          : processor_selector(selector_index_);
+    set_footer_text(m, module_descriptor(entry.id));
+  } else if (row_highlighted) {
+    const ParamRow& r = active.rows[active_parm_];
+    if (r.kind == RowKind::SceneSelect) {
+      // Only the edit shows the hovered entry; a highlighted row shows the default (active name).
+      if (section_ == UiSection::ParmEdit) {
+        const std::uint8_t slot = scene_list_slot(scene_.scene_names().occupied_mask, r.value_i);
+        set_footer_text(m, slot == kSceneListNewValue ? "NEW" : scene_.slot_name(slot));
+      }
+    } else if (r.kind == RowKind::Pattern) {
+      char steps[kFooterTextChars + 1];
+      if (ui_pattern_steps(static_cast<std::uint8_t>(r.value_i), steps, sizeof steps) != 0) {
+        set_footer_text(m, steps);
+      }
+    }
+  }
+  if (!m.footer_text_active && scene_.names_loaded() && scene_.slot_occupied(scene_.active_slot())) {
+    set_footer_text(m, scene_.slot_name(scene_.active_slot()));
+  }
   publish_failure_pixels(m);
   model_valid_ = true;
   return m;

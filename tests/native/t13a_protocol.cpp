@@ -153,10 +153,12 @@ void test_crc_and_names() {
   orbit::SceneFileId id{};
   CHECK(mt::resolve_name("Scene01", 7, id) && id.kind == orbit::SceneFileKind::Scene && id.scene == 0);
   CHECK(mt::resolve_name("Scene10", 7, id) && id.scene == 9);
+  CHECK(mt::resolve_name("Scene16", 7, id) && id.scene == 15);
+  CHECK(mt::resolve_name("scene_names", 11, id) && id.kind == orbit::SceneFileKind::SceneNames);
   CHECK(mt::resolve_name("_activescene", 12, id) && id.kind == orbit::SceneFileKind::ActivePointer);
   CHECK(mt::resolve_name("user_settings", 13, id) && id.kind == orbit::SceneFileKind::UserSettings);
   CHECK(!mt::resolve_name("Scene00", 7, id));
-  CHECK(!mt::resolve_name("Scene11", 7, id));
+  CHECK(!mt::resolve_name("Scene17", 7, id));
   CHECK(!mt::resolve_name("scene01", 7, id));
   CHECK(!mt::resolve_name("../Scene01", 10, id));
   CHECK(!mt::resolve_name("Scene01.tmp", 11, id));
@@ -166,6 +168,9 @@ void test_crc_and_names() {
   char text[16]{};
   CHECK(mt::format_name({orbit::SceneFileKind::Scene, 9}, text, sizeof(text)) == 7 &&
         std::strcmp(text, "Scene10") == 0);
+  CHECK(mt::format_name({orbit::SceneFileKind::SceneNames, 0}, text, sizeof(text)) == 11 &&
+        std::strcmp(text, "scene_names") == 0);
+  CHECK(mt::format_name({orbit::SceneFileKind::Scene, 16}, text, sizeof(text)) == 0);
 }
 
 void test_golden_put_commits_and_acks() {
@@ -237,7 +242,7 @@ void test_oversize_is_discarded_without_writes() {
 
 void test_disallowed_names_refused_before_storage() {
   const struct { const char* name; std::size_t length; } cases[] = {
-      {"../Scene01", 10}, {"Scene11", 7}, {"scene01", 7}, {"Scene00", 7}, {"Scene01.tmp", 11},
+      {"../Scene01", 10}, {"Scene17", 7}, {"scene01", 7}, {"Scene00", 7}, {"Scene01.tmp", 11},
       {"Scene01/x", 9}};
   for (const auto& test : cases) {
     Harness h;
@@ -252,6 +257,71 @@ void test_disallowed_names_refused_before_storage() {
     CHECK(reason == static_cast<std::uint8_t>(NakReason::DisallowedName));
     CHECK(h.fs.mutations == before);
   }
+}
+
+// scene_names uploads are strict: every line must parse, so a bad line is InvalidContent
+// and nothing reaches the target name.
+void test_scene_names_put_is_strict() {
+  const struct { const char* text; bool accepted; } cases[] = {
+      {"01,ALFA\n", true},
+      {"01,ALFA\r\n16,ZULU\n", true},
+      {"01,alfa\n", false},            // lower case is not a valid name
+      {"01,ALFA\n01,BRAVO\n", false},  // duplicate slot
+      {"01,ALFA\n02,ALFA\n", false},   // duplicate name
+      {"17,ALFA\n", false},            // past the 16 slots
+  };
+  for (const auto& test : cases) {
+    Harness h;
+    const std::size_t length = std::strlen(test.text);
+    std::uint8_t frame[160];
+    const std::size_t n = build_frame('P', "scene_names", 11,
+                                      reinterpret_cast<const std::uint8_t*>(test.text),
+                                      static_cast<std::uint32_t>(length), frame);
+    h.feed(frame, n);
+    std::uint8_t reason = 0;
+    bool crc_ok = false;
+    const char type = first_frame_type(h.out, reason, crc_ok);
+    const orbit::SceneFileId names{orbit::SceneFileKind::SceneNames, 0};
+    if (test.accepted) {
+      CHECK(type == 'A');
+      CHECK(h.fs.equals(names, test.text));
+    } else {
+      CHECK(type == 'N');
+      CHECK(reason == static_cast<std::uint8_t>(NakReason::InvalidContent));
+      CHECK(!h.fs.cell(names).exists);
+      CHECK(!h.fs.cell({orbit::SceneFileKind::SceneNamesTemp, 0}).exists);
+    }
+  }
+}
+
+// A committed scene_names PUT replaces the names on storage, so the set loaded in memory is
+// no longer trusted until boot. A refused upload changes nothing.
+void test_committed_names_put_invalidates_loaded_names() {
+  Harness h;
+  h.fs.put({orbit::SceneFileKind::SceneNames, 0}, "01,ALFA\n");
+  CHECK(h.service.request(orbit::SceneOperation::LoadNames));
+  for (std::uint32_t i = 0; i < 100 && h.service.busy(); ++i) h.service.poll(i);
+  CHECK(h.service.status() == orbit::SceneServiceStatus::Succeeded && h.service.names_loaded());
+
+  const char bad[] = "01,alfa\n";
+  std::uint8_t frame[160];
+  std::size_t n = build_frame('P', "scene_names", 11, reinterpret_cast<const std::uint8_t*>(bad),
+                              sizeof(bad) - 1, frame);
+  h.feed(frame, n);
+  std::uint8_t reason = 0;
+  bool crc_ok = false;
+  CHECK(first_frame_type(h.out, reason, crc_ok) == 'N');
+  CHECK(h.service.names_loaded());
+
+  h.out.clear();
+  const char good[] = "01,BRAVO\n";
+  n = build_frame('P', "scene_names", 11, reinterpret_cast<const std::uint8_t*>(good),
+                  sizeof(good) - 1, frame);
+  h.feed(frame, n);
+  CHECK(first_frame_type(h.out, reason, crc_ok) == 'A');
+  CHECK(!h.service.names_loaded());
+  CHECK(h.service.request_create("DELTA") == false &&
+        h.service.status() == orbit::SceneServiceStatus::NamesUnavailable);
 }
 
 void test_busy_refused_while_running() {
@@ -288,7 +358,7 @@ void test_storage_full_preserves_target() {
 void test_invalid_content_rejected() {
   {
     Harness h;
-    std::uint8_t payload[] = {'1', '1', '\n'};
+    std::uint8_t payload[] = {'1', '7', '\n'};
     std::uint8_t frame[32];
     const std::size_t n = build_frame('P', "_activescene", 12, payload, 3, frame);
     h.feed(frame, n);
@@ -404,6 +474,8 @@ void test_get_missing_and_list() {
   CHECK(std::strstr(body, "Scene01 0\n") != nullptr);
   CHECK(std::strstr(body, "_activescene 0\n") != nullptr);
   CHECK(std::strstr(body, "user_settings 1\n") != nullptr);
+  CHECK(std::strstr(body, "Scene16 0\n") != nullptr);
+  CHECK(std::strstr(body, "scene_names 0\n") != nullptr);
 }
 
 }  // namespace
@@ -465,6 +537,8 @@ int main() {
   test_get_streams_file_with_valid_crc();
   test_get_missing_and_list();
   test_scene_put_verify_borrows_service_staging();
+  test_scene_names_put_is_strict();
+  test_committed_names_put_invalidates_loaded_names();
   if (failures != 0) {
     std::fprintf(stderr, "t13a_protocol: %d failure(s)\n", failures);
     return 1;

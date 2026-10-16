@@ -300,8 +300,85 @@ std::size_t ui_format_value(const UiRow& row, char* out, std::size_t capacity) n
     case RowKind::Integer:
       sink.signed_decimal(row.ivalue);
       break;
+    case RowKind::SceneSelect:
+      // The entry's scene name (up to 8 characters); the renderer keeps the first five that fit.
+      if (row.ivalue == kSceneListNewValue) sink.text("NEW");
+      else sink.text(row.text);
+      break;
   }
   return sink.finish();
+}
+
+std::uint8_t scene_list_count(std::uint16_t occupied_mask) noexcept {
+  std::uint8_t count = 0;
+  for (std::uint8_t slot = 0; slot < 16; ++slot)
+    if (((occupied_mask >> slot) & 1U) != 0U) ++count;
+  return static_cast<std::uint8_t>(count + 1U);  // the [NEW] entry
+}
+
+std::uint8_t scene_list_slot(std::uint16_t occupied_mask, std::int32_t index) noexcept {
+  if (index < 0) return static_cast<std::uint8_t>(kSceneListNewValue);
+  std::int32_t seen = 0;
+  for (std::uint8_t slot = 0; slot < 16; ++slot) {
+    if (((occupied_mask >> slot) & 1U) == 0U) continue;
+    if (seen == index) return slot;
+    ++seen;
+  }
+  return static_cast<std::uint8_t>(kSceneListNewValue);
+}
+
+std::uint8_t scene_list_index(std::uint16_t occupied_mask, std::uint8_t slot) noexcept {
+  if (slot >= 16 || ((occupied_mask >> slot) & 1U) == 0U) return 0;
+  std::uint8_t index = 0;
+  for (std::uint8_t s = 0; s < slot; ++s)
+    if (((occupied_mask >> s) & 1U) != 0U) ++index;
+  return index;
+}
+
+std::size_t ui_pattern_steps(std::uint8_t pattern, char* out, std::size_t capacity) noexcept {
+  if (out == nullptr || capacity == 0) return 0;
+  out[0] = '\0';
+  if (pattern >= music::kPatternBits.size() || capacity < 9) return 0;
+  // Shared tables: music::pattern_step / arp / arp_walk / wander read the same
+  // kPatternBits and kPatternLengths with MSB-first bit order.
+  const std::uint8_t length = music::kPatternLengths[pattern];
+  const std::uint8_t bits = music::kPatternBits[pattern];
+  for (std::uint8_t i = 0; i < length; ++i) {
+    out[i] = ((bits >> (length - i - 1U)) & 1U) != 0U ? 'X' : 'O';
+  }
+  out[length] = '\0';
+  return length;
+}
+
+namespace {
+constexpr const char* kNameRingLabels[kNameRingSize] = {
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    "<", "C", "X"};
+}  // namespace
+
+const char* name_ring_label(std::uint8_t index) noexcept {
+  return index < kNameRingSize ? kNameRingLabels[index] : "";
+}
+
+char name_ring_char(std::uint8_t index) noexcept {
+  if (index < 26) return static_cast<char>('A' + index);
+  if (index < 36) return static_cast<char>('0' + (index - 26));
+  return '\0';
+}
+
+const char* name_edit_message_text(NameEditMessage message) noexcept {
+  switch (message) {
+    case NameEditMessage::None: return "";
+    case NameEditMessage::Invalid: return "NAME INVALID";
+    case NameEditMessage::Taken: return "NAME TAKEN";
+    case NameEditMessage::NoFreeSlot: return "NO FREE SLOT";
+    case NameEditMessage::NamesUnavailable: return "NAMES NOT LOADED";
+    case NameEditMessage::Failed: return "NOT CREATED";
+    case NameEditMessage::Busy: return "BUSY";
+  }
+  return "";
 }
 
 RgbColor colorwheel(std::uint8_t pos) noexcept {

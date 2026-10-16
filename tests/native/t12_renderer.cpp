@@ -3,6 +3,7 @@
 // Orion.py splash/sleep timing. Expected values never come from this renderer.
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 
 #include "app/renderer.hpp"
 
@@ -201,9 +202,192 @@ void power_timing_wraps() {
 
 }  // namespace
 
+// ---- Name editor and footer previews. The expected frames are structural: every glyph
+// cell is compared with the font sheet (scaled), so no golden checksum is needed. Ink is
+// set where the glyph has ink; `inverted` is the white header/footer bar (ink black).
+int glyph_mismatches(const Frame& frame, const char* text, int cells, int x, int y, int scale, bool inverted) {
+  int bad = 0;
+  const int length = static_cast<int>(std::strlen(text));
+  for (int i = 0; i < cells; ++i) {
+    const char c = i < length ? text[i] : ' ';
+    const int tile = font_tile_for(c);
+    for (int gy = 0; gy < 6; ++gy) {
+      for (int gx = 0; gx < 6; ++gx) {
+        const bool ink = g_assets.font.ink_at(tile, gx, gy);
+        for (int dy = 0; dy < scale; ++dy) {
+          for (int dx = 0; dx < scale; ++dx) {
+            const int px = x + (i * 6 + gx) * scale + dx;
+            const int py = y + gy * scale + dy;
+            if (frame.pixel(px, py) != (ink != inverted)) ++bad;
+          }
+        }
+      }
+    }
+  }
+  return bad;
+}
+
+// Editor cells: one glyph per cell at x = 2 + 16 * cell (pitch 16, scale 2).
+int editor_cell_mismatches(const Frame& frame, const char* text, int first_cell, int count, bool inverted) {
+  int bad = 0;
+  for (int i = 0; i < count; ++i) {
+    const char glyph[2] = {text[i], 0};
+    bad += glyph_mismatches(frame, glyph, 1, 2 + 16 * (first_cell + i), 26, 2, inverted);
+  }
+  return bad;
+}
+
+// Name editor: small letters (scale 1, pitch 8, y=29) in a row from x=26; the current ring item
+// in the big font (scale 2, y=26, not inverted) in the cell after them; arrows above (apex y=19)
+// and below (base y=40) the big cell, centred on it.
+int small_letter_mismatches(const Frame& frame, const char* text, int first, int count) {
+  int bad = 0;
+  for (int i = 0; i < count; ++i) {
+    const char glyph[2] = {text[i], 0};
+    bad += glyph_mismatches(frame, glyph, 1, 26 + 8 * (first + i), 29, 1, false);
+  }
+  return bad;
+}
+
+void name_editor_frame() {
+  CHECK(g_assets.load());
+  UiModel model{};
+  model.section = UiSection::NameEdit;
+  std::memcpy(model.name_text, "ALFA", 5);
+  model.name_length = 4;
+  model.name_ring = kNameRingConfirm;
+  Frame frame;
+  render_screen(model, g_assets, frame);
+  // Typed letters at x = 26, 34, 42, 50 (small font). The big cell after them at x = 58: "C".
+  CHECK(small_letter_mismatches(frame, "ALFA", 0, 4) == 0);
+  CHECK(glyph_mismatches(frame, "#", 1, 58, 26, 2, false) == 0);
+  // Arrows centred on the big cell (centre x = 64): up apex (64,19), 7 px base at y=22.
+  CHECK(frame.pixel(64, 19) && !frame.pixel(63, 19));
+  CHECK(frame.pixel(63, 20) && frame.pixel(65, 20));
+  CHECK(frame.pixel(61, 22) && frame.pixel(67, 22) && !frame.pixel(60, 22) && !frame.pixel(68, 22));
+  // Down arrow: 7 px base at y=40, single apex pixel at y=43.
+  CHECK(frame.pixel(61, 40) && frame.pixel(67, 40) && !frame.pixel(60, 40));
+  CHECK(frame.pixel(62, 41) && frame.pixel(66, 41) && !frame.pixel(61, 41));  // 5 px at y=41
+  CHECK(frame.pixel(64, 43) && !frame.pixel(63, 43));
+  // Control glyphs are existing font characters (FONTCHARS): nonzero tiles, distinct from each other.
+  CHECK(font_tile_for('<') != 0 && font_tile_for('#') != 0 && font_tile_for('*') != 0);
+  CHECK(font_tile_for('<') != font_tile_for('#') && font_tile_for('#') != font_tile_for('*'));
+  CHECK(glyph_mismatches(frame, "SCN 01", 17, 4, 56, 1, true) == 0);     // no footer text: idle
+  model.footer_text_active = true;
+  std::memcpy(model.footer_text, "CONFIRM", 8);
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "CONFIRM", 17, 4, 56, 1, true) == 0);
+  CHECK(frame.pixel(0, 0) && frame.pixel(127, 63));                     // header and footer bars
+  std::printf("name editor frame: %u column writes\n", column_writes_last_frame());
+  CHECK(column_writes_last_frame() < 2000);
+
+  // Empty name, ring on B: the big cell at x=26 holds "B".
+  model.name_length = 0;
+  model.name_text[0] = 0;
+  model.name_ring = 1;
+  model.footer_text_active = false;
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "B", 1, 26, 26, 2, false) == 0);
+  CHECK(frame.pixel(32, 19) && frame.pixel(32, 43));                    // arrows centred on the big cell (x=32)
+
+  // Full name: eight small letters at x = 26..82, the big cell after the eighth letter at x=90
+  // (the delete control), arrows centred at x=96.
+  std::memcpy(model.name_text, "S0ZAAAAA", 9);
+  model.name_length = 8;
+  model.name_ring = kNameRingDelete;
+  render_screen(model, g_assets, frame);
+  CHECK(small_letter_mismatches(frame, "S0ZAAAAA", 0, 8) == 0);
+  CHECK(glyph_mismatches(frame, "<", 1, 90, 26, 2, false) == 0);
+  CHECK(frame.pixel(96, 19) && frame.pixel(96, 43));
+  CHECK(column_writes_last_frame() < 2000);
+
+  // Controls and digits in the big cell: "X" (cancel) after two letters at x=42; digit "1".
+  model.name_length = 2;
+  std::memcpy(model.name_text, "S0", 3);
+  model.name_ring = kNameRingCancel;
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "*", 1, 42, 26, 2, false) == 0);
+  model.name_ring = 27;                                                 // digit 1
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "1", 1, 42, 26, 2, false) == 0);
+}
+
+void footer_previews() {
+  CHECK(g_assets.load());
+  UiModel model{};
+  model.section = UiSection::ParmEdit;
+  model.parm_count = 1;
+  model.rows[0].present = true;
+  model.rows[0].label = "SCENE";
+  model.rows[0].kind = RowKind::SceneSelect;
+  Frame frame;
+
+  // Scene name preview (SCENE row being edited) and the pattern X/O preview.
+  std::memcpy(model.footer_text, "BRAVO", 6);
+  model.footer_text_active = true;
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "BRAVO", 17, 4, 56, 1, true) == 0);
+  CHECK(glyph_mismatches(frame, "SCN 01", 17, 4, 56, 1, true) != 0);  // replaced, not appended
+  std::memcpy(model.footer_text, "XOXOOX", 7);
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "XOXOOX", 17, 4, 56, 1, true) == 0);
+
+  // Editor message in the same field.
+  model.section = UiSection::NameEdit;
+  std::memcpy(model.footer_text, "NAME TAKEN", 11);
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "NAME TAKEN", 17, 4, 56, 1, true) == 0);
+
+  // Bounded width: a 17-character text fills the field and nothing is drawn past it.
+  std::memcpy(model.footer_text, "ABCDEFGHIJKLMNOPQ", 18);
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "ABCDEFGHIJKLMNOPQ", 17, 4, 56, 1, true) == 0);
+  bool bar_intact = true;
+  for (int x = 106; x < 111; ++x) bar_intact = bar_intact && frame.pixel(x, 54);
+  CHECK(bar_intact);
+
+  // No preview: the idle "SCN NN" text, as before.
+  model.footer_text_active = false;
+  model.section = UiSection::ParmSelection;
+  model.active_scene = 9;
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "SCN 10", 17, 4, 56, 1, true) == 0);
+}
+
+// SCENE row value field: the entry's name, right aligned in five cells; a longer name is cut
+// to its first five characters (highlighted row: scale 2 at x=31, others: scale 1 at x=91).
+void scene_value_field() {
+  CHECK(g_assets.load());
+  UiModel model{};
+  model.section = UiSection::ParmSelection;
+  model.active_chain = 9;
+  model.active_parm = 0;
+  model.parm_count = 2;
+  model.rows[0].present = true;
+  model.rows[0].label = "SCENE";
+  model.rows[0].kind = RowKind::SceneSelect;
+  model.rows[0].ivalue = 1;
+  std::memcpy(model.rows[0].text, "BRAVO", 6);
+  model.rows[1].present = true;
+  model.rows[1].label = "SAVSCN";
+  model.rows[1].kind = RowKind::Button;
+  Frame frame;
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "BRAVO", 5, 4 + 2 * 31, 15, 2, false) == 0);
+  // Row 1 sits below the highlighted row (gap 5): y = 15 + 8 + 5.
+  std::memcpy(model.rows[1].text, "CHARLIE", 8);
+  model.rows[1].kind = RowKind::SceneSelect;
+  model.rows[1].ivalue = 2;
+  render_screen(model, g_assets, frame);
+  CHECK(glyph_mismatches(frame, "CHARL", 5, 4 + 91, 15 + 8 + 5, 1, false) == 0);
+}
+
 int main() {
   assets_and_font_mapping();
   golden_frames();
+  scene_value_field();
+  name_editor_frame();
+  footer_previews();
   bars_and_gaps();
   parameter_cursor();
   markers_over_header();

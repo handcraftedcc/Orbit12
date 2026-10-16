@@ -66,7 +66,7 @@ target_link_libraries(t07a_scene_float_text PRIVATE Threads::Threads)
 orbit_native_test(t08c_matrix t08c_matrix.cpp)
 target_sources(t08c_matrix PRIVATE ../../firmware/Orbit12/src/domain/modules/matrix_input.cpp ../../firmware/Orbit12/src/domain/modules/inputs.cpp ../../firmware/Orbit12/src/domain/modules/chords_input.cpp ../../firmware/Orbit12/src/domain/modules/input_registry.cpp ../../firmware/Orbit12/src/domain/modules/matrix_input.cpp ../../firmware/Orbit12/src/domain/modules/walk_inputs.cpp)
 orbit_native_test(t07b_scene_service t07b_scene_service.cpp)
-target_sources(t07b_scene_service PRIVATE ../../firmware/Orbit12/src/persistence/scene_service.cpp ../../firmware/Orbit12/src/persistence/scene_codec.cpp ../../firmware/Orbit12/src/domain/output.cpp)
+target_sources(t07b_scene_service PRIVATE ../../firmware/Orbit12/src/persistence/scene_service.cpp ../../firmware/Orbit12/src/persistence/scene_names.cpp ../../firmware/Orbit12/src/persistence/scene_codec.cpp ../../firmware/Orbit12/src/domain/output.cpp)
 target_sources(t07b_scene_service PRIVATE ../../firmware/Orbit12/src/persistence/user_settings.cpp)
 target_sources(t06_chain PRIVATE ../../firmware/Orbit12/src/domain/modules/drop_randomize.cpp)
 target_sources(t09a_basics PRIVATE ../../firmware/Orbit12/src/domain/modules/drop_randomize.cpp)
@@ -155,7 +155,7 @@ set(ORBIT_T11B_SOURCES
   ${ORBIT_SRC}/domain/modules/wander.cpp ${ORBIT_SRC}/domain/modules/inputs.cpp
   ${ORBIT_SRC}/domain/modules/chords_input.cpp ${ORBIT_SRC}/domain/modules/input_registry.cpp
   ${ORBIT_SRC}/domain/modules/matrix_input.cpp ${ORBIT_SRC}/domain/modules/walk_inputs.cpp
-  ${ORBIT_SRC}/persistence/scene_codec.cpp ${ORBIT_SRC}/persistence/scene_service.cpp
+  ${ORBIT_SRC}/persistence/scene_codec.cpp ${ORBIT_SRC}/persistence/scene_service.cpp ${ORBIT_SRC}/persistence/scene_names.cpp
   ${ORBIT_SRC}/persistence/user_settings.cpp)
 orbit_native_test(t11b_ui_model t11b_ui_model.cpp)
 target_sources(t11b_ui_model PRIVATE ${ORBIT_SRC}/app/ui_model.cpp)
@@ -173,7 +173,7 @@ target_sources(t14_slice PRIVATE ${ORBIT_T11B_SOURCES} ${ORBIT_SRC}/app/app_main
 
 # T13 persistence: user settings, maintenance protocol (CDC import/export), SceneService user-settings ops
 set(ORBIT_T13_SOURCES
-  ${ORBIT_SRC}/persistence/scene_codec.cpp ${ORBIT_SRC}/persistence/scene_service.cpp
+  ${ORBIT_SRC}/persistence/scene_codec.cpp ${ORBIT_SRC}/persistence/scene_service.cpp ${ORBIT_SRC}/persistence/scene_names.cpp
   ${ORBIT_SRC}/persistence/user_settings.cpp ${ORBIT_SRC}/persistence/maintenance_protocol.cpp)
 orbit_native_test(t13a_protocol t13a_protocol.cpp)
 target_sources(t13a_protocol PRIVATE ${ORBIT_T13_SOURCES})
@@ -190,3 +190,16 @@ orbit_native_test(t13c_interrupted t13c_interrupted.cpp)
 target_sources(t13c_interrupted PRIVATE ${ORBIT_T13_SOURCES})
 orbit_native_test(t13d_format t13d_format.cpp)
 target_sources(t13d_format PRIVATE ${ORBIT_T13_SOURCES} ${ORBIT_SRC}/persistence/fs_format.cpp)
+
+# T15 module selector footer descriptions (app/module_descriptors.hpp)
+orbit_native_test(t15_module_descriptors t15_module_descriptors.cpp)
+target_sources(t15_module_descriptors PRIVATE
+  ${ORBIT_SRC}/app/ui_model.cpp
+  ${ORBIT_SRC}/domain/modules/registry.cpp ${ORBIT_SRC}/domain/modules/basics.cpp
+  ${ORBIT_SRC}/domain/modules/drop_randomize.cpp ${ORBIT_SRC}/domain/modules/delay_bounce.cpp
+  ${ORBIT_SRC}/domain/modules/gate_chopper_retrigger.cpp ${ORBIT_SRC}/domain/modules/euclid.cpp
+  ${ORBIT_SRC}/domain/modules/arp.cpp ${ORBIT_SRC}/domain/modules/latch_pick.cpp
+  ${ORBIT_SRC}/domain/modules/arp_walk.cpp ${ORBIT_SRC}/domain/modules/quantize_strum.cpp
+  ${ORBIT_SRC}/domain/modules/wander.cpp ${ORBIT_SRC}/domain/modules/inputs.cpp
+  ${ORBIT_SRC}/domain/modules/chords_input.cpp ${ORBIT_SRC}/domain/modules/input_registry.cpp
+  ${ORBIT_SRC}/domain/modules/matrix_input.cpp ${ORBIT_SRC}/domain/modules/walk_inputs.cpp)

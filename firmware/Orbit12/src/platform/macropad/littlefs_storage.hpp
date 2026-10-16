@@ -6,7 +6,7 @@
 //
 // File layout (LittleFS root, flat names, matching the CircuitPython names
 // without their /userdata/Orbit12Orion/ directory):
-//   Scene01..Scene10, _activescene, user_settings          committed files
+//   Scene01..Scene16, scene_names, _activescene, user_settings  committed files
 //   <name>.tmp                                             staged writes
 //   <name>.bak                                             previous version during commit
 //

@@ -3,13 +3,16 @@
 #include <cstdint>
 
 #include "persistence/scene_codec.hpp"
+#include "persistence/scene_names.hpp"
 #include "persistence/user_settings.hpp"
 
 namespace orbit {
 
 enum class SceneFileKind : std::uint8_t {
   Scene, SceneTemp, SceneBackup, ActivePointer, ActiveTemp, ActiveBackup,
-  UserSettings, UserSettingsTemp, UserSettingsBackup
+  UserSettings, UserSettingsTemp, UserSettingsBackup,
+  // Appended (table indexes of earlier kinds are unchanged): the scene names file.
+  SceneNames, SceneNamesTemp, SceneNamesBackup
 };
 struct SceneFileId {
   SceneFileKind kind = SceneFileKind::Scene;
@@ -52,21 +55,37 @@ struct SceneLifecyclePort {
                          const SceneAttribute&) = nullptr;
   bool (*finish_scene)(void*) = nullptr;
   void (*rebuild_ui)(void*) = nullptr;
+  // Optional: installs the scene's input banks (SCN1 BANK sections) after the modules are applied.
+  bool (*apply_banks)(void*, const SceneDto&) = nullptr;
 };
 
 enum class SceneOperation : std::uint8_t {
-  Save, Switch, CopyCurrent, Load, LoadActive, Reset, SaveUserSettings, LoadUserSettings
+  Save, Switch, CopyCurrent, Load, LoadActive, Reset, SaveUserSettings, LoadUserSettings,
+  // Appended: LoadNames (boot, before LoadActive; creates "ALFA" on first run) and
+  // CreateScene (requested through request_create, never through request()).
+  LoadNames, CreateScene,
+  // Appended: renames the active slot (request_rename). Names file only; the scene file and the
+  // pointer are not touched.
+  RenameScene
 };
 enum class SceneServiceStatus : std::uint8_t {
   Idle, Busy, Succeeded, SucceededWithBackup, Rejected, SceneError,
-  StorageError, QuiesceTimeout, ApplyError, RecoveryRequired
+  StorageError, QuiesceTimeout, ApplyError, RecoveryRequired,
+  // Appended: refusals of request_create() and of request() to an unoccupied slot.
+  // Set in status() and returned by request_create(); the service stays Idle.
+  NameInvalid, NameTaken, NoFreeSlot, SlotUnoccupied,
+  // Names are not trusted: the last LoadNames failed, or a CDC change or format made the
+  // memory set stale. Create and slot operations are refused until the next boot.
+  NamesUnavailable
 };
 enum class SceneServicePhase : std::uint8_t {
   Idle, Stop, WaitStopped, WaitQuiesce, ReadActive, CaptureCurrent,
   SaveCurrent, ReadTarget, ResetDefaults, CaptureReset, SaveReset,
   Apply, CommitPointer, Rebuild, Resume, RollbackRead, RollbackApply,
   Finish, Failed, ReadUserSettings, WriteUserSettings, RecoveryQuiesce, RecoveryWait,
-  RecoveryRead, RecoveryApply
+  RecoveryRead, RecoveryApply,
+  // Appended: scene names file phases.
+  ReadNames, WriteNames, RestoreNames
 };
 
 class SceneService {
@@ -75,12 +94,38 @@ class SceneService {
                const SceneSchemaResolver& schema, std::uint8_t active_scene = 0,
                std::uint32_t quiesce_timeout_ms = 1000) noexcept;
 
+  // Switch to an unoccupied slot, and Load/CopyCurrent targeting one, are refused
+  // (SlotUnoccupied) so that the active slot always has a name.
   bool request(SceneOperation operation, std::uint8_t target_scene = 0) noexcept;
   SceneServiceStatus poll(std::uint32_t now_ms) noexcept;
   bool busy() const noexcept { return phase_ != SceneServicePhase::Idle; }
   SceneServiceStatus status() const noexcept { return status_; }
   SceneServicePhase phase() const noexcept { return phase_; }
   std::uint8_t active_scene() const noexcept { return active_scene_; }
+  // Named-slot accessors for the UI (read-only; updated only by a verified names commit
+  // or by LoadNames). Slots are 0-based; out-of-range slots report unoccupied / "".
+  std::uint8_t active_slot() const noexcept { return active_scene_; }
+  bool slot_occupied(std::uint8_t slot) const noexcept { return names_.occupied(slot); }
+  const char* slot_name(std::uint8_t slot) const noexcept { return names_.name(slot); }
+  std::size_t occupied_count() const noexcept { return names_.occupied_count(); }
+  const SceneNames& scene_names() const noexcept { return names_; }
+  // True only after a LoadNames succeeded and nothing since has made the set stale.
+  bool names_loaded() const noexcept { return names_loaded_; }
+  // Called by the maintenance session after a committed scene_names PUT or a format: the
+  // names in memory no longer describe storage. Until the next boot, Create and slot
+  // operations report NamesUnavailable. Save and LoadActive are unaffected.
+  void invalidate_names() noexcept { names_loaded_ = false; }
+  // Creates a named scene in the first free slot. Validates the name first (NameInvalid,
+  // NameTaken, NoFreeSlot are reported through status() and returned as false). Saves the
+  // current scene first when the active slot is occupied, then resets to defaults, writes
+  // the scene file, then the names file, then the pointer. Returns true when the operation
+  // was accepted (Busy); the outcome arrives through poll().
+  bool request_create(const char* name) noexcept;
+  // Renames the active scene (its slot keeps the scene file). Validates the name (NameInvalid),
+  // refuses a name held by another saved scene (NameTaken), and refuses while the names are not
+  // trusted (NamesUnavailable). Returns true when accepted (Busy); the outcome arrives through poll().
+  // On failure the in-memory name is unchanged and the names file is not replaced.
+  bool request_rename(const char* name) noexcept;
   SceneResult codec_result() const noexcept { return codec_result_; }
   bool backup_retained() const noexcept { return backup_retained_; }
   // Number of entries into the Failed phase (failed rollbacks and failed recoveries).
@@ -108,6 +153,12 @@ class SceneService {
   bool user_settings_present() const noexcept { return user_settings_present_; }
 
  private:
+  void begin(SceneOperation operation, std::uint8_t target_scene) noexcept;
+  // Reads and parses the names file (recover first). present=false when absent.
+  SceneServiceStatus read_names(bool& present) noexcept;
+  SceneServiceStatus write_names_atomic(const SceneNames& candidate) noexcept;
+  SceneServiceStatus write_text_atomic(SceneFileId target, SceneFileId temp, SceneFileId backup,
+                                       const char* text, std::size_t length) noexcept;
   SceneServiceStatus read_user_settings() noexcept;
   SceneServiceStatus write_user_settings_atomic() noexcept;
   SceneServiceStatus read_whole_file(SceneFileId id, char* buffer, std::size_t capacity,
@@ -154,6 +205,9 @@ class SceneService {
   std::uint32_t failure_count_ = 0;
   UserSettings user_settings_{};
   bool user_settings_present_ = false;
+  bool names_loaded_ = false;
+  SceneNames names_{};
+  char pending_name_[kSceneNameBytes]{};  // CreateScene name, validated by request_create
 };
 
 }  // namespace orbit

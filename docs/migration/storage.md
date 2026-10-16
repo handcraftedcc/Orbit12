@@ -11,8 +11,9 @@ LittleFS on the 1 MiB partition, flat root names. The CircuitPython originals li
 
 | Name | Content | Source |
 |---|---|---|
-| `Scene01`..`Scene10` | SCN1 scene text | `scenes.py` `scene_file_name` |
-| `_activescene` | `N\n`, N = 1..10 | `scenes.py` `ACTIVE_SCENE_FILE` |
+| `Scene01`..`Scene16` | SCN1 scene text, one file per slot (slot index 0..15) | `scenes.py` `scene_file_name` (10 slots there; 16 here) |
+| `scene_names` | `NN,NAME\n` per occupied slot (NN = 01..16, NAME = 1..8 chars of A-Z 0-9) | new (named scenes) |
+| `_activescene` | `N\n` or `NN\n`, N = 1..16 (1-based slot number) | `scenes.py` `ACTIVE_SCENE_FILE` |
 | `user_settings` | `key_brightness,<0..1>\n` | `user_settings.py` |
 | `<name>.tmp` | staged write, never a committed file | T13 |
 | `<name>.bak` | previous version during a commit | T13 |
@@ -168,8 +169,9 @@ format stamp. If the mount fails or the stamp is missing, every scene operation 
 the device runs the stock defaults. The mounted flag in the `?` dump (`STORAGE mounted=`) reports
 exactly this.
 Boot starts once both cores are ready and runs in `poll()` (nothing waits): `LoadUserSettings`
-(KEYBRI), then `LoadActive`. `LoadActive` reads the pointer and the scene but does not rewrite
-`_activescene`.
+(KEYBRI), then `LoadNames` (named slots, see below), then `LoadActive`. `LoadActive` reads the
+pointer and the scene but does not rewrite `_activescene`. A failed `LoadNames` does not stop
+`LoadActive`.
 
 Pointer and default scene (source: `Orion.load_active_scene` keeps the pointer's index): the index
 comes from `_activescene` (missing pointer: scene 1). When that scene is missing or corrupt, the
@@ -183,8 +185,192 @@ failure (`scene_failures` stays 0). A corrupt scene is counted.
 
 Boot writes nothing except the stale-file cleanup of the recovery protocol above (a `.tmp`
 left by a power cut is removed, and a `.bak` is restored when its target is missing). Nothing
-is formatted or deleted otherwise. There is no MCU reset or reboot anywhere in the firmware
+is formatted or deleted otherwise. One exception, first run only: when the names file is absent
+(or present but empty), boot creates `ALFA` in slot 0 from the stock defaults (`CreateScene`
+without a previous scene: scene file, then names file, then pointer). Boot after that finds the
+names and writes nothing. A names file that is unreadable, oversize, or holds no valid line is
+never replaced at boot: `LoadNames` reports the error and the slot files stay untouched.
+
+## Named scene slots (phase 1: persistence)
+
+Sixteen slots, `Scene01`..`Scene16`. A slot is occupied exactly when `scene_names` has a line for
+it. Names: 1..8 characters from `A-Z` and `0-9`, unique across slots. Files for unoccupied slots
+are ignored: a stale numbered `SceneNN` with no names entry is never loaded, and a new scene
+created in that slot overwrites it ("start clean").
+
+- `scene_names` text: one `NN,NAME\n` line per occupied slot, ascending slot order, CRLF accepted
+  when parsing. Bound: 256 bytes (`kSceneNamesMaxBytes`). Parsing skips malformed lines (bad shape,
+  bad name, out-of-range or repeated slot, repeated name) and counts them in
+  `SceneNames::malformed_lines`; it never fails on content. The device's CDC PUT of `scene_names`
+  is strict instead: any malformed line is refused (`InvalidContent`).
+- Persistence API (`persistence/scene_names.hpp`, host-compilable, no heap):
+  `SceneNames` (16 x 9-byte names, `occupied_mask`, `malformed_lines`), `name_valid`,
+  `name_taken`, `first_free_slot`, `first_occupied_slot`, `suggest_name` (the next unused NATO
+  word: ALFA, BRAVO, ... ZULU; a bounded `<word>NN` suffix only if all 26 are taken),
+  `parse_scene_names`, `encode_scene_names`, `parse_active_pointer`, `format_active_pointer`.
+- `SceneService` (`persistence/scene_service.hpp`):
+  - `request(SceneOperation::LoadNames)`: boot names load. Creates ALFA on first run.
+  - `request_create(const char* name)`: validates, then picks the first free slot. Refusals set
+    `status()` and return false, with no operation started: `NameInvalid`, `NameTaken`,
+    `NoFreeSlot`. Accepted, it runs `CaptureCurrent` and `SaveCurrent` (only when the active slot is
+    named), `ResetDefaults`, `CaptureReset`, `SaveReset` (the new scene file), `WriteNames`,
+    `CommitPointer`, `Rebuild`. A failed pointer commit restores the names file to the set without
+    the new name (`RestoreNames`). Rollback to the active scene happens only when a named active
+    scene exists.
+  - `request(Switch|Load|CopyCurrent, slot)` refuses an unnamed slot with `SlotUnoccupied`. The
+    active slot therefore always has a name once names are loaded.
+  - `request(Save)` is unchanged.
+  - `LoadActive`: a pointer at an unnamed slot falls back to the first named slot (only once names
+    are loaded).
+  - Read-only accessors for the UI: `slot_occupied(slot)`, `slot_name(slot)` (empty string when
+    unoccupied), `active_slot()`, `occupied_count()`, `scene_names()`.
+- Commit order for a create: scene file, names file, pointer. A power cut between them leaves the
+  old state, or a named but not yet active scene (the new name is always backed by its scene file).
+  Memory changes only after the names file verifies.
+- Trust gate: `names_loaded()` is true only after a `LoadNames` succeeded (including the first-run
+  ALFA creation) and nothing since has made the in-memory set stale. It is false at construction,
+  after a failed `LoadNames` (unreadable, oversize, or no valid line), after a `RecoveryRequired`
+  names write, after a failed names restore, and after `invalidate_names()`. While it is false,
+  `request_create` and `request(Switch|Load|CopyCurrent)` report `NamesUnavailable` and start
+  nothing. This is what stops a create from overwriting an unread names file or a real Scene01.
+  `Save` and `LoadActive` are unaffected.
+- CDC: `scene_names` is allowlisted with the scene files (`list`, `get`, `put`, `export`, `import`
+  in `scene_transfer.py`). A committed `scene_names` PUT and a successful FORMAT call
+  `invalidate_names()`: the names on storage changed, so create and slot operations are refused
+  until the next boot. A refused upload changes nothing. The pointer PUT still applies at the next
+  boot, as before.
+- Dump: the `STORAGE` line carries `names=<occupied count> names_ok=<names_loaded> names_bad=<lines
+  skipped by the last parse>`.
+- Cost: `SceneNames` 152 bytes and the pending name 9 bytes inside each `SceneService`; the names
+  write path holds one 256-byte encode buffer and the verify path a second 256-byte buffer on the
+  stack (`write_names_atomic`, `write_text_atomic`), within the `-Wstack-usage=8192` gate. Measured
+  on the pinned build: flash 237,276 -> 240,220 bytes, global RAM 61,276 -> 61,460 bytes. Hardware
+  stack headroom is not measured.
+- Controller (phase 2, see "Name editor (phase 2)" below): the SCENE row lists the named slots in
+  slot order plus [NEW]. Creation is the [NEW] editor; rename and delete are not implemented.
+  There is no MCU reset or reboot anywhere in the firmware
 (searched: `reset`, `reboot`, `watchdog`, `NVIC`, `restart`; only internal names and comments).
+
+## Name editor (phase 2)
+
+- SCENE row (STTNGS, row 0): a `RowKind::SceneSelect` list of the occupied slots in slot order, then
+  `[NEW]` (list length = occupied + 1). The knob moves through the list (wraps both ways); releasing
+  on a name switches to that slot with the existing Switch path; releasing on `[NEW]` opens the
+  name editor. The row value text is the entry's scene name, cut to the first five characters the
+  value field holds (the highlighted row is scale 2, the others scale 1; right aligned). `[NEW]` shows
+  `NEW`. While the row is being edited, the value follows the hovered entry.
+- Footer text rules (first match wins; the footer field is 17 cells, names are at most 8):
+  1. Name editor: a message (`NAME INVALID`, `NAME TAKEN`, ...) until the ring next moves; else the
+     meaning of the selected control (`CONFIRM`, `CANCEL`, `DELETE`); else the length (`LEN 5/8`).
+  2. SCENE row highlighted (parameter selection or edit): in selection, the active scene's full name
+     (same as the default); in edit, the hovered entry's full name, or `NEW`.
+  3. Pattern row highlighted: the X (hit) / O (rest) steps of its current value in selection, of the
+     hovered value in edit. Steps are MSB first from the shared `music::kPatternBits` and
+     `kPatternLengths` tables (at most 8). The arp and arp_walk pattern rows apply RYSHFT when playing;
+     the preview shows the unshifted pattern. wander's RTHM row uses the same tables. Gate, chopper,
+     retrigger, drop and strum have no pattern row, so they get no preview.
+  4. Default: the active scene's name (uppercase, up to 8 characters). With no names read (boot
+     names load failed or not yet done), the footer falls back to `SCN NN`.
+  Module selection (UiSection::ModuleSelection), after the name-editor message rule: the footer shows
+  the highlighted module's description from `app/module_descriptors.hpp`, looked up by registry id
+  (never by label: CHRD is both the chord processor and the chords input). IN lists inputs; other
+  slots list processors, Empty included. Leaving the list restores the default.
+  Leaving the parameter (moving the highlight to another row) restores the default. The footer text is
+  copied into the snapshot and bounded to 17 characters.
+- Name editor screen (renderer `draw_name_editor`): the typed characters are drawn in the small font
+  (scale 1, pitch 8 px, x from 26, y 29) in one row. The current ring item is drawn in the big font
+  (scale 2, white on black, not inverted) in the cell right after the typed characters (index =
+  length; after the eighth letter when the name is full), at y 26. Up and down arrows (7 px wide,
+  apex at y=19, base at y=40) sit above and below the big cell. The widest case (eight small letters
+  plus the big cell) spans x 26..101; the group is centred. Controls read as `<` (delete), `#`
+  (confirm), `*` (cancel); all three exist in `kFontChars`.
+- Name editor (`UiSection::NameEdit`): the name (up to 8 characters, `A-Z` and `0-9`) is typed with a
+  ring that wraps both ways: `A`-`Z`, `0`-`9`, then DELETE (`<`), CONFIRM (`#`, the initial ring
+  position), CANCEL (`*`). The footer words are DELETE / CONFIRM / CANCEL. When the name is full
+  (8 characters) the ring holds only DELETE, CONFIRM, CANCEL, in that order, and wraps among them; a
+  letter that makes the name full puts the ring on CONFIRM. The editor opens with the `suggest_name`
+  word prefilled (`ALFA` on a fresh device), so one CONFIRM press creates it. With no free slot there is no
+  prefill and the confirm reports `NO FREE SLOT`.
+  - Encoder press on a ring item accepts it: a letter or digit appends (the cursor moves on), DELETE
+    removes the last character (no-op when empty), CONFIRM calls
+    `request_create(name)`. A refusal (`NAME INVALID`, `NAME TAKEN`, `NO FREE SLOT`, `NAMES NOT LOADED`)
+    stays in the editor with the message in the footer. Acceptance leaves the editor for the SCENE row;
+    the create outcome arrives later through `poll()` and the rebuild returns the UI to the chain, as for
+    a switch. A storage failure reports the usual scene failure and commits no name.
+  - CANCEL returns to the SCENE row (parameter selection) with nothing changed. The editor is not
+    reachable while a scene operation is busy: those events are dropped (`events_busy`).
+  - In the editor, key-downs start no note and do not start the clock. Key-ups are always forwarded, so
+    a note held on entry is released. Stop (encoder held + KEY1) still stops the clock. Other shortcuts
+    are not used there.
+- Untrusted names: `SAVSCN` (save to the active slot) is refused while `names_loaded()` is false. It
+  writes nothing, sets the last status to `NamesUnavailable`, and counts a scene failure. Malformed
+  names lines are skipped as before. Names reload only at the next boot.
+- Measured on the pinned build (`build-firmware.sh`, release, 0 warnings): flash 242,588 bytes, global
+  RAM 61,628 bytes (phase 1: 240,220 and 61,460). `sizeof(UiModel)` is 300 bytes on the RP2040 compiler
+  (limit 640). Hardware behaviour of the editor and the footer is not verified.
+- Not implemented: rename and delete. CPYSCN still lists only slots 01..10 (its copy target is
+  refused when unnamed), so copying into slots 11..16 needs the editor-style list (a later phase).
+
+## Input banks (per-scene input edits)
+
+Each scene keeps the parameter values and saved attributes of the input modules that are not
+active. The active input stays in its `M` record. Switching the IN slot's module parks the module
+being left (its parameters and saved attributes) and restores the bank of the module entered, if
+it has one; a module never edited has no bank and starts from defaults, as before.
+
+- Scope: the six input modules (`note`, `chords`, `drum`, `matrix`, `note_walk`, `chord_walk`).
+  Processors keep no bank. Runtime state (held notes, walk positions) is not kept: the switch still
+  releases notes as today. The global values mirrored into IN rows (`octave`, `key_offset`) are shared
+  and are skipped.
+- Touched: the active input is marked when a parameter is edited or a key is pressed while it is
+  active (matrix pads edit its attributes). A bank is written when a module is left while touched,
+  or when a scene carrying its bank is loaded. Scene saves write the banks of the non-active inputs
+  only.
+- SCN1 text: after the modules and before `END`, one section per bank:
+  `BANK,<id>` then `BP,<parameter>,<value>` lines and `BA,<attribute>,<v>|<v>...` lines, in the
+  existing value conventions. Old firmware ignores the `BANK`, `BP` and `BA` tags as unknown lines
+  (the active module's `P`/`A` lines are not affected). A file without bank lines loads with all
+  banks untouched.
+- Parser policy: an unknown bank id is skipped with its lines. A bank id repeated, a value out of range
+  or a malformed line rejects the scene (`Malformed`, `InvalidValue`, as for module lines), and nothing
+  is applied. A bank parameter name that does not exist is tolerated.
+- Layout (`kSceneInputLayout`, `scene_schema.hpp`): each input has a fixed region of persisted
+  parameter slots (the schema's persisted parameters, including the global `octave` and `key_offset`
+  slots: note 6, chords 13, drum 6, matrix 17, note_walk 5, chord_walk 11) followed by its attribute
+  elements (matrix 8 x 12, chord_walk 4 x 4). The regions total 170 scalars.
+- Bound: the worst case is all six banks: 6 `BANK` + 58 `BP` + 12 `BA` lines. `kSceneBaseRecordLines`
+  159 + 76 + 8 headroom = 243 lines x 159 bytes = `kSceneMaxBytes` 38,637 (was 26,553). The payload
+  limits of the maintenance protocol and `scene_transfer.py` follow it. The worst case measured:
+  1,252 bytes for an all-banks scene with zero values; real scenes are far smaller.
+- RAM: `SceneDto` +732 bytes (10,884 bytes now: the bank staging, decoded and then copied), and the
+  controller's parked banks +732 bytes. Measured with the RP2040 compiler: `SceneInputBanks` 732 bytes.
+  Global RAM 61,868 -> 63,340 bytes; flash 243,460 -> 246,492 bytes (both measured on the release build).
+- Flash partition (1 MiB, LittleFS): 16 scene files at the worst case are 16 x 38,637 = 618,192 bytes.
+  A create or rename writes a temp copy and a backup of one scene, so the peak is about 695 KB,
+  leaving more than 300 KB for the names, the pointer, user settings and the file system metadata.
+
+## Rename the active scene (phase 3)
+
+- STTNGS rows: SCENE (0), SAVSCN (1), RNMSCN (2, a button), CPYSCN (3), RSTSCN (4), KEYBRI (5).
+- Gesture: on the STTNGS page, turn to RNMSCN and press-release it. The name editor opens prefilled with
+  the active scene's name, the cursor after its last letter and the ring on CONFIRM. Edit with the
+  usual ring (letters and digits append, DELETE removes the last one, CONFIRM applies, CANCEL leaves).
+- CONFIRM renames the active scene. The name must be 1 to 8 characters of `A-Z`/`0-9` and must not be
+  held by another saved scene. The same name is a no-op (nothing is written). A refusal stays in the
+  editor with the message (NAME INVALID, NAME TAKEN, NAMES NOT LOADED). CANCEL returns to the RNMSCN
+  row and changes nothing.
+- SceneService `request_rename(name)` (operation `RenameScene`) follows the create discipline: the
+  quiesce handshake, then the names file written through the same temp, verify and rename path as
+  create. Memory takes the new name only after the names file verifies. The scene file and the pointer
+  are not touched, and the UI is not rebuilt (the editor's row keeps the cursor). A failure reports
+  `StorageError` and keeps the old name in memory; the names file is unchanged.
+- Refusals: `NameInvalid` (bad characters or length), `NameTaken` (another slot), `NamesUnavailable`
+  (names not read at boot), `SlotUnoccupied` (no active named slot). Each returns false with the status
+  and does not start an operation.
+- After a successful rename the footer default and the SCENE row show the new name (the names are
+  committed before the settings rows are rebuilt).
+- Power cut (t13c `rename_scene_power_cut_sweep`): at every cut the names file parses and holds the old
+  or the new name, the scene file is byte-identical, and the pointer is unchanged.
 
 ## RAM and stack
 
@@ -230,9 +416,9 @@ CRC-32 as zlib. Requests: `L` list, `G` get, `P` put, `X` abort. Responses: `D` 
 
 Refusals (each a NAK; the target is never changed by a refused frame):
 
-- names: exact allowlist `Scene01..Scene10`, `_activescene`, `user_settings`. Path separators,
-  other case, `Scene00`/`Scene11`, and `.tmp`/`.bak` names are refused;
-- payload bounds: Scene <= 26,553 bytes, pointer <= 4, user settings <= 128. An oversize payload
+- names: exact allowlist `Scene01..Scene16`, `_activescene`, `user_settings`, `scene_names`. Path
+  separators, other case, `Scene00`/`Scene17`, and `.tmp`/`.bak` names are refused;
+- payload bounds: Scene <= 38,637 bytes, pointer <= 4, user settings <= 128, scene names <= 256. An oversize payload
   is discarded without buffering and framing resynchronizes;
 - checksum mismatch; byte-level read-back mismatch (storage kept fewer or different bytes);
   content invalid after decode;
@@ -341,9 +527,20 @@ handshake is an additional guard and not the only one.
 T14 (host, Release, CTest 35/35 in `build/native-t14`; `t14_slice` is the integration rig with
 a fake LittleFS and a guarded write window):
 
-- Boot without a scene: stock defaults, no file created, no write, window closed, first boot not
-  counted as a failure. Boot with a scene (and KEYBRI 0.5): loaded in place, no write. Corrupt
+- First boot with an empty filesystem: `ALFA` created in slot 0 (scene file, names, pointer `1\n`),
+  status Succeeded, no failure counted, no fallback, window closed, KEYBRI defaults, settings file
+  not written. Boot with a scene and names (and KEYBRI 0.5): loaded in place, no write. Corrupt
   scene: defaults applied, counted, file not overwritten.
+- `t07b_scene_service` (named slots): create saves scene, then names, then pointer; refusals
+  NameInvalid / NameTaken / NoFreeSlot; Switch, Load and CopyCurrent refused for unnamed slots;
+  first-run ALFA; malformed lines skipped and counted; unreadable or oversize names never
+  auto-create; stale pointer falls back to the first named slot; pointer-commit failure restores
+  the names file and rolls the scene back in place; names-write failure leaves no name.
+- `t13c_interrupted` (named slots): a power-cut sweep over each `request_create` (cuts 0..63):
+  after reboot, LoadNames and LoadActive succeed, names are exactly the old set or the old set plus
+  the new name, the new name always has its scene file, the pointer never leads its name, and an
+  acknowledged create is fully visible. A first-run sweep (cuts 0..31) of the ALFA creation: every
+  cut repairs on the next boot to exactly `ALFA` in slot 0.
 - In-place switch to scene 2: pointer `2\n`, window opened and closed, resync after the transition,
   input works after it. No write outside the window in any test.
 - Failed switch (power cut at pointer commit): `Failed`, pads red, events dropped, one failure

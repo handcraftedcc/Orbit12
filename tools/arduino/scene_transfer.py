@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Host side of the Orbit12 CDC maintenance protocol (T13).
 
-Exports and imports the ten scenes, the active-scene pointer and user settings
-over the device's USB CDC serial port while the device is stopped. The frame
+Exports and imports the sixteen named scene slots (Scene01..Scene16), the scene
+names file (scene_names), the active-scene pointer and user settings over the
+device's USB CDC serial port while the device is stopped. The frame
 format matches firmware/Orbit12/src/persistence/maintenance_protocol.hpp:
 
     sync 0x4F 0x31 | type u8 | name_len u8 | payload_len u32 LE | name | payload | crc32 u32 LE
@@ -30,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import struct
 import sys
 import zlib
@@ -49,9 +51,12 @@ FORMAT_TOKEN = b"ERASE-FS"
 FORMAT_TIMEOUT_S = 60.0
 
 # Must match maintenance_protocol.cpp and scene_schema.hpp / user_settings.hpp.
-SCENE_MAX_BYTES = 26553
-ACTIVE_MAX_BYTES = 4
+SCENE_MAX_BYTES = 38637          # kSceneMaxBytes: 243 lines x 159 bytes (incl. 76 input bank lines)
+SCENE_SLOT_COUNT = 16          # kSceneSlotCount: Scene01..Scene16, 1-based
+ACTIVE_MAX_BYTES = 4           # longest pointer: "16\r\n"
 USER_SETTINGS_MAX_BYTES = 128
+SCENE_NAMES_MAX_BYTES = 256    # kSceneNamesMaxBytes
+SCENE_NAME_MAX_CHARS = 8       # names are 1..8 characters from A-Z and 0-9
 NAME_MAX = 16
 HEADER_BYTES = 8
 
@@ -72,8 +77,30 @@ NAK_REASONS = {
 }
 
 ALLOWED = (
-    [f"Scene{n:02d}" for n in range(1, 11)] + ["_activescene", "user_settings"]
+    [f"Scene{n:02d}" for n in range(1, SCENE_SLOT_COUNT + 1)]
+    + ["_activescene", "user_settings", "scene_names"]
 )
+
+# One line per occupied slot: "NN,NAME" with NN = 01..16 and NAME = 1..8 chars [A-Z0-9].
+# Blank lines are ignored; CRLF is accepted. Mirrors SceneNames parsing on the device.
+SCENE_NAME_LINE = re.compile(r"^(0[1-9]|1[0-6]),([A-Z0-9]{1,8})\r?$")
+
+
+def check_scene_names(payload: bytes) -> None:
+    """Raises ValueError unless every line parses and slots and names are unique."""
+    text = payload.decode("ascii")  # non-ASCII is a malformed names file
+    slots, names = set(), set()
+    for line in text.split("\n"):
+        if line.strip("\r") == "":
+            continue
+        match = SCENE_NAME_LINE.match(line)
+        if match is None:
+            raise ValueError(f"scene_names line is malformed: {line!r}")
+        slot, name = match.group(1), match.group(2)
+        if slot in slots or name in names:
+            raise ValueError(f"scene_names repeats slot or name: {line!r}")
+        slots.add(slot)
+        names.add(name)
 
 
 def max_payload(name: str) -> int:
@@ -81,6 +108,8 @@ def max_payload(name: str) -> int:
         return SCENE_MAX_BYTES
     if name == "_activescene":
         return ACTIVE_MAX_BYTES
+    if name == "scene_names":
+        return SCENE_NAMES_MAX_BYTES
     return USER_SETTINGS_MAX_BYTES
 
 
@@ -118,8 +147,10 @@ def validate_local(name: str, payload: bytes) -> None:
         raise ValueError(f"{name}: {len(payload)} bytes exceeds the {max_payload(name)}-byte limit")
     if name == "_activescene":
         text = payload.decode("ascii", "replace")
-        if text.rstrip("\r\n") not in {str(n) for n in range(1, 11)}:
-            raise ValueError("_activescene must hold a scene number 1..10")
+        if text.rstrip("\r\n") not in {str(n) for n in range(1, SCENE_SLOT_COUNT + 1)}:
+            raise ValueError(f"_activescene must hold a scene number 1..{SCENE_SLOT_COUNT}")
+    if name == "scene_names":
+        check_scene_names(payload)
 
 
 def selftest() -> int:
@@ -154,18 +185,36 @@ def selftest() -> int:
         check(False, "tampered frame must fail checksum")
     except ValueError:
         pass
-    for bad in ("../Scene01", "Scene00", "Scene11", "scene01", "Scene01.tmp", "user_settings.bak"):
+    for bad in ("../Scene01", "Scene00", "Scene17", "scene01", "Scene01.tmp", "user_settings.bak",
+                "scene_names.tmp", "scene_names.bak"):
         check(bad not in ALLOWED, f"allowlist rejects {bad}")
+    for good in ("Scene01", "Scene10", "Scene16", "scene_names", "_activescene", "user_settings"):
+        check(good in ALLOWED, f"allowlist accepts {good}")
     try:
         validate_local("Scene01", b"x" * (SCENE_MAX_BYTES + 1))
         check(False, "oversize scene must be rejected locally")
     except ValueError:
         pass
+    for pointer, ok in ((b"16\n", True), (b"16\r\n", True), (b"1\n", True), (b"17\n", False),
+                        (b"0\n", False)):
+        try:
+            validate_local("_activescene", pointer)
+            check(ok, f"pointer {pointer!r} accepted")
+        except ValueError:
+            check(not ok, f"pointer {pointer!r} rejected")
+    names_ok = b"01,ALFA\r\n16,ZULU\n\n10,JULIET\n"
     try:
-        validate_local("_activescene", b"11\n")
-        check(False, "pointer 11 must be rejected locally")
-    except ValueError:
-        pass
+        validate_local("scene_names", names_ok)
+    except ValueError as error:
+        check(False, f"valid scene_names rejected: {error}")
+    for names_bad in (b"01,alfa\n", b"17,ALFA\n", b"01,ALFA\n01,BRAVO\n", b"01,ALFA\n02,ALFA\n",
+                      b"01,ABCDEFGHI\n", b"1,ALFA\n", b"01,ALFA\n" * 40):
+        try:
+            validate_local("scene_names", names_bad)
+            check(False, f"scene_names must reject {names_bad[:24]!r}")
+        except ValueError:
+            pass
+    check(max_payload("scene_names") == SCENE_NAMES_MAX_BYTES, "scene_names payload bound")
 
     if failures:
         for label in failures:
@@ -273,7 +322,7 @@ def command_format(args) -> int:
               file=sys.stderr)
         return 2
     print("Erasing the LittleFS partition on", args.port + ":")
-    print("  every file is removed (Scene01..Scene10, _activescene, user_settings and any other);")
+    print("  every file is removed (Scene01..Scene16, scene_names, _activescene, user_settings and any other);")
     print("  the partition is then formatted, mounted and verified by the device.")
     print("  This cannot be undone. The device must be in maintenance mode (engine stopped).")
     link = Link(args.port, max(args.timeout, FORMAT_TIMEOUT_S))

@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include "persistence/scene_names.hpp"
+
 namespace orbit {
 namespace {
 
@@ -17,6 +19,8 @@ SceneServiceStatus map_codec(SceneResult result) noexcept {
 
 void clear_scene_dto(SceneDto& dto) noexcept {
   dto.valid = false;
+  dto.banks.present = 0;
+  for (auto& meta : dto.banks.meta) meta = SceneInputBankMeta{};
   dto.global_fields = 0;
   dto.diagnostics = SceneDiagnosticNone;
   dto.globals = GlobalState{};
@@ -39,7 +43,7 @@ SceneService::SceneService(const SceneStoragePort& storage,
                            std::uint8_t active_scene,
                            std::uint32_t quiesce_timeout_ms) noexcept
     : storage_(storage), lifecycle_(lifecycle), schema_(schema),
-      active_scene_(active_scene < kSceneCount ? active_scene : 0),
+      active_scene_(active_scene < kSceneSlotCount ? active_scene : 0),
       quiesce_timeout_ms_(quiesce_timeout_ms <= 0x7fffffffU ? quiesce_timeout_ms : 0x7fffffffU) {}
 
 bool SceneService::valid_ports() const noexcept {
@@ -56,29 +60,109 @@ bool SceneService::valid_ports() const noexcept {
          lifecycle_.rebuild_ui != nullptr;
 }
 
-bool SceneService::request(SceneOperation operation, std::uint8_t target_scene) noexcept {
-  if (busy()) return false;
-  const bool settings_op = operation == SceneOperation::SaveUserSettings ||
-                           operation == SceneOperation::LoadUserSettings;
-  if (!valid_ports() || (operation != SceneOperation::Reset && operation != SceneOperation::Save &&
-                         !settings_op && target_scene >= kSceneCount)) {
-    status_ = SceneServiceStatus::Rejected;
-    return false;
-  }
+void SceneService::begin(SceneOperation operation, std::uint8_t target_scene) noexcept {
   operation_ = operation;
   target_scene_ = target_scene;
   previous_scene_ = active_scene_;
-  if (operation_ == SceneOperation::Switch && target_scene_ == active_scene_)
-    operation_ = SceneOperation::Save;
   backup_retained_ = false;
   quiesce_requested_ = false;
+  // CreateScene rolls back only when a valid live scene exists to return to (first run has none).
   rollback_needed_ = operation_ == SceneOperation::Switch || operation_ == SceneOperation::Load ||
-                     operation_ == SceneOperation::Reset;
+                     operation_ == SceneOperation::Reset ||
+                     (operation_ == SceneOperation::CreateScene && names_.occupied(active_scene_));
   pointer_commit_ = false;
   target_missing_ = false;
   codec_result_ = SceneResult::Ok;
   status_ = SceneServiceStatus::Busy;
   phase_ = SceneServicePhase::Stop;
+}
+
+bool SceneService::request(SceneOperation operation, std::uint8_t target_scene) noexcept {
+  if (busy()) return false;
+  const bool settings_op = operation == SceneOperation::SaveUserSettings ||
+                           operation == SceneOperation::LoadUserSettings;
+  if (!valid_ports() || operation == SceneOperation::CreateScene ||
+      (operation != SceneOperation::Reset && operation != SceneOperation::Save &&
+       !settings_op && target_scene >= kSceneSlotCount)) {
+    status_ = SceneServiceStatus::Rejected;
+    return false;
+  }
+  const bool slot_operation = operation == SceneOperation::Switch ||
+                              operation == SceneOperation::Load ||
+                              operation == SceneOperation::CopyCurrent;
+  if (slot_operation && !names_loaded_) {
+    status_ = SceneServiceStatus::NamesUnavailable;
+    return false;
+  }
+  if (slot_operation && !names_.occupied(target_scene)) {
+    status_ = SceneServiceStatus::SlotUnoccupied;
+    return false;
+  }
+  if (operation == SceneOperation::Switch && target_scene == active_scene_)
+    operation = SceneOperation::Save;
+  begin(operation, target_scene);
+  return true;
+}
+
+bool SceneService::request_create(const char* name) noexcept {
+  if (busy()) return false;
+  if (!valid_ports()) {
+    status_ = SceneServiceStatus::Rejected;
+    return false;
+  }
+  // Never create over slot files whose names were not read: an unreadable names file must
+  // not be replaced, and an unnamed slot may hold a real scene.
+  if (!names_loaded_) {
+    status_ = SceneServiceStatus::NamesUnavailable;
+    return false;
+  }
+  if (!name_valid(name)) {
+    status_ = SceneServiceStatus::NameInvalid;
+    return false;
+  }
+  if (name_taken(names_, name)) {
+    status_ = SceneServiceStatus::NameTaken;
+    return false;
+  }
+  std::uint8_t slot = 0;
+  if (!first_free_slot(names_, slot)) {
+    status_ = SceneServiceStatus::NoFreeSlot;
+    return false;
+  }
+  // name_valid bounds the text to kSceneNameMaxChars, so the copy fits pending_name_.
+  std::memcpy(pending_name_, name, std::strlen(name) + 1);
+  begin(SceneOperation::CreateScene, slot);
+  return true;
+}
+
+bool SceneService::request_rename(const char* name) noexcept {
+  if (busy()) return false;
+  if (!valid_ports()) {
+    status_ = SceneServiceStatus::Rejected;
+    return false;
+  }
+  if (!names_loaded_) {
+    status_ = SceneServiceStatus::NamesUnavailable;
+    return false;
+  }
+  if (!names_.occupied(active_scene_)) {
+    status_ = SceneServiceStatus::SlotUnoccupied;
+    return false;
+  }
+  if (!name_valid(name)) {
+    status_ = SceneServiceStatus::NameInvalid;
+    return false;
+  }
+  // The active slot may keep its own name (a no-op rename); another saved scene may not hold it.
+  for (std::size_t slot = 0; slot < kSceneSlotCount; ++slot) {
+    if (slot == active_scene_ || !names_.occupied(static_cast<std::uint8_t>(slot))) continue;
+    if (std::strcmp(names_.names[slot], name) == 0) {
+      status_ = SceneServiceStatus::NameTaken;
+      return false;
+    }
+  }
+  std::memcpy(pending_name_, name, std::strlen(name) + 1);  // name_valid bounds the length
+  begin(SceneOperation::RenameScene, active_scene_);
   return true;
 }
 
@@ -211,16 +295,8 @@ SceneServiceStatus SceneService::read_pointer(std::uint8_t& scene) noexcept {
   }
   const auto closed = storage_.close(storage_.context, scene_file(SceneFileKind::ActivePointer, 0));
   if (closed != SceneStorageStatus::Ok) return SceneServiceStatus::StorageError;
-  if (read_status != SceneReadStatus::End || count < 2 || text[count - 1] != '\n')
-    return SceneServiceStatus::SceneError;
-  std::size_t digits = count - 1;
-  if (digits != 0 && text[digits - 1] == '\r') --digits;
-  if (digits == 0 || digits > 2 || text[0] < '1' || text[0] > '9' ||
-      (digits == 2 && (text[0] != '1' || text[1] != '0')))
-    return SceneServiceStatus::SceneError;
-  if (digits == 1 && count > 2 && text[1] != '\r') return SceneServiceStatus::SceneError;
-  scene = static_cast<std::uint8_t>(text[0] - '1');
-  if (digits == 2) scene = 9;
+  if (read_status != SceneReadStatus::End) return SceneServiceStatus::SceneError;
+  if (!parse_active_pointer(text, count, scene)) return SceneServiceStatus::SceneError;
   codec_result_ = SceneResult::Ok;
   return SceneServiceStatus::Succeeded;
 }
@@ -232,11 +308,9 @@ SceneServiceStatus SceneService::write_pointer_atomic(std::uint8_t scene) noexce
   const auto recovered = recover_file(target, temp, backup);
   if (recovered != SceneServiceStatus::Succeeded || !remove_if_present(temp))
     return recovered == SceneServiceStatus::Succeeded ? SceneServiceStatus::StorageError : recovered;
-  char expected[3]{};
-  const std::uint8_t expected_size = scene == 9 ? 3 : 2;
-  expected[0] = scene == 9 ? '1' : static_cast<char>('1' + scene);
-  if (scene == 9) expected[1] = '0';
-  expected[expected_size - 1] = '\n';
+  char expected[4]{};
+  const std::size_t expected_size = format_active_pointer(scene, expected, sizeof(expected));
+  if (expected_size == 0) return SceneServiceStatus::SceneError;
   SceneWriter writer{};
   if (storage_.open_write(storage_.context, temp, writer) != SceneStorageStatus::Ok)
     return SceneServiceStatus::StorageError;
@@ -259,7 +333,8 @@ SceneServiceStatus SceneService::write_pointer_atomic(std::uint8_t scene) noexce
     actual[actual_size++] = byte;
   const auto verify_close = storage_.close(storage_.context, temp);
   if (rs != SceneReadStatus::End || verify_close != SceneStorageStatus::Ok ||
-      actual_size != expected_size || std::memcmp(actual, expected, expected_size) != 0) {
+      static_cast<std::size_t>(actual_size) != expected_size ||
+      std::memcmp(actual, expected, expected_size) != 0) {
     remove_if_present(temp);
     return rs == SceneReadStatus::Error ? SceneServiceStatus::StorageError : SceneServiceStatus::SceneError;
   }
@@ -295,6 +370,8 @@ SceneServiceStatus SceneService::apply_staging() noexcept {
       if (!lifecycle_.apply_attribute(lifecycle_.context, slot, module.attributes[i]))
         return SceneServiceStatus::ApplyError;
   }
+  if (lifecycle_.apply_banks != nullptr && !lifecycle_.apply_banks(lifecycle_.context, staging_))
+    return SceneServiceStatus::ApplyError;
   return lifecycle_.finish_scene(lifecycle_.context) ? SceneServiceStatus::Succeeded :
                                                         SceneServiceStatus::ApplyError;
 }
@@ -353,10 +430,15 @@ SceneServiceStatus SceneService::poll(std::uint32_t now_ms) noexcept {
         lifecycle_.cancel_quiesce(lifecycle_.context, quiesce_sequence_);
         fail(SceneServiceStatus::QuiesceTimeout);
       } else if (lifecycle_.quiesced(lifecycle_.context, quiesce_sequence_)) {
-        phase_ = operation_ == SceneOperation::LoadActive ? SceneServicePhase::ReadActive :
+        phase_ = operation_ == SceneOperation::RenameScene ? SceneServicePhase::WriteNames :
+                 operation_ == SceneOperation::LoadActive ? SceneServicePhase::ReadActive :
                  operation_ == SceneOperation::Load ? SceneServicePhase::ReadTarget :
                  operation_ == SceneOperation::SaveUserSettings ? SceneServicePhase::WriteUserSettings :
                  operation_ == SceneOperation::LoadUserSettings ? SceneServicePhase::ReadUserSettings :
+                 operation_ == SceneOperation::LoadNames ? SceneServicePhase::ReadNames :
+                 // Create: an unnamed active slot (no names yet) has nothing to save.
+                 operation_ == SceneOperation::CreateScene && !names_.occupied(active_scene_) ?
+                     SceneServicePhase::ResetDefaults :
                                                        SceneServicePhase::CaptureCurrent;
       }
       break;
@@ -367,6 +449,12 @@ SceneServiceStatus SceneService::poll(std::uint32_t now_ms) noexcept {
       } else {
         // The pointer's index is kept even when its scene fails to load (scenes.py /
         // Orion.load_active_scene): a later save then targets that same scene, never another.
+        // A pointer at an unoccupied slot (stale or hand-edited) falls back to the first
+        // named slot. Only applies once names are loaded: with no names, the pointer stands.
+        std::uint8_t first = 0;
+        if (names_.occupied_count() > 0 && !names_.occupied(target_scene_) &&
+            first_occupied_slot(names_, first))
+          target_scene_ = first;
         active_scene_ = target_scene_;
         phase_ = SceneServicePhase::ReadTarget;
       }
@@ -384,7 +472,7 @@ SceneServiceStatus SceneService::poll(std::uint32_t now_ms) noexcept {
       if (operation_ == SceneOperation::Save) finish_resume(true);
       else if (operation_ == SceneOperation::Switch) phase_ = SceneServicePhase::ReadTarget;
       else if (operation_ == SceneOperation::CopyCurrent) phase_ = SceneServicePhase::CommitPointer;
-      else phase_ = SceneServicePhase::ResetDefaults;
+      else phase_ = SceneServicePhase::ResetDefaults;  // Reset, CreateScene
       break;
     case SceneServicePhase::ReadTarget:
       operation_status = read_scene(target_scene_);
@@ -412,13 +500,16 @@ SceneServiceStatus SceneService::poll(std::uint32_t now_ms) noexcept {
       break;
     case SceneServicePhase::SaveReset:
       // Reset saves the active scene; a Switch to a missing target saves the target.
-      operation_status = write_scene_atomic(operation_ == SceneOperation::Switch ? target_scene_
-                                                                                 : active_scene_);
+      // Create saves the new scene file first; its name is written only after this succeeds.
+      operation_status = write_scene_atomic(operation_ == SceneOperation::Switch ||
+                                                    operation_ == SceneOperation::CreateScene
+                                                ? target_scene_ : active_scene_);
       if (operation_status == SceneServiceStatus::Succeeded ||
           operation_status == SceneServiceStatus::SucceededWithBackup) {
         if (operation_status == SceneServiceStatus::SucceededWithBackup) backup_retained_ = true;
-        phase_ = operation_ == SceneOperation::Switch ? SceneServicePhase::CommitPointer
-                                                      : SceneServicePhase::Rebuild;
+        phase_ = operation_ == SceneOperation::CreateScene ? SceneServicePhase::WriteNames
+                 : operation_ == SceneOperation::Switch ? SceneServicePhase::CommitPointer
+                                                        : SceneServicePhase::Rebuild;
       } else {
         fail_or_rollback(operation_status);
       }
@@ -433,11 +524,40 @@ SceneServiceStatus SceneService::poll(std::uint32_t now_ms) noexcept {
         phase_ = SceneServicePhase::Rebuild;
       } else phase_ = SceneServicePhase::CommitPointer;
       break;
+    case SceneServicePhase::WriteNames: {
+      // Candidate is the in-memory set plus the new name; memory changes only after the
+      // names file verifies, so memory always matches what was last committed to storage.
+      SceneNames candidate = names_;
+      candidate.set(target_scene_, pending_name_);
+      operation_status = write_names_atomic(candidate);
+      if (operation_status != SceneServiceStatus::Succeeded &&
+          operation_status != SceneServiceStatus::SucceededWithBackup) {
+        // RecoveryRequired leaves the names file in an unknown state: stop trusting the set.
+        if (operation_status == SceneServiceStatus::RecoveryRequired) names_loaded_ = false;
+        fail_or_rollback(operation_status);
+        break;
+      }
+      if (operation_status == SceneServiceStatus::SucceededWithBackup) backup_retained_ = true;
+      names_ = candidate;
+      if (operation_ == SceneOperation::RenameScene) {
+        // A rename moves no pointer and changes no live scene: no rebuild, the UI stays put.
+        finish_resume(true);
+        break;
+      }
+      phase_ = SceneServicePhase::CommitPointer;
+      break;
+    }
     case SceneServicePhase::CommitPointer:
       operation_status = write_pointer_atomic(target_scene_);
       if (operation_status != SceneServiceStatus::Succeeded &&
           operation_status != SceneServiceStatus::SucceededWithBackup) {
-        fail_or_rollback(operation_status);
+        if (operation_ == SceneOperation::CreateScene) {
+          // The pointer did not move, so the new name must not outlive this failed create.
+          status_ = operation_status;
+          phase_ = SceneServicePhase::RestoreNames;
+        } else {
+          fail_or_rollback(operation_status);
+        }
       } else {
         if (operation_status == SceneServiceStatus::SucceededWithBackup) backup_retained_ = true;
         active_scene_ = target_scene_;
@@ -448,6 +568,56 @@ SceneServiceStatus SceneService::poll(std::uint32_t now_ms) noexcept {
       lifecycle_.rebuild_ui(lifecycle_.context);
       finish_resume(true);
       break;
+    case SceneServicePhase::RestoreNames: {
+      // Rewrites the names file without the slot that was just named. If that write fails the
+      // in-memory set keeps the new name (the last state written); the create's own status
+      // is still reported.
+      const SceneServiceStatus failure = status_;
+      SceneNames previous = names_;
+      previous.occupied_mask = static_cast<std::uint16_t>(previous.occupied_mask &
+                                                          ~(1U << target_scene_));
+      previous.names[target_scene_][0] = '\0';
+      const SceneServiceStatus restored = write_names_atomic(previous);
+      if (restored == SceneServiceStatus::Succeeded ||
+          restored == SceneServiceStatus::SucceededWithBackup) {
+        names_ = previous;
+      } else {
+        // The file may hold the new name while memory does not: stop trusting the set.
+        names_loaded_ = false;
+      }
+      fail_or_rollback(failure);
+      break;
+    }
+    case SceneServicePhase::ReadNames: {
+      bool present = false;
+      names_loaded_ = false;  // trusted again only when this read completes
+      operation_status = read_names(present);
+      if (operation_status != SceneServiceStatus::Succeeded) {
+        fail(operation_status);
+        break;
+      }
+      if (names_.occupied_count() != 0) {
+        names_loaded_ = true;
+        phase_ = SceneServicePhase::Finish;
+        break;
+      }
+      if (present && names_.malformed_lines != 0) {
+        // Unreadable names are never replaced: the slot files may hold real scenes.
+        codec_result_ = SceneResult::InvalidValue;
+        fail(SceneServiceStatus::SceneError);
+        break;
+      }
+      names_loaded_ = true;  // absent or empty is an authoritative empty set
+      // Absent or empty names file (first run): create "ALFA" in slot 0 from the defaults,
+      // as one CreateScene. Without a valid previous scene there is nothing to roll back to.
+      (void)suggest_name(names_, pending_name_, sizeof(pending_name_));
+      operation_ = SceneOperation::CreateScene;
+      target_scene_ = 0;
+      previous_scene_ = active_scene_;
+      rollback_needed_ = false;
+      phase_ = SceneServicePhase::ResetDefaults;
+      break;
+    }
     case SceneServicePhase::RollbackRead:
       operation_status = read_scene(previous_scene_);
       if (operation_status != SceneServiceStatus::Succeeded) enter_failed();
@@ -567,6 +737,82 @@ SceneServiceStatus SceneService::read_whole_file(SceneFileId id, char* buffer,
     return SceneServiceStatus::StorageError;
   return status == SceneReadStatus::End ? SceneServiceStatus::Succeeded
                                        : SceneServiceStatus::StorageError;
+}
+
+SceneServiceStatus SceneService::read_names(bool& present) noexcept {
+  const auto recovered = recover_file(scene_file(SceneFileKind::SceneNames, 0),
+                                      scene_file(SceneFileKind::SceneNamesTemp, 0),
+                                      scene_file(SceneFileKind::SceneNamesBackup, 0));
+  if (recovered != SceneServiceStatus::Succeeded) return recovered;
+  char text[kSceneNamesMaxBytes]{};
+  std::size_t count = 0;
+  const auto read = read_whole_file(scene_file(SceneFileKind::SceneNames, 0), text,
+                                    sizeof(text), count, present);
+  // Oversize or unreadable text is a storage error, never an empty set (no auto-create).
+  if (read != SceneServiceStatus::Succeeded) return read;
+  names_.clear();
+  if (!present) return SceneServiceStatus::Succeeded;
+  if (parse_scene_names(text, count, names_) != SceneNamesResult::Ok)
+    return SceneServiceStatus::StorageError;
+  return SceneServiceStatus::Succeeded;
+}
+
+SceneServiceStatus SceneService::write_names_atomic(const SceneNames& candidate) noexcept {
+  char text[kSceneNamesMaxBytes]{};
+  std::size_t length = 0;
+  if (encode_scene_names(candidate, text, sizeof(text), length) != SceneNamesResult::Ok)
+    return SceneServiceStatus::ApplyError;
+  return write_text_atomic(scene_file(SceneFileKind::SceneNames, 0),
+                           scene_file(SceneFileKind::SceneNamesTemp, 0),
+                           scene_file(SceneFileKind::SceneNamesBackup, 0), text, length);
+}
+
+SceneServiceStatus SceneService::write_text_atomic(SceneFileId target, SceneFileId temp,
+                                                   SceneFileId backup, const char* text,
+                                                   std::size_t length) noexcept {
+  auto result = recover_file(target, temp, backup);
+  if (result != SceneServiceStatus::Succeeded) return result;
+  if (!remove_if_present(temp)) return SceneServiceStatus::StorageError;
+
+  SceneWriter writer{};
+  if (storage_.open_write(storage_.context, temp, writer) != SceneStorageStatus::Ok)
+    return SceneServiceStatus::StorageError;
+  const bool written = writer.write != nullptr &&
+                       writer.write(writer.context, text, length) == SceneWriteStatus::Written;
+  const auto write_close = storage_.close(storage_.context, temp);
+  if (!written || write_close != SceneStorageStatus::Ok) {
+    remove_if_present(temp);
+    return SceneServiceStatus::StorageError;
+  }
+
+  // Verify the temp file by reading it back before it can replace the target.
+  char verify[kSceneNamesMaxBytes]{};
+  std::size_t verified_count = 0;
+  bool present = false;
+  if (read_whole_file(temp, verify, sizeof(verify), verified_count, present) !=
+          SceneServiceStatus::Succeeded ||
+      !present || verified_count != length || std::memcmp(verify, text, length) != 0) {
+    remove_if_present(temp);
+    return SceneServiceStatus::StorageError;
+  }
+
+  bool target_exists = false;
+  if (!file_exists(target, target_exists)) return SceneServiceStatus::StorageError;
+  if (target_exists && storage_.rename(storage_.context, target, backup) != SceneStorageStatus::Ok) {
+    remove_if_present(temp);
+    return SceneServiceStatus::StorageError;
+  }
+  if (storage_.rename(storage_.context, temp, target) != SceneStorageStatus::Ok) {
+    if (target_exists && storage_.rename(storage_.context, backup, target) != SceneStorageStatus::Ok)
+      return SceneServiceStatus::RecoveryRequired;
+    remove_if_present(temp);
+    return SceneServiceStatus::StorageError;
+  }
+  if (target_exists && !remove_if_present(backup)) {
+    backup_retained_ = true;
+    return SceneServiceStatus::SucceededWithBackup;
+  }
+  return SceneServiceStatus::Succeeded;
 }
 
 SceneServiceStatus SceneService::read_user_settings() noexcept {

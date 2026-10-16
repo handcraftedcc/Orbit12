@@ -54,13 +54,36 @@ enum SceneGlobalField : std::uint8_t {
   SceneTransportMode = 1U << 6
 };
 enum SceneDiagnostic : std::uint8_t { SceneDiagnosticNone = 0, SceneUnknownModule = 1U << 0 };
+// Parked input banks (see kSceneInputLayout). Bit i of `present` set: bank i (layout order)
+// is in the scene. Values of bank i live at layout[i].offset; `parameters` bit k is the k-th
+// persisted parameter slot, `attributes` bit j the j-th attribute of the schema.
+struct SceneInputBankMeta {
+  std::uint32_t parameters = 0;
+  std::uint8_t attributes = 0;
+};
+struct SceneInputBanks {
+  std::uint8_t present = 0;
+  SceneInputBankMeta meta[kSceneInputBanks]{};
+  SceneScalar values[kSceneBankValues]{};
+};
 struct SceneDto {
   GlobalState globals{};
   std::uint8_t global_fields = 0;
   SceneModule modules[kSceneModuleSlots]{};
+  SceneInputBanks banks{};
   std::uint8_t diagnostics = SceneDiagnosticNone;
   bool valid = false;
 };
+
+// Persisted parameters are the ones the codec writes (field_persisted); their kind in SCN1 and
+// in SceneParameter is Integer (integer and enumeration), Decimal or Boolean.
+bool scene_param_persisted(const ParamSpec& spec) noexcept;
+SceneValueKind scene_param_value_kind(const ParamSpec& spec) noexcept;
+// Layout index of an input bank id (kSceneInputBanks when the id has no bank).
+std::size_t scene_bank_index(const char* id) noexcept;
+// Scalar index of attribute j's first element in a bank region.
+std::size_t scene_bank_attribute_base(const SceneInputLayout& layout, const SceneModuleSchema& schema,
+                                      std::uint8_t j) noexcept;
 
 SceneResult decode_scene(SceneReader reader, const SceneSchemaResolver& schema,
                          SceneDto& staging) noexcept;

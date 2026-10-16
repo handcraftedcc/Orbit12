@@ -965,6 +965,41 @@ const SceneModuleSchema* fixed_scene_schema(std::uint8_t slot, const char* id) n
   return nullptr;
 }
 
+// Input bank helpers. Bank slots: the layout index of an input id, and the ordinal of a persisted
+// parameter among the schema's persisted parameters (the bit used in SceneInputBankMeta).
+constexpr std::uint8_t kSceneInputSlot = 1;  // SET 0, IN 1, processors 2..7, OUT 8, SETTINGS 9
+std::size_t scene_input_index(const char* id) noexcept {
+  for (std::size_t i = 0; i < kSceneInputBanks; ++i) {
+    if (equal(id, kSceneInputLayout[i].id)) return i;
+  }
+  return kSceneInputBanks;
+}
+std::size_t persisted_ordinal(const SceneModuleSchema& schema, const ParamSpec* spec) noexcept {
+  std::size_t ordinal = 0;
+  for (std::uint8_t i = 0; i < schema.param_count; ++i) {
+    if (&schema.params[i] == spec) return ordinal;
+    if (field_persisted(schema.params[i])) ++ordinal;
+  }
+  return ordinal;
+}
+std::size_t persisted_count(const SceneModuleSchema& schema) noexcept {
+  std::size_t count = 0;
+  for (std::uint8_t i = 0; i < schema.param_count; ++i) if (field_persisted(schema.params[i])) ++count;
+  return count;
+}
+std::size_t attribute_values(const SceneModuleSchema& schema) noexcept {
+  std::size_t count = 0;
+  for (std::uint8_t i = 0; i < schema.attr_count; ++i) count += schema.attrs[i].element_count;
+  return count;
+}
+// Scalar index of attribute j's first element inside the region of a layout.
+std::size_t attribute_base(const SceneInputLayout& layout, const SceneModuleSchema& schema,
+                           std::uint8_t j) noexcept {
+  std::size_t base = layout.offset + layout.parameters;
+  for (std::uint8_t k = 0; k < j; ++k) base += schema.attrs[k].element_count;
+  return base;
+}
+
 SceneResult decode_scene(SceneReader reader, const SceneSchemaResolver& resolver,
                          SceneDto& staged) noexcept {
   // Aggregate assignment of a whole DTO materializes a >10 KiB temporary with
@@ -974,6 +1009,8 @@ SceneResult decode_scene(SceneReader reader, const SceneSchemaResolver& resolver
   staged.global_fields = 0;
   staged.diagnostics = SceneDiagnosticNone;
   for (auto& module : staged.modules) module = SceneModule{};
+  staged.banks.present = 0;
+  for (auto& meta : staged.banks.meta) meta = SceneInputBankMeta{};
   if (reader.read == nullptr) return SceneResult::IoError;
   std::size_t total_bytes = 0;
   bool first_line = true;
@@ -981,6 +1018,9 @@ SceneResult decode_scene(SceneReader reader, const SceneSchemaResolver& resolver
   bool have_current = false;
   std::uint8_t current_slot = 0;
   SceneModuleSchema current_schema{};
+  bool have_bank = false;
+  std::size_t bank_index = 0;
+  SceneModuleSchema bank_schema{};
   for (;;) {
     char line_buffer[kSceneMaxLineChars + 2]{};
     std::size_t line_length = 0;
@@ -1068,9 +1108,55 @@ SceneResult decode_scene(SceneReader reader, const SceneSchemaResolver& resolver
       if (stored == nullptr) return SceneResult::CapacityExceeded;
       const auto status = parse_attribute(*spec, fields.values[2], *stored);
       if (status != SceneResult::Ok) return status;
+    } else if (equal(fields.values[0], "BANK")) {
+      // Input edit bank. Unknown inputs are tolerated: their BP/BA lines are skipped.
+      if (fields.count != 2) return SceneResult::Malformed;
+      have_bank = false;
+      char id[kSceneMaxModuleIdChars + 1]{};
+      if (!copy_text(id, sizeof(id), fields.values[1])) continue;
+      const std::size_t index = scene_input_index(id);
+      if (index == kSceneInputBanks) continue;
+      if (((staged.banks.present >> index) & 1U) != 0) return SceneResult::Malformed;
+      SceneModuleSchema found{};
+      if (!resolve_schema(kSceneInputSlot, id, resolver, found)) return SceneResult::InvalidSchema;
+      const auto schema_status = check_schema(found);
+      if (schema_status != SceneResult::Ok) return schema_status;
+      const auto& layout = kSceneInputLayout[index];
+      if (persisted_count(found) > layout.parameters || attribute_values(found) != layout.attribute_values)
+        return SceneResult::InvalidSchema;
+      staged.banks.present = static_cast<std::uint8_t>(staged.banks.present | (1U << index));
+      have_bank = true;
+      bank_index = index;
+      bank_schema = found;
+    } else if (equal(fields.values[0], "BP")) {
+      if (fields.count != 3) return SceneResult::Malformed;
+      if (!have_bank) continue;
+      const auto* spec = find_param(bank_schema, fields.values[1]);
+      if (spec == nullptr || !field_persisted(*spec)) continue;  // unknown names are tolerated
+      SceneParameter parsed{};
+      const auto status = parse_param(*spec, fields.values[2], parsed);
+      if (status != SceneResult::Ok) return status;
+      const auto& layout = kSceneInputLayout[bank_index];
+      const std::size_t ordinal = persisted_ordinal(bank_schema, spec);
+      staged.banks.values[layout.offset + ordinal] = parsed.value;
+      staged.banks.meta[bank_index].parameters |= 1U << ordinal;
+    } else if (equal(fields.values[0], "BA")) {
+      if (fields.count != 3) return SceneResult::Malformed;
+      if (!have_bank) continue;
+      const auto* spec = find_attr(bank_schema, fields.values[1]);
+      if (spec == nullptr) continue;
+      const auto j = static_cast<std::uint8_t>(spec - bank_schema.attrs);
+      SceneAttribute parsed{};
+      const auto status = parse_attribute(*spec, fields.values[2], parsed);
+      if (status != SceneResult::Ok) return status;
+      const std::size_t base = attribute_base(kSceneInputLayout[bank_index], bank_schema, j);
+      for (std::uint16_t e = 0; e < parsed.count; ++e) staged.banks.values[base + e] = parsed.values[e];
+      staged.banks.meta[bank_index].attributes = static_cast<std::uint8_t>(
+          staged.banks.meta[bank_index].attributes | (1U << j));
     }
   }
   if (first_line || !ended) return SceneResult::Malformed;
+
   staged.valid = true;
   return SceneResult::Ok;
 }
@@ -1150,6 +1236,44 @@ SceneResult encode_scene(const SceneDto& scene, const SceneSchemaResolver& resol
       if (!writer.line_end()) return writer.failure;
     }
   }
+  for (std::size_t index = 0; index < kSceneInputBanks; ++index) {
+    if (((scene.banks.present >> index) & 1U) == 0) continue;
+    const auto& layout = kSceneInputLayout[index];
+    SceneModuleSchema schema{};
+    if (!resolve_schema(kSceneInputSlot, layout.id, resolver, schema)) return SceneResult::InvalidSchema;
+    const auto schema_status = check_schema(schema);
+    if (schema_status != SceneResult::Ok) return schema_status;
+    if (persisted_count(schema) > layout.parameters || attribute_values(schema) != layout.attribute_values)
+      return SceneResult::InvalidSchema;
+    const auto& meta = scene.banks.meta[index];
+    if (!writer.append("BANK,") || !writer.append(layout.id) || !writer.line_end()) return writer.failure;
+    std::size_t ordinal = 0;
+    for (std::uint8_t i = 0; i < schema.param_count; ++i) {
+      const auto& spec = schema.params[i];
+      if (!field_persisted(spec)) continue;
+      if (((meta.parameters >> ordinal) & 1U) != 0) {
+        if (!writer.append("BP,") || !writer.append(spec.name) || !writer.append(",") ||
+            !write_scalar(writer, scene_param_value_kind(spec), scene.banks.values[layout.offset + ordinal]) ||
+            !writer.line_end()) return writer.failure;
+      }
+      ++ordinal;
+    }
+    for (std::uint8_t j = 0; j < schema.attr_count; ++j) {
+      if (((meta.attributes >> j) & 1U) == 0) continue;
+      const auto& spec = schema.attrs[j];
+      if (spec.element_count > kSceneMaxAttrValues) return SceneResult::InvalidSchema;
+      const std::size_t base = attribute_base(layout, schema, j);
+      SceneValueKind kind = SceneValueKind::Integer;
+      if (spec.type == AttributeType::Decimal) kind = SceneValueKind::Decimal;
+      else if (spec.type == AttributeType::Boolean) kind = SceneValueKind::Boolean;
+      if (!writer.append("BA,") || !writer.append(spec.name) || !writer.append(",")) return writer.failure;
+      for (std::uint16_t e = 0; e < spec.element_count; ++e) {
+        if (e != 0 && !writer.append("|")) return writer.failure;
+        if (!write_scalar(writer, kind, scene.banks.values[base + e])) return writer.failure;
+      }
+      if (!writer.line_end()) return writer.failure;
+    }
+  }
   if (!writer.append("END\n", 4)) return writer.failure;
   if (writer.size > kSceneMaxBytes) return writer.failure;
   written = writer.size;
@@ -1173,4 +1297,20 @@ SceneResult encode_scene(const SceneDto& scene, const SceneSchemaResolver& resol
   return encode_scene(scene, resolver, {&memory, memory_write}, written);
 }
 
+}  // namespace orbit
+
+namespace orbit {
+bool scene_param_persisted(const ParamSpec& spec) noexcept { return field_persisted(spec); }
+SceneValueKind scene_param_value_kind(const ParamSpec& spec) noexcept {
+  if (spec.type == ParamType::Boolean) return SceneValueKind::Boolean;
+  if (spec.type == ParamType::Decimal) return SceneValueKind::Decimal;
+  return SceneValueKind::Integer;
+}
+}  // namespace orbit
+namespace orbit {
+std::size_t scene_bank_index(const char* id) noexcept { return scene_input_index(id); }
+std::size_t scene_bank_attribute_base(const SceneInputLayout& layout, const SceneModuleSchema& schema,
+                                      std::uint8_t j) noexcept {
+  return attribute_base(layout, schema, j);
+}
 }  // namespace orbit

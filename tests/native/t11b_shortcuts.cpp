@@ -63,15 +63,19 @@ void replay(const TraceScenario& sc) {
     CHECK(c.selector_index() == ex.selector);
     CHECK(c.global().key == ex.key);
     CHECK(c.global().scale == ex.scale);
-    CHECK(c.slot(c.active_chain()).row_count == ex.count);
+    // STTNGS has the RNMSCN button after SAVSCN (deviation: the Python trace has five rows).
+    const bool settings = c.active_chain() == kSlotSettings;
+    CHECK(c.slot(c.active_chain()).row_count == ex.count + (settings ? 1 : 0));
     CHECK(static_cast<int>(c.diagnostics().release_calls - c.diagnostics().deviation_releases) == ex.notes_off);
     CHECK(slot_ids(c) == ex.slots);
     const SlotRecord& rec = c.slot(c.active_chain());
     for (int v = 0; v < ex.nvalues && v < rec.row_count; ++v) {
+      if (settings && v == 2) continue;  // RNMSCN: a button, no trace value
+      const int e = settings && v > 2 ? v - 1 : v;  // trace row index
       const ParamRow& r = rec.rows[v];
       const double got = (r.kind == RowKind::Decimal || r.kind == RowKind::Percent) ? static_cast<double>(r.value_f)
                                                                                     : static_cast<double>(r.value_i);
-      CHECK(std::fabs(got - ex.values[v]) < 1e-5);
+      CHECK(std::fabs(got - ex.values[e]) < 1e-5);
     }
     if (g_failures != before) {
       std::fprintf(stderr, "  release_calls=%u deviation=%u expected=%d\n", c.diagnostics().release_calls,
@@ -152,7 +156,7 @@ void settings_and_out_cycles() {
   select_chain(*r, kSlotOut);
   shortcut_while_held(*r, kKey6);
   CHECK(r->c.active_chain() == kSlotSettings && r->c.section() == UiSection::ParmSelection);
-  CHECK(r->c.slot(kSlotSettings).row_count == 5);          // SCENE..KEYBRI (RAM removed)
+  CHECK(r->c.slot(kSlotSettings).row_count == 6);          // SCENE..KEYBRI (RAM removed, RNMSCN added)
   shortcut_while_held(*r, kKey3);                          // STTNGS -> IN (key 3 is not STTNGS's partner)
   CHECK(r->c.active_chain() == kSlotIn);
 }

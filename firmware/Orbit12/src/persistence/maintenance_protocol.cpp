@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "persistence/fs_format.hpp"
+#include "persistence/scene_names.hpp"
 #include "persistence/user_settings.hpp"
 
 namespace orbit {
@@ -14,8 +15,10 @@ constexpr char kActiveName[] = "_activescene";
 constexpr std::size_t kActiveNameLength = sizeof(kActiveName) - 1;
 constexpr char kUserName[] = "user_settings";
 constexpr std::size_t kUserNameLength = sizeof(kUserName) - 1;
+constexpr char kNamesName[] = "scene_names";
+constexpr std::size_t kNamesNameLength = sizeof(kNamesName) - 1;
 constexpr std::size_t kSceneNameLength = 7;   // "Scene01"
-constexpr std::uint8_t kPointerMaxBytes = 4;
+constexpr std::uint8_t kPointerMaxBytes = 4;  // longest valid pointer: "16\r\n"
 
 bool valid_type(std::uint8_t type) noexcept {
   return type == static_cast<std::uint8_t>(FrameType::List) ||
@@ -35,10 +38,14 @@ NakReason format_nak(fsformat::FormatResult result) noexcept {
   return NakReason::FormatFailed;
 }
 
+// Explicit per-kind mapping: an unlisted kind must never fall through to another file's
+// temp or backup name (the names file and user settings are both single-file kinds).
 SceneFileId temp_of(SceneFileId target) noexcept {
   switch (target.kind) {
     case SceneFileKind::Scene: return {SceneFileKind::SceneTemp, target.scene};
     case SceneFileKind::ActivePointer: return {SceneFileKind::ActiveTemp, 0};
+    case SceneFileKind::SceneNames: return {SceneFileKind::SceneNamesTemp, 0};
+    case SceneFileKind::UserSettings: return {SceneFileKind::UserSettingsTemp, 0};
     default: return {SceneFileKind::UserSettingsTemp, 0};
   }
 }
@@ -47,17 +54,16 @@ SceneFileId backup_of(SceneFileId target) noexcept {
   switch (target.kind) {
     case SceneFileKind::Scene: return {SceneFileKind::SceneBackup, target.scene};
     case SceneFileKind::ActivePointer: return {SceneFileKind::ActiveBackup, 0};
+    case SceneFileKind::SceneNames: return {SceneFileKind::SceneNamesBackup, 0};
+    case SceneFileKind::UserSettings: return {SceneFileKind::UserSettingsBackup, 0};
     default: return {SceneFileKind::UserSettingsBackup, 0};
   }
 }
 
-// Same grammar as SceneService::read_pointer: "N\n" or "N\r\n", N in 1..10.
+// Same grammar as SceneService::read_pointer ("N\n", "NN\n", CRLF accepted), N in 1..16.
 bool valid_pointer(const char* text, std::size_t length) noexcept {
-  auto digit = [](char c) { return c >= '1' && c <= '9'; };
-  if (length == 2 && digit(text[0]) && text[1] == '\n') return true;
-  if (length == 3 && digit(text[0]) && text[1] == '\r' && text[2] == '\n') return true;
-  if (length == 3 && text[0] == '1' && text[1] == '0' && text[2] == '\n') return true;
-  return length == 4 && text[0] == '1' && text[1] == '0' && text[2] == '\r' && text[3] == '\n';
+  std::uint8_t slot = 0;
+  return parse_active_pointer(text, length, slot);
 }
 
 }  // namespace
@@ -75,7 +81,7 @@ bool resolve_name(const char* name, std::size_t length, SceneFileId& id) noexcep
     const char tens = name[5], ones = name[6];
     if (tens < '0' || tens > '9' || ones < '0' || ones > '9') return false;
     const int number = (tens - '0') * 10 + (ones - '0');
-    if (number < 1 || number > 10) return false;
+    if (number < 1 || number > static_cast<int>(kSceneSlotCount)) return false;
     id = {SceneFileKind::Scene, static_cast<std::uint8_t>(number - 1)};
     return true;
   }
@@ -87,13 +93,17 @@ bool resolve_name(const char* name, std::size_t length, SceneFileId& id) noexcep
     id = {SceneFileKind::UserSettings, 0};
     return true;
   }
+  if (length == kNamesNameLength && std::memcmp(name, kNamesName, kNamesNameLength) == 0) {
+    id = {SceneFileKind::SceneNames, 0};
+    return true;
+  }
   return false;
 }
 
 std::size_t format_name(SceneFileId id, char* output, std::size_t capacity) noexcept {
   if (output == nullptr) return 0;
   if (id.kind == SceneFileKind::Scene) {
-    if (capacity < kSceneNameLength + 1 || id.scene >= 10) return 0;
+    if (capacity < kSceneNameLength + 1 || id.scene >= kSceneSlotCount) return 0;
     const int number = id.scene + 1;
     std::memcpy(output, "Scene", 5);
     output[5] = static_cast<char>('0' + number / 10);
@@ -111,6 +121,11 @@ std::size_t format_name(SceneFileId id, char* output, std::size_t capacity) noex
     std::memcpy(output, kUserName, kUserNameLength + 1);
     return kUserNameLength;
   }
+  if (id.kind == SceneFileKind::SceneNames) {
+    if (capacity < kNamesNameLength + 1) return 0;
+    std::memcpy(output, kNamesName, kNamesNameLength + 1);
+    return kNamesNameLength;
+  }
   return 0;
 }
 
@@ -118,6 +133,7 @@ std::size_t max_payload(SceneFileId id) noexcept {
   if (id.kind == SceneFileKind::Scene) return kSceneMaxBytes;
   if (id.kind == SceneFileKind::ActivePointer) return kPointerMaxBytes;
   if (id.kind == SceneFileKind::UserSettings) return kUserSettingsMaxBytes;
+  if (id.kind == SceneFileKind::SceneNames) return kSceneNamesMaxBytes;
   return 0;
 }
 
@@ -379,6 +395,7 @@ void MaintenanceSession::finish_frame() noexcept {
         break;
       }
       ++counters_.formats;
+      service_->invalidate_names();  // the partition is new: every names entry is stale
       send_begin(FrameType::Ack, name_, name_length_, 0);
       send_end();
       break;
@@ -407,6 +424,8 @@ void MaintenanceSession::finish_frame() noexcept {
         reject(committed);
         break;
       }
+      // A committed names file replaces the set in memory: stop trusting it until boot.
+      if (target_.kind == SceneFileKind::SceneNames) service_->invalidate_names();
       target_valid_ = false;
       ++counters_.accepted;
       send_begin(FrameType::Ack, name_, name_length_, 0);
@@ -463,17 +482,41 @@ NakReason MaintenanceSession::verify_temp() noexcept {
       break;
     }
     case SceneFileKind::ActivePointer: {
-      char text[kPointerMaxBytes + 1]{};
+      // One byte beyond the longest valid pointer is read, so a longer payload is caught
+      // as InvalidContent instead of ending the scan early.
+      char text[kPointerMaxBytes + 2]{};
       std::size_t count = 0;
       SceneReadStatus status = SceneReadStatus::Byte;
       char byte = 0;
-      while (count < kPointerMaxBytes && (status = reader.read(reader.context, byte)) ==
-                                            SceneReadStatus::Byte)
+      while (count < kPointerMaxBytes + 1 && (status = reader.read(reader.context, byte)) ==
+                                               SceneReadStatus::Byte)
         text[count++] = byte;
       if (status == SceneReadStatus::Error || status == SceneReadStatus::Missing)
         result = NakReason::StorageError;
       else if (status != SceneReadStatus::End || !valid_pointer(text, count))
         result = NakReason::InvalidContent;
+      break;
+    }
+    case SceneFileKind::SceneNames: {
+      // Strict: every line of an uploaded names file must parse (the service itself skips
+      // bad lines, but an upload that carries one is a malformed upload).
+      char text[kSceneNamesMaxBytes + 1]{};
+      std::size_t count = 0;
+      SceneReadStatus status = SceneReadStatus::Byte;
+      char byte = 0;
+      while (count < sizeof(text) && (status = reader.read(reader.context, byte)) ==
+                                       SceneReadStatus::Byte)
+        text[count++] = byte;
+      if (status == SceneReadStatus::Error || status == SceneReadStatus::Missing) {
+        result = NakReason::StorageError;
+      } else if (status != SceneReadStatus::End || count > kSceneNamesMaxBytes) {
+        result = NakReason::InvalidContent;
+      } else {
+        SceneNames names{};
+        if (parse_scene_names(text, count, names) != SceneNamesResult::Ok ||
+            names.malformed_lines != 0)
+          result = NakReason::InvalidContent;
+      }
       break;
     }
     default: {
@@ -547,10 +590,11 @@ void MaintenanceSession::do_list() noexcept {
     text[length++] = '\n';
     return true;
   };
-  for (std::uint8_t scene = 0; scene < 10; ++scene)
+  for (std::uint8_t scene = 0; scene < kSceneSlotCount; ++scene)
     if (!append_entry({SceneFileKind::Scene, scene})) { reject(NakReason::StorageError); return; }
   if (!append_entry({SceneFileKind::ActivePointer, 0}) ||
-      !append_entry({SceneFileKind::UserSettings, 0})) {
+      !append_entry({SceneFileKind::UserSettings, 0}) ||
+      !append_entry({SceneFileKind::SceneNames, 0})) {
     reject(NakReason::StorageError);
     return;
   }

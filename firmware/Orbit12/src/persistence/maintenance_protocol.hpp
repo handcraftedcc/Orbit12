@@ -19,7 +19,7 @@
 // Responses: 'D' data (list text or file bytes), 'A' ack (after verified
 // commit or verified format), 'N' nak (name echo; payload = one NakReason byte).
 //
-// Names are an exact allowlist: Scene01..Scene10, _activescene, user_settings.
+// Names are an exact allowlist: Scene01..Scene16, _activescene, user_settings, scene_names.
 // Payload bounds are per file. Transfers write only to the temp file of the
 // target; the target changes only after the temp file is closed, verified by
 // decoding, and renamed. Maintenance requests are refused unless the gate
@@ -73,7 +73,8 @@ bool resolve_name(const char* name, std::size_t length, SceneFileId& id) noexcep
 // Writes the canonical name; returns its length, or 0 when capacity is short.
 std::size_t format_name(SceneFileId id, char* output, std::size_t capacity) noexcept;
 // Largest payload accepted or served for a file. Scene: kSceneMaxBytes;
-// active pointer: 4 bytes ("10\n" plus slack); user settings: kUserSettingsMaxBytes.
+// active pointer: 4 bytes ("16\r\n"); user settings: kUserSettingsMaxBytes; scene names:
+// kSceneNamesMaxBytes.
 std::size_t max_payload(SceneFileId id) noexcept;
 
 struct MaintenanceOutput {

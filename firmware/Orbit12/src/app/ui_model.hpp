@@ -30,8 +30,24 @@ constexpr bool is_static_slot(std::uint8_t slot) noexcept {
   return slot == kSlotSet || slot == kSlotOut || slot == kSlotSettings;
 }
 
-enum class UiSection : std::uint8_t { Chain = 0, ParmSelection = 1, ParmEdit = 2, ModuleSelection = 3 };
+// NameEdit (appended): the scene name editor opened from the SCENE row's [NEW] entry.
+enum class UiSection : std::uint8_t { Chain = 0, ParmSelection = 1, ParmEdit = 2, ModuleSelection = 3, NameEdit = 4 };
 enum class UiChainMode : std::uint8_t { Select = 0, Swap = 1 };
+
+// Scene name editor (section NameEdit) and footer preview text.
+constexpr std::size_t kNameEditChars = 8;        // same limit as persistence kSceneNameMaxChars
+constexpr std::size_t kNameEditBytes = 9;        // NUL-terminated name buffer
+constexpr std::size_t kFooterTextChars = 17;     // footer cell field ("SCN NN" field width)
+// Ring order: A-Z, 0-9, DELETE, CONFIRM, CANCEL (glyphs <, C, X). Wraps both ways. Once the
+// name is full only the three controls are on the ring.
+constexpr std::uint8_t kNameRingSize = 39;       // A-Z, 0-9, DELETE, CONFIRM, CANCEL
+constexpr std::uint8_t kNameRingFirstControl = 36;
+constexpr std::uint8_t kNameRingDelete = 36;     // <
+constexpr std::uint8_t kNameRingConfirm = 37;    // C (initial ring position)
+constexpr std::uint8_t kNameRingCancel = 38;     // X
+enum class NameEditMessage : std::uint8_t {
+  None, Invalid, Taken, NoFreeSlot, NamesUnavailable, Failed, Busy
+};
 
 // How the source Parm type edits and displays a value.
 enum class RowKind : std::uint8_t {
@@ -43,8 +59,15 @@ enum class RowKind : std::uint8_t {
   Rate,      // RateParmType (rates only): (v+d)%13, rate label
   Pattern,   // PatternParmType: (v+d)%25, "PTN"+(v+1)
   Note,      // NoteParmType: clamp 0..11, note name
-  Button     // ButtonParmType: ">" ; enter returns to selection
+  Button,    // ButtonParmType: ">" ; enter returns to selection
+  // Appended: SCENE row. The row value is a list index (0..count-1, count = occupied+1,
+  // the last entry being [NEW]); the snapshot carries the mapped slot in UiRow.ivalue
+  // (kSceneListNewValue for [NEW]) and the entry's name in UiRow.text; the value text is
+  // that name, truncated by the renderer to the value field (5 cells).
+  SceneSelect
 };
+// UiRow.ivalue for the [NEW] entry of a SceneSelect row (slots are 0..15).
+constexpr std::int32_t kSceneListNewValue = 16;
 
 struct UiRow {
   const char* label = "";
@@ -56,6 +79,8 @@ struct UiRow {
   bool float_text = false;  // value is a Python float (prints "100.0"), not an int
   bool armed = false;   // RSTSCN/RESET "SUR?" display
   bool present = false; // false: blank row (index beyond parm count)
+  // SceneSelect: the entry's scene name (copied, never a pointer into live names); empty for [NEW].
+  char text[kNameEditBytes]{};
 };
 
 struct UiSlotInfo {
@@ -95,6 +120,16 @@ struct UiModel {
   std::uint32_t activity = 0;          // advances on every accepted input (wake)
   bool recovery = false;               // output/bridge recovery in progress
   bool busy = false;                   // scene operation running
+  // Footer text override (controller-composed copy, never a pointer into live state):
+  // the SCENE name/NEW preview, the pattern X/O preview or a name editor message. When
+  // inactive the footer shows "SCN NN".
+  bool footer_text_active = false;
+  char footer_text[kFooterTextChars + 1]{};
+  // Name editor (section NameEdit): text being typed, ring position and last message.
+  char name_text[kNameEditBytes]{};
+  std::uint8_t name_length = 0;
+  std::uint8_t name_ring = 0;
+  NameEditMessage name_message = NameEditMessage::None;
 };
 
 static_assert(sizeof(UiModel) < 640, "UiModel is copied through the 3-slot snapshot queue");
@@ -139,6 +174,24 @@ extern const char* const kOnOffOptions[2];
 // ---- Value formatting (Parm.get_display_value). Returns characters written
 // (excluding NUL). Truncation to PARMVALUECHARS is the renderer's job. ----
 std::size_t ui_format_value(const UiRow& row, char* out, std::size_t capacity) noexcept;
+
+// ---- SCENE row list (SceneSelect): saved names in slot order plus [NEW]. The mask is
+// SceneNames::occupied_mask (bit i = slot i). Indexes beyond the list read as [NEW]. ----
+std::uint8_t scene_list_count(std::uint16_t occupied_mask) noexcept;             // occupied + 1
+std::uint8_t scene_list_slot(std::uint16_t occupied_mask, std::int32_t index) noexcept;  // slot or kSceneListNewValue
+std::uint8_t scene_list_index(std::uint16_t occupied_mask, std::uint8_t slot) noexcept;  // 0 for unoccupied
+
+// ---- Footer and editor text (fixed, bounded). ----
+// Pattern preview: X (hit) / O (rest) per step of music::kPatternBits[pattern], MSB first.
+// Writes at most 8 characters and a NUL. Returns the characters written (0 for an
+// out-of-range pattern or a capacity below 9).
+std::size_t ui_pattern_steps(std::uint8_t pattern, char* out, std::size_t capacity) noexcept;
+// Name editor ring item label ("A".."Z", "0".."9", "<", "C", "X"). Index >= kNameRingSize: "".
+const char* name_ring_label(std::uint8_t index) noexcept;
+// Character appended by a letter or digit ring item; 0 for [C], [X] and [<].
+char name_ring_char(std::uint8_t index) noexcept;
+// Footer text for an editor message (17 characters or fewer). "" for None.
+const char* name_edit_message_text(NameEditMessage message) noexcept;
 
 // ---- Key colors (neo_pixels.py) ----
 RgbColor colorwheel(std::uint8_t position) noexcept;

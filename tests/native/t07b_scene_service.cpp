@@ -8,8 +8,9 @@ namespace {
 int failures = 0;
 #define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "%s:%d: CHECK(%s) failed\n", __FILE__, __LINE__, #x); ++failures; } } while (false)
 
-constexpr std::size_t kKinds = 6;
-constexpr std::size_t kScenes = 10;
+constexpr std::size_t kKinds = static_cast<std::size_t>(orbit::SceneFileKind::SceneNamesBackup) + 1;
+constexpr std::size_t kScenes = orbit::kSceneSlotCount;
+constexpr const char* kDefaultNames = "01,ALFA\n02,BRAVO\n03,CHARLIE\n10,JULIET\n";
 struct Cell { char bytes[orbit::kSceneMaxBytes]{}; std::size_t size = 0; bool exists = false; };
 struct MemoryFs;
 struct ReadCursor { MemoryFs* fs = nullptr; orbit::SceneFileId id{}; std::size_t pos = 0; };
@@ -31,6 +32,17 @@ struct MemoryFs {
 Cell& cell(MemoryFs& fs, orbit::SceneFileId id) {
   return fs.files[static_cast<std::uint8_t>(id.kind)][id.scene];
 }
+void seed_text(MemoryFs& fs, orbit::SceneFileId id, const char* text) {
+  auto& file = cell(fs, id);
+  file.exists = true;
+  file.size = std::strlen(text);
+  std::memcpy(file.bytes, text, file.size);
+}
+bool text_is(MemoryFs& fs, orbit::SceneFileId id, const char* text) {
+  auto& file = cell(fs, id);
+  return file.exists && file.size == std::strlen(text) &&
+         std::memcmp(file.bytes, text, file.size) == 0;
+}
 // Resets in place: a whole-struct temporary (about 1.6 MB) would overflow the stack.
 void reset_fs(MemoryFs& fs) {
   for (auto& kind : fs.files)
@@ -48,6 +60,8 @@ void reset_fs(MemoryFs& fs) {
   fs.fail_scene_install = false;
   fs.fail_pointer_install = false;
   fs.fail_rename_to_backup = false;
+  // Every fixture starts with named slots 1, 2, 3 and 10 (Scene01, Scene02, Scene03, Scene10).
+  seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, kDefaultNames);
 }
 orbit::SceneStorageStatus fs_exists(void* context, orbit::SceneFileId id, bool& exists) {
   auto& fs = *static_cast<MemoryFs*>(context);
@@ -270,6 +284,16 @@ orbit::SceneServiceStatus complete(orbit::SceneService& service, LiveState& live
   return service.status();
 }
 
+// Boot names load. Clears the resume/storage counters it touches so each test starts clean.
+orbit::SceneServiceStatus load_names(orbit::SceneService& service, LiveState& live,
+                                     MemoryFs& fs) {
+  CHECK(service.request(orbit::SceneOperation::LoadNames));
+  const auto status = complete(service, live);
+  live.resumes = 0;
+  fs.storage_calls = 0;
+  return status;
+}
+
 // Polls until idle or parked in Failed (which stays busy by design).
 orbit::SceneServiceStatus settle(orbit::SceneService& service, LiveState& live,
                                  std::uint32_t start = 0) {
@@ -290,6 +314,7 @@ void switch_and_copy_transaction() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
 
   CHECK(service.request(orbit::SceneOperation::Switch, 1));
   service.poll(0); service.poll(1);
@@ -320,6 +345,7 @@ void file_and_pointer_failures_restore() {
   LiveState live{};
   live.applied_bpm = 135;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
 
   fs.fail_scene_install = true; // target->backup succeeds, temp install fails, backup is restored.
   CHECK(service.request(orbit::SceneOperation::CopyCurrent, 1));
@@ -349,9 +375,11 @@ void recovery_pointer_and_reset() {
               cell(fs, {orbit::SceneFileKind::Scene, 3}).bytes,
               cell(fs, {orbit::SceneFileKind::Scene, 3}).size);
   cell(fs, {orbit::SceneFileKind::Scene, 3}).exists = false;
+  seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, "01,ALFA\n02,BRAVO\n03,CHARLIE\n04,DELTA\n10,JULIET\n");
   seed_pointer(fs, "4\r\n");
   LiveState live{};
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   CHECK(service.request(orbit::SceneOperation::LoadActive));
   CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
   CHECK(service.active_scene() == 3 && live.applied_bpm == 77);
@@ -377,6 +405,7 @@ void recovery_after_rollback_failure() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
 
   CHECK(!service.acknowledge_recovery());          // not Failed: nothing to acknowledge
   live.fail_apply = true;
@@ -419,6 +448,7 @@ void recovery_read_failure_stays_failed() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   live.fail_apply = true;
   CHECK(service.request(orbit::SceneOperation::Switch, 1));
   CHECK(settle(service, live) == orbit::SceneServiceStatus::RecoveryRequired);
@@ -445,6 +475,7 @@ void reset_save_failure_reports_storage_error() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   fs.open_write_budget = 1;                        // SaveCurrent writes; SaveReset cannot open
   CHECK(service.request(orbit::SceneOperation::Reset));
   CHECK(complete(service, live, 0) == orbit::SceneServiceStatus::StorageError);
@@ -465,6 +496,7 @@ void load_active_does_not_rewrite_pointer() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   fs.fail_open_write = true;
   CHECK(service.request(orbit::SceneOperation::LoadActive));
   CHECK(complete(service, live, 0) == orbit::SceneServiceStatus::Succeeded);
@@ -496,6 +528,7 @@ void pointer_crlf_ten_loads_scene_ten() {
   seed_pointer(fs, "10\r\n");
   LiveState live{};
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   CHECK(service.request(orbit::SceneOperation::LoadActive));
   CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
   CHECK(service.active_scene() == 9 && live.applied_bpm == 100);
@@ -514,6 +547,7 @@ void switch_to_missing_target_applies_defaults() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   CHECK(service.request(orbit::SceneOperation::Switch, 1));
   CHECK(complete(service, live, 0) == orbit::SceneServiceStatus::Succeeded);
   CHECK(service.active_scene() == 1 && pointer_is(fs, "2\n"));
@@ -536,6 +570,7 @@ void switch_to_missing_target_save_failure_rolls_back() {
   LiveState live{};
   live.applied_bpm = 140;
   orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
   fs.open_write_budget = 1;                        // SaveCurrent writes; the target save cannot open
   CHECK(service.request(orbit::SceneOperation::Switch, 1));
   CHECK(complete(service, live, 0) == orbit::SceneServiceStatus::StorageError);
@@ -546,7 +581,330 @@ void switch_to_missing_target_save_failure_rolls_back() {
   CHECK(live.resumes == 1 && service.failure_count() == 0);
 }
 
+// ---- Named scene slots -------------------------------------------------------------------
+
+// CreateScene: current scene saved, defaults in the first free slot, scene file, then names,
+// then the pointer. Names and pointer change only after their predecessors are durable.
+void create_scene_saves_scene_then_names_then_pointer() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  live.applied_bpm = 140;
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.request_create("DELTA"));
+  CHECK(service.busy());
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.active_scene() == 3 && pointer_is(fs, "4\n"));
+  CHECK(service.slot_occupied(3) && std::strcmp(service.slot_name(3), "DELTA") == 0);
+  CHECK(service.occupied_count() == 5 && service.active_slot() == 3);
+  CHECK(scene_bpm(fs, 0) == 140);  // outgoing live scene was saved first
+  CHECK(scene_bpm(fs, 3) == 120);  // new scene holds the stock defaults
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0},
+                "01,ALFA\n02,BRAVO\n03,CHARLIE\n04,DELTA\n10,JULIET\n"));
+  CHECK(live.applied_bpm == 120);
+  CHECK(live.resumes == 1);
+}
+
+// Refusals are reported through status() and never start an operation.
+void create_scene_refusals_have_distinct_status() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(!service.request_create("bravo") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_create("") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_create("ABCDEFGHI") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_create("A-B") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_create("ALFA") && service.status() == orbit::SceneServiceStatus::NameTaken);
+  CHECK(!service.busy());
+  CHECK(service.occupied_count() == 4);
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, kDefaultNames));
+}
+
+void create_scene_without_free_slot_is_refused() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  char text[16 * 8 + 1]{};
+  std::size_t used = 0;
+  for (int slot = 1; slot <= 16; ++slot) used += static_cast<std::size_t>(std::snprintf(text + used, sizeof(text) - used, "%02d,N%02d\n", slot, slot));
+  seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, text);
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.occupied_count() == 16);
+  CHECK(!service.request_create("ZULU") && service.status() == orbit::SceneServiceStatus::NoFreeSlot);
+  CHECK(!service.busy());
+}
+
+// Switch, Load and CopyCurrent to an unnamed slot are refused; the active slot stays named.
+void unoccupied_slots_are_refused_for_slot_operations() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(!service.request(orbit::SceneOperation::Switch, 4) &&
+        service.status() == orbit::SceneServiceStatus::SlotUnoccupied);
+  CHECK(!service.request(orbit::SceneOperation::Load, 4) &&
+        service.status() == orbit::SceneServiceStatus::SlotUnoccupied);
+  CHECK(!service.request(orbit::SceneOperation::CopyCurrent, 4) &&
+        service.status() == orbit::SceneServiceStatus::SlotUnoccupied);
+  CHECK(!service.request(orbit::SceneOperation::CreateScene, 4));  // only request_create creates
+  CHECK(!service.busy() && service.active_scene() == 0 && pointer_is(fs, "1\n"));
+  CHECK(service.request(orbit::SceneOperation::Switch, 1));  // BRAVO is named
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.active_scene() == 1 && pointer_is(fs, "2\n"));
+}
+
+// First run: no names file -> "ALFA" in slot 0 from the defaults, one boot-time write set.
+void first_run_creates_alfa_in_slot_zero() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  cell(fs, {orbit::SceneFileKind::SceneNames, 0}).exists = false;
+  cell(fs, {orbit::SceneFileKind::SceneNames, 0}).size = 0;
+  LiveState live{};
+  live.applied_bpm = 140;
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(service.request(orbit::SceneOperation::LoadNames));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.occupied_count() == 1 && service.slot_occupied(0));
+  CHECK(std::strcmp(service.slot_name(0), "ALFA") == 0);
+  CHECK(service.active_scene() == 0 && pointer_is(fs, "1\n"));
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, "01,ALFA\n"));
+  CHECK(scene_bpm(fs, 0) == 120);
+  CHECK(!cell(fs, {orbit::SceneFileKind::SceneNamesTemp, 0}).exists);
+  CHECK(service.request(orbit::SceneOperation::LoadActive));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(live.applied_bpm == 120);
+}
+
+// Malformed lines are skipped and counted; a readable file is never rewritten at boot.
+void malformed_name_lines_are_skipped_and_counted() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, "01,ALFA\nxx,bad\n02,bravo\n02,BRAVO\n\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.occupied_count() == 2 && service.slot_occupied(0) && service.slot_occupied(1));
+  CHECK(service.scene_names().malformed_lines == 2);
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, "01,ALFA\nxx,bad\n02,bravo\n02,BRAVO\n\n"));
+  CHECK(!cell(fs, {orbit::SceneFileKind::ActivePointer, 0}).exists);
+  CHECK(!cell(fs, {orbit::SceneFileKind::Scene, 0}).exists);
+}
+
+// Unreadable names (no valid line, or oversize) are never replaced by a boot-time ALFA.
+void unreadable_names_never_auto_create() {
+  {
+    static MemoryFs fs{};
+    reset_fs(fs);
+    seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, "xx,bad\n");
+    LiveState live{};
+    orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+    CHECK(service.request(orbit::SceneOperation::LoadNames));
+    CHECK(complete(service, live) == orbit::SceneServiceStatus::SceneError);
+    CHECK(service.occupied_count() == 0);
+    CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, "xx,bad\n"));
+    CHECK(!cell(fs, {orbit::SceneFileKind::Scene, 0}).exists);
+    CHECK(!cell(fs, {orbit::SceneFileKind::ActivePointer, 0}).exists);
+  }
+  {
+    static MemoryFs fs{};
+    reset_fs(fs);
+    char text[321]{};  // 320 bytes plus the terminator seed_text measures
+    for (std::size_t i = 0; i + 8 <= 320; i += 8) std::memcpy(text + i, "01,ALFA\n", 8);
+    seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, text);
+    LiveState live{};
+    orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+    CHECK(service.request(orbit::SceneOperation::LoadNames));
+    CHECK(complete(service, live) == orbit::SceneServiceStatus::StorageError);
+    CHECK(service.occupied_count() == 0);
+    CHECK(!cell(fs, {orbit::SceneFileKind::Scene, 0}).exists);
+  }
+}
+
+// A pointer at an unnamed slot falls back to the first named slot.
+void stale_pointer_to_unnamed_slot_falls_back_to_first_named() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "5\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.request(orbit::SceneOperation::LoadActive));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.active_scene() == 0 && live.applied_bpm == 120);
+}
+
+// A failed pointer commit after the names write: the names file is restored to the old set,
+// the scene is rolled back in place, and the in-memory names match storage again.
+void create_pointer_failure_restores_names_and_scene() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  live.applied_bpm = 140;
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  fs.fail_pointer_install = true;
+  CHECK(service.request_create("DELTA"));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::StorageError);
+  CHECK(service.active_scene() == 0 && pointer_is(fs, "1\n"));
+  CHECK(!service.slot_occupied(3) && service.occupied_count() == 4);
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, kDefaultNames));
+  CHECK(live.applied_bpm == 140);  // the outgoing scene is back in place
+  CHECK(scene_bpm(fs, 0) == 140);
+  CHECK(live.resumes == 1 && service.failure_count() == 0);
+}
+
+// A failed names write leaves no name; the orphan scene file is invisible and harmless.
+void create_names_write_failure_leaves_no_name() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  // SaveCurrent and the new scene file each open a temp; the names temp cannot open.
+  fs.open_write_budget = 2;
+  CHECK(service.request_create("DELTA"));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::StorageError);
+  CHECK(!service.slot_occupied(3) && service.occupied_count() == 4);
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, kDefaultNames));
+  CHECK(service.active_scene() == 0 && pointer_is(fs, "1\n"));
+  CHECK(live.resumes == 1);
+}
+
+// Unreadable names are not trusted: Create and slot operations are refused and neither the
+// scene file nor the names file is touched, so the unreadable names cannot be overwritten.
+void corrupt_names_block_create_and_slot_operations() {
+  static MemoryFs fs{};
+  static Cell scene_before{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  scene_before = cell(fs, {orbit::SceneFileKind::Scene, 0});
+  seed_text(fs, {orbit::SceneFileKind::SceneNames, 0}, "xx,bad\n");
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(service.request(orbit::SceneOperation::LoadNames));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::SceneError);
+  CHECK(!service.names_loaded() && service.occupied_count() == 0);
+  CHECK(!service.request_create("DELTA") && service.status() == orbit::SceneServiceStatus::NamesUnavailable);
+  CHECK(!service.request(orbit::SceneOperation::Switch, 0) &&
+        service.status() == orbit::SceneServiceStatus::NamesUnavailable);
+  CHECK(!service.busy());
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, "xx,bad\n"));
+  const auto& scene_now = cell(fs, {orbit::SceneFileKind::Scene, 0});
+  CHECK(scene_now.size == scene_before.size &&
+        std::memcmp(scene_now.bytes, scene_before.bytes, scene_before.size) == 0);
+  CHECK(pointer_is(fs, "1\n"));
+}
+
+// invalidate_names (a committed CDC names change or a format) stops create and slot
+// operations until the next boot. Save of the active scene keeps working.
+void invalidate_names_blocks_slot_operations_until_boot() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.names_loaded());
+  service.invalidate_names();
+  CHECK(!service.names_loaded());
+  CHECK(!service.request_create("DELTA") && service.status() == orbit::SceneServiceStatus::NamesUnavailable);
+  CHECK(!service.request(orbit::SceneOperation::Switch, 1) &&
+        service.status() == orbit::SceneServiceStatus::NamesUnavailable);
+  CHECK(service.request(orbit::SceneOperation::Save));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.active_scene() == 0 && pointer_is(fs, "1\n"));
+}
+
+// Rename of the active slot: only the names file changes (scene file and pointer untouched).
+void rename_scene_changes_only_the_names_file() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(service.request_rename("ZULU"));
+  CHECK(service.busy());
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(std::strcmp(service.slot_name(0), "ZULU") == 0);
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, "01,ZULU\n02,BRAVO\n03,CHARLIE\n10,JULIET\n"));
+  CHECK(scene_bpm(fs, 0) == 120 && pointer_is(fs, "1\n"));
+  CHECK(service.active_scene() == 0 && live.resumes == 1);
+  // The slot keeps its own name: accepted as a rewrite of the same text.
+  CHECK(service.request_rename("ZULU") && complete(service, live) == orbit::SceneServiceStatus::Succeeded);
+}
+
+// Refusals report distinct statuses and change nothing.
+void rename_refusals_have_distinct_status() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(!service.request_rename("ZULU") && service.status() == orbit::SceneServiceStatus::NamesUnavailable);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  CHECK(!service.request_rename("zulu") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_rename("") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_rename("ABCDEFGHI") && service.status() == orbit::SceneServiceStatus::NameInvalid);
+  CHECK(!service.request_rename("BRAVO") && service.status() == orbit::SceneServiceStatus::NameTaken);
+  CHECK(!service.busy());
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, kDefaultNames));
+  CHECK(std::strcmp(service.slot_name(0), "ALFA") == 0);
+}
+
+// A failed names write keeps the old name in memory and leaves the file as it was.
+void rename_names_write_failure_keeps_old_name() {
+  static MemoryFs fs{};
+  reset_fs(fs);
+  put_scene(fs, 0, 120);
+  seed_pointer(fs, "1\n");
+  LiveState live{};
+  orbit::SceneService service(storage_port(fs), lifecycle_port(live), kSchema, 0);
+  CHECK(load_names(service, live, fs) == orbit::SceneServiceStatus::Succeeded);
+  fs.open_write_budget = 0;  // the names temp cannot open
+  CHECK(service.request_rename("ZULU"));
+  CHECK(complete(service, live) == orbit::SceneServiceStatus::StorageError);
+  CHECK(std::strcmp(service.slot_name(0), "ALFA") == 0);
+  CHECK(text_is(fs, {orbit::SceneFileKind::SceneNames, 0}, kDefaultNames));
+  CHECK(pointer_is(fs, "1\n") && service.active_scene() == 0);
+}
+
 int main() {
+  rename_scene_changes_only_the_names_file();
+  rename_refusals_have_distinct_status();
+  rename_names_write_failure_keeps_old_name();
+  corrupt_names_block_create_and_slot_operations();
+  invalidate_names_blocks_slot_operations_until_boot();
+  create_scene_saves_scene_then_names_then_pointer();
+  create_scene_refusals_have_distinct_status();
+  create_scene_without_free_slot_is_refused();
+  unoccupied_slots_are_refused_for_slot_operations();
+  first_run_creates_alfa_in_slot_zero();
+  malformed_name_lines_are_skipped_and_counted();
+  unreadable_names_never_auto_create();
+  stale_pointer_to_unnamed_slot_falls_back_to_first_named();
+  create_pointer_failure_restores_names_and_scene();
+  create_names_write_failure_leaves_no_name();
   switch_and_copy_transaction();
   file_and_pointer_failures_restore();
   recovery_pointer_and_reset();

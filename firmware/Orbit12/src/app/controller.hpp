@@ -86,7 +86,8 @@ enum class ParamSpecial : std::uint8_t {
   OutChannel, OutPrint,
   SettingsScene, SettingsSave, SettingsCopy, SettingsReset, SettingsBrightness,
   RouteSource, RouteOperation, RouteChannel,
-  EmptyPick, MatrixReset
+  EmptyPick, MatrixReset,
+  SettingsRename  // appended: RNMSCN button (rename the active scene)
 };
 
 struct ParamRow {
@@ -237,6 +238,18 @@ class Controller {
   void enter_parm_edit() noexcept;
   void exit_parm_edit() noexcept;
   void edit_parm(int delta) noexcept;
+  // Scene name editor (UiSection::NameEdit), opened by the SCENE row's [NEW] entry.
+  void enter_name_edit() noexcept;
+  void name_edit_scroll(int delta) noexcept;
+  void name_edit_press() noexcept;       // encoder press: accepts the ring item
+  void name_edit_append(char c) noexcept;
+  void name_edit_delete() noexcept;
+  bool name_edit_confirm() noexcept;     // request_create; stays in the editor when refused
+  void name_edit_cancel() noexcept;      // [X]: back to the SCENE row, nothing changed
+  void show_scene_row_selection() noexcept;  // ParmSelection on SETTINGS row 0 (SCENE)
+  void show_settings_row(std::uint8_t row) noexcept;  // ParmSelection on a SETTINGS row
+  void enter_rename_edit() noexcept;         // RNMSCN: the name editor prefilled with the active name
+  bool name_edit_rename_confirm() noexcept;  // rename the active scene; stays in the editor when refused
   void enter_parm_selection() noexcept;
   void enter_chain_view() noexcept;
   void jump_to_slot_parm_selection(std::uint8_t slot) noexcept;
@@ -291,6 +304,11 @@ class Controller {
   bool scene_is_stopped() const noexcept;
   void scene_stop_release_drain() noexcept;
   bool scene_capture(SceneDto& dto) noexcept;
+  bool scene_apply_banks(const SceneDto& dto) noexcept;
+  void clear_input_banks() noexcept;
+  void park_input() noexcept;
+  void restore_input(std::size_t index) noexcept;
+  void restore_parked_input() noexcept;
   bool scene_reset_defaults() noexcept;
   bool scene_prepare() noexcept;
   bool scene_apply_globals(const GlobalState& g, std::uint8_t fields) noexcept;
@@ -365,10 +383,12 @@ class Controller {
   bool user_settings_dirty_ = false;
 
   // scene plumbing
-  enum class BootStage : std::uint8_t { Idle, Settings, Scene };
+  enum class BootStage : std::uint8_t { Idle, Settings, Names, Scene };
   enum class SettingsOp : std::uint8_t { None, Load, Save };
   void set_storage_window(bool open) noexcept;
   void finish_scene_operation(bool ok) noexcept;
+  bool request_boot_names() noexcept;
+  bool request_boot_active() noexcept;
   void service_settings_save() noexcept;
   bool editing_brightness() const noexcept;
   void publish_failure_pixels(UiModel& model) const noexcept;
@@ -384,6 +404,15 @@ class Controller {
   SettingsOp settings_op_ = SettingsOp::None;
   bool settings_save_pending_ = false;     // KEYBRI left its page; save once stopped
   bool maintenance_hold_ = false;
+  SceneInputBanks banks_{};            // parked input edits (per scene), see park_input
+  bool active_input_dirty_ = false;    // the active input was edited or played since it was installed
+
+  // Name editor state (UiSection::NameEdit). Copied into the UiModel by model().
+  char name_text_[kNameEditBytes]{};
+  std::uint8_t name_length_ = 0;
+  std::uint8_t name_ring_ = kNameRingConfirm;
+  NameEditMessage name_message_ = NameEditMessage::None;
+  bool name_rename_ = false;            // the editor renames the active scene (RNMSCN)
 };
 
 }  // namespace orbit

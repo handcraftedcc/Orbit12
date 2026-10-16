@@ -26,12 +26,14 @@ bool build_path(SceneFileId id, char* out, std::size_t capacity, std::size_t& le
     case SceneFileKind::ActiveBackup: base = SceneFileKind::ActivePointer; suffix = ".bak"; break;
     case SceneFileKind::UserSettingsTemp: base = SceneFileKind::UserSettings; suffix = ".tmp"; break;
     case SceneFileKind::UserSettingsBackup: base = SceneFileKind::UserSettings; suffix = ".bak"; break;
+    case SceneFileKind::SceneNamesTemp: base = SceneFileKind::SceneNames; suffix = ".tmp"; break;
+    case SceneFileKind::SceneNamesBackup: base = SceneFileKind::SceneNames; suffix = ".bak"; break;
     default: break;
   }
   const char* name = nullptr;
   char scene_name[9] = {0};
   if (base == SceneFileKind::Scene) {
-    if (id.scene >= 10) return false;
+    if (id.scene >= kSceneSlotCount) return false;
     const int number = id.scene + 1;
     std::memcpy(scene_name, "Scene", 5);
     scene_name[5] = static_cast<char>('0' + number / 10);
@@ -41,6 +43,8 @@ bool build_path(SceneFileId id, char* out, std::size_t capacity, std::size_t& le
     name = "_activescene";
   } else if (base == SceneFileKind::UserSettings) {
     name = "user_settings";
+  } else if (base == SceneFileKind::SceneNames) {
+    name = "scene_names";
   } else {
     return false;
   }

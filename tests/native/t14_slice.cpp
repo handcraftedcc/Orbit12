@@ -181,6 +181,11 @@ AppStorage app_storage() noexcept {
 SceneFileId scene_id(std::uint8_t scene) noexcept { return {SceneFileKind::Scene, scene}; }
 SceneFileId user_settings_id() noexcept { return {SceneFileKind::UserSettings, 0}; }
 SceneFileId pointer_id() noexcept { return {SceneFileKind::ActivePointer, 0}; }
+SceneFileId names_id() noexcept { return {SceneFileKind::SceneNames, 0}; }
+// Named slots 1..10 as a booted device finds them. The tests address slots 0..9.
+constexpr char kNamesText[] =
+    "01,ALFA\n02,BRAVO\n03,CHARLIE\n04,DELTA\n05,ECHO\n06,FOXTROT\n07,GOLF\n08,HOTEL\n09,INDIA\n10,JULIET\n";
+void put_names() { t13::shared_fs().put(names_id(), kNamesText); }
 
 // The stock SCN1 text (oracle scene_default) with the SET key changed to `key`.
 std::string scene_with_key(int key) {
@@ -226,7 +231,10 @@ struct Rig {
     g_window_open = false;
     g_window_changes = 0;
     g_unguarded_writes = 0;
-    if (!keep_files) t13::shared_fs().reset();
+    if (!keep_files) {
+      t13::shared_fs().reset();
+      put_names();
+    }
     engine.setup();
     ui.setup();
     if (settle_now) settle();
@@ -417,29 +425,34 @@ void bridge_events_ordered_with_encoder() {
 
 // ---- T14 integration ----
 
-void boot_without_scene_uses_defaults_and_writes_nothing() {
-  auto r = std::make_unique<Rig>();        // empty filesystem
+// First boot (no names file): ALFA is created in slot 0 from the stock defaults, once.
+void first_boot_creates_alfa_once() {
+  t13::shared_fs().reset();                // empty filesystem: no names, no scene, no pointer
+  auto r = std::make_unique<Rig>(true, true);
   const Controller& c = r->ctl();
   CHECK(c.boot_complete());
   CHECK(c.active_scene() == 0);
-  CHECK(c.last_scene_status() == SceneServiceStatus::SceneError);   // Scene01 missing
-  CHECK(c.scene_service().codec_result() == SceneResult::Missing);
-  CHECK(c.diagnostics().scene_failures == 0);                       // first boot is not a failure
-  CHECK(c.diagnostics().boot_default_fallbacks == 1);  // defaults applied in memory, no write
+  CHECK(c.last_scene_status() == SceneServiceStatus::Succeeded);
+  CHECK(c.scene_service().slot_occupied(0));
+  CHECK(std::strcmp(c.scene_service().slot_name(0), "ALFA") == 0);
+  CHECK(c.scene_service().occupied_count() == 1);
+  CHECK(c.diagnostics().scene_failures == 0);
+  CHECK(c.diagnostics().boot_default_fallbacks == 0);
   CHECK(c.global().key == 0 && c.global().scale == 1);
   CHECK(std::strcmp(c.slot_module_id(kSlotIn), "note") == 0);
   CHECK(std::strcmp(c.slot_module_id(kSlotP1), "empty") == 0);
   CHECK(std::fabs(c.key_brightness() - 1.0f) < 1e-6f);
-  CHECK(t13::shared_fs().mutations == 0);                           // no files created at boot
-  CHECK(!t13::shared_fs().cell(scene_id(0)).exists);
-  CHECK(!t13::shared_fs().cell(pointer_id()).exists);
-  CHECK(!t13::shared_fs().cell(user_settings_id()).exists);
+  CHECK(t13::shared_fs().cell(scene_id(0)).exists);                // the one first-run write set
+  CHECK(t13::shared_fs().equals(names_id(), "01,ALFA\n"));
+  CHECK(t13::shared_fs().equals(pointer_id(), "1\n"));
+  CHECK(!t13::shared_fs().cell(user_settings_id()).exists);         // settings are not written at boot
   CHECK(g_unguarded_writes == 0);
   CHECK(g_window_changes == 0 || !g_window_open);                   // window left closed
 }
 
 void boot_with_scene_loads_active_scene() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), scene_with_key(5).c_str());
   t13::shared_fs().put(user_settings_id(), "key_brightness,0.5\n");
   auto r = std::make_unique<Rig>(false, true);   // preset files, then boot
@@ -455,6 +468,7 @@ void boot_with_scene_loads_active_scene() {
 
 void corrupt_scene_falls_back_to_defaults() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), "SCN1\nthis is not a scene\n");
   auto r = std::make_unique<Rig>(false, true);
   r->settle();
@@ -471,6 +485,7 @@ void corrupt_scene_falls_back_to_defaults() {
 
 void scene_switch_is_in_place() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), scene_with_key(5).c_str());
   t13::shared_fs().put(scene_id(1), scene_with_key(2).c_str());
   auto r = std::make_unique<Rig>(false, true);
@@ -502,6 +517,7 @@ void scene_switch_is_in_place() {
 
 void failed_switch_then_gesture_recovers_in_place() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), scene_with_key(5).c_str());
   t13::shared_fs().put(scene_id(1), scene_with_key(2).c_str());
   auto r = std::make_unique<Rig>(false, true);
@@ -560,6 +576,7 @@ void failed_switch_then_gesture_recovers_in_place() {
 
 void failed_recovery_counts_each_failure() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), scene_with_key(5).c_str());
   t13::shared_fs().put(scene_id(1), scene_with_key(2).c_str());
   auto r = std::make_unique<Rig>(false, true);
@@ -870,6 +887,7 @@ void unmounted_boot_maintenance_format_recovers() {
 // until the host sends a byte, so the rest of the GET fails at once.
 void stalled_host_fails_get_fast() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), scene_with_key(5).c_str());
   auto r = std::make_unique<Rig>(true, true, static_cast<std::uint16_t>(1U << 4));
   r->run(10000);
@@ -908,7 +926,7 @@ void maintenance_rejects_frames_and_stops_on_idle_host() {
   CHECK(r->engine.maintenance_state() == MaintenanceState::Active);
   g_key_mask = 0;                           // physical release while quiesced
   // A PUT of a scene name outside the allowlist is refused with a NAK; nothing is written.
-  g_serial_in = cdc_frame('P', "Scene11");
+  g_serial_in = cdc_frame('P', "Scene17");
   r->run(200);
   CHECK(g_serial_out.size() >= 3 && g_serial_out[2] == 'N');
   CHECK(r->engine.maintenance_session().counters().disallowed == 1);
@@ -927,6 +945,7 @@ void maintenance_rejects_frames_and_stops_on_idle_host() {
 // state.active_scene from read_active_scene). A save then targets that scene, never another.
 void boot_pointer_keeps_index_when_scene_missing() {
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), scene_with_key(5).c_str());
   t13::shared_fs().put(pointer_id(), "4\n");
   auto r = std::make_unique<Rig>(false, true);
@@ -958,6 +977,7 @@ void chord_walk_scene_sets_source_key_offset() {
   const std::size_t parm = text.find("P,key_offset,0\n");
   text.erase(parm, std::strlen("P,key_offset,0\n"));
   t13::shared_fs().reset();
+  put_names();
   t13::shared_fs().put(scene_id(0), text.c_str());
   auto r = std::make_unique<Rig>(false, true);
   r->settle();
@@ -997,7 +1017,7 @@ int main() {
   sleep_and_wake();
   serial_dump_is_framed_and_read_only();
   bridge_events_ordered_with_encoder();
-  boot_without_scene_uses_defaults_and_writes_nothing();
+  first_boot_creates_alfa_once();
   boot_with_scene_loads_active_scene();
   corrupt_scene_falls_back_to_defaults();
   scene_switch_is_in_place();

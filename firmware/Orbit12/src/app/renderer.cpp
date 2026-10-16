@@ -289,7 +289,8 @@ void draw_header_footer(Frame& frame, const UiModel& model, const Assets& assets
   header_key_text(model, key_text, sizeof(key_text));
   draw_text(frame, assets.font, key_text, 6, 89, 3, 1, kHeaderText, true);
 
-  // "SCN NN" in 17 cells, left aligned at (4,56).
+  // "SCN NN" in 17 cells, left aligned at (4,56). A controller-composed footer text
+  // (scene name preview, pattern steps, editor message) replaces it in the same field.
   char scene[8];
   const int scene_number = model.active_scene + 1;
   scene[0] = 'S';
@@ -299,7 +300,8 @@ void draw_header_footer(Frame& frame, const UiModel& model, const Assets& assets
   scene[4] = static_cast<char>('0' + (scene_number / 10) % 10);
   scene[5] = static_cast<char>('0' + scene_number % 10);
   scene[6] = '\0';
-  draw_text(frame, assets.font, scene, 17, 4, 56, 1, kHeaderText, false);
+  draw_text(frame, assets.font, model.footer_text_active ? model.footer_text : scene, 17, 4, 56, 1,
+            kHeaderText, false);
 
   // Transport state (external overrides running), then notes/nav state.
   int transport = kStateTransportStopped;
@@ -354,6 +356,54 @@ void draw_parameters(Frame& frame, const UiModel& model, const Assets& assets) n
     draw_text(frame, assets.font, value, kParmValueCells, kParmLabelX + scale * value_x, y, scale, kParmText,
               true);
   }
+}
+
+// Scene name editor (UiSection::NameEdit). The typed characters are drawn in the small font
+// (scale 1, pitch 8 px) in one row. The current ring item is drawn in the big font (scale 2,
+// white on black, not inverted) in the cell right after the typed characters, so the cursor
+// cell is at index `length` (after the eighth letter when the name is full). Up and down arrows
+// sit above and below the big cell. The group is centred: the widest case (eight small letters
+// and the big cell after them) spans x = 26..101. Vertically the small letters are centred on
+// the big cell (y = 26..37, centre 32). Controls read as < (delete), # (confirm), * (cancel);
+// the footer (controller) names them, shows a message, or the length.
+constexpr int kEditorSmallX = 26;      // x of the first small letter
+constexpr int kEditorSmallPitch = 8;   // small glyph 6 px + 2 px gap
+constexpr int kEditorSmallY = 29;      // 6 px glyph centred on the big cell
+constexpr int kEditorBigY = 26;        // 12 px big cell
+constexpr int kEditorBigWidth = 12;
+constexpr int kEditorArrowRows = 4;    // widths 1, 3, 5, 7
+constexpr int kEditorUpArrowY = kEditorBigY - kEditorArrowRows - 3;  // apex at y=19
+constexpr int kEditorDownArrowY = kEditorBigY + kEditorBigWidth + 2; // base at y=40
+
+// Triangle of kEditorArrowRows rows, 7 px at its base, centred on x = center.
+void draw_editor_arrow(Frame& frame, int center, bool up) noexcept {
+  for (int r = 0; r < kEditorArrowRows; ++r) {
+    if (up) {
+      fill(frame, center - r, kEditorUpArrowY + r, 1 + 2 * r, 1, true);  // apex on top
+    } else {
+      const int reach = kEditorArrowRows - 1 - r;                         // widest row on top
+      fill(frame, center - reach, kEditorDownArrowY + r, 2 * reach + 1, 1, true);
+    }
+  }
+}
+
+void draw_name_editor(Frame& frame, const UiModel& model, const Assets& assets) noexcept {
+  const std::size_t length = bounded_length(model.name_text, kNameEditChars);
+  for (std::size_t i = 0; i < length; ++i) {
+    const char glyph[2] = {model.name_text[i], 0};
+    draw_text(frame, assets.font, glyph, 1, kEditorSmallX + static_cast<int>(i) * kEditorSmallPitch,
+              kEditorSmallY, 1, kParmText, false);
+  }
+  const int cell_x = kEditorSmallX + static_cast<int>(length) * kEditorSmallPitch;
+  char glyph[2] = {' ', 0};
+  if (model.name_ring == kNameRingConfirm) glyph[0] = '#';
+  else if (model.name_ring == kNameRingCancel) glyph[0] = '*';
+  else if (model.name_ring == kNameRingDelete) glyph[0] = '<';
+  else glyph[0] = name_ring_char(model.name_ring);
+  draw_text(frame, assets.font, glyph, 1, cell_x, kEditorBigY, 2, kParmText, false);
+  const int center = cell_x + kEditorBigWidth / 2;
+  draw_editor_arrow(frame, center, true);
+  draw_editor_arrow(frame, center, false);
 }
 
 // ui.py ModuleSelector (group scale 2 at (4,27)): "< " + label in cells 2..8
@@ -464,6 +514,7 @@ void render_screen(const UiModel& model, const Assets& assets, Frame& frame) noe
     draw_parameters(frame, model, assets);
   }
   if (model.section == UiSection::ModuleSelection) draw_module_selector(frame, model, assets);
+  if (model.section == UiSection::NameEdit) draw_name_editor(frame, model, assets);
 }
 
 }  // namespace orbit::render

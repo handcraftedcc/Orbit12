@@ -13,8 +13,8 @@
 
 namespace t13 {
 
-constexpr std::size_t kKinds = 9;
-constexpr std::size_t kScenes = 10;
+constexpr std::size_t kKinds = static_cast<std::size_t>(orbit::SceneFileKind::SceneNamesBackup) + 1;
+constexpr std::size_t kScenes = orbit::kSceneSlotCount;
 constexpr std::size_t kCapacity = orbit::kSceneMaxBytes;
 
 struct Cell {
