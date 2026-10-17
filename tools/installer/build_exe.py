@@ -6,7 +6,8 @@
 
 Outputs: build/installer/dist/orbit12-installer-<windows|macos|linux>[.exe]
 Work and spec files stay under build/installer/ (ignored by git). Nothing is published.
-The CI workflow runs this same script on each runner; it is not changed by this file.
+The CI workflow runs this same script on each runner. When ORBIT_INSTALLER_OUT is set, the built
+executable is also copied into that folder (CI expects exactly one file there).
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 
@@ -89,6 +91,11 @@ def main(argv=None) -> int:
             print(f"smoke test failed ({smoke.returncode}): {smoke.stderr.strip()}", file=sys.stderr)
             return 1
         print("smoke test ok: " + smoke.stdout.strip())
+    out_dir = os.environ.get("ORBIT_INSTALLER_OUT")
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+        shutil.copy2(built, os.path.join(out_dir, os.path.basename(built)))
+        print(f"copied to {out_dir}")
     return 0
 
 
