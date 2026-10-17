@@ -38,6 +38,38 @@ def enable_dpi_awareness() -> None:
         pass
 
 
+def dark_title_bar(window) -> None:
+    """Makes the Windows title bar (caption, minimise/close buttons) dark like the window body.
+
+    Uses DWM attributes: immersive dark mode (Windows 10 1809+ / 11) and, on Windows 11, an explicit
+    caption and text colour. Silently does nothing elsewhere or when the calls are unavailable.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        window.update_idletasks()
+        hwnd = ctypes.windll.user32.GetParent(window.winfo_id()) or window.winfo_id()
+        dwm = ctypes.windll.dwmapi
+
+        def put(attribute: int, value: int) -> int:
+            data = ctypes.c_int(value)
+            return dwm.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(data), ctypes.sizeof(data))
+
+        if put(20, 1) != 0:  # DWMWA_USE_IMMERSIVE_DARK_MODE (19 on early Windows 10 builds)
+            put(19, 1)
+
+        def colorref(hex_colour: str) -> int:  # COLORREF is 0x00BBGGRR
+            r, g, b = (int(hex_colour[i:i + 2], 16) for i in (1, 3, 5))
+            return (b << 16) | (g << 8) | r
+
+        put(35, colorref(BG))    # DWMWA_CAPTION_COLOR (Windows 11)
+        put(36, colorref(TEXT))  # DWMWA_TEXT_COLOR (Windows 11)
+        put(34, colorref(RULE))  # DWMWA_BORDER_COLOR (Windows 11)
+    except (AttributeError, OSError, ImportError, ValueError):
+        pass
+
+
 def mono_family(root) -> str:
     """The first installed monospace face from the preference list, else Tk's own fixed font."""
     import tkinter.font as tkfont

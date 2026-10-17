@@ -22,7 +22,7 @@ from .hardware import PySerialEnumerator, PySerialOpener, RealClock, SystemVolum
 from .github import HttpDownloader
 from .interfaces import PortInfo
 from .theme import ACCENT, BG, ERROR, INFO, MUTED, RULE, SELECT, TEXT, apply_theme, enable_dpi_awareness
-from .theme import flat_button, rule, set_flat_colour
+from .theme import dark_title_bar, flat_button, rule, set_flat_colour
 
 AUTOMATIC = "Automatic (find my Orbit12)"
 PUMP_MS = 50
@@ -55,6 +55,7 @@ def run_app() -> Optional[int]:
         return None
     try:
         InstallerWindow(root).start()
+        dark_title_bar(root)
         root.mainloop()
     finally:
         try:
@@ -400,6 +401,7 @@ class InstallerWindow:
         tk = self.tk
         top = tk.Toplevel(self.root, background=BG)
         top.title(title)
+        dark_title_bar(top)
         top.transient(self.root)
         top.resizable(False, False)
         body = tk.Frame(top, bg=BG, padx=20, pady=16)
