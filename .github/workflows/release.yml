@@ -10,9 +10,6 @@ on:
   push:
     tags:
       - "v*"
-    # TEMPORARY dry-run trigger (remove once the first run is green): builds only, never publishes.
-    branches:
-      - Arduino-Refactor
   workflow_dispatch:
     inputs:
       version:
