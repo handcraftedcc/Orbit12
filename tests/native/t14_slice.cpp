@@ -25,7 +25,6 @@ int g_failures = 0;
 std::uint64_t g_us = 1000;
 std::vector<orbit::MidiPacket> g_sent;
 orbit::platform::GpioSample g_next_sample;
-std::int16_t g_next_delta = 0;
 bool g_display_on = true;
 std::uint32_t g_presents = 0, g_pixel_shows = 0;
 orbit::RgbColor g_last_pixels[orbit::kKeys];
