@@ -393,7 +393,8 @@ class Session:
         package = flow.download_package(self.hw, self.downloader, release, self.opts)
         summary = flow.run_flash(self.hw, package, self.opts, interactive=True)
         return Outcome("done", f"Orbit12 {release.tag} is installed", summary,
-                       "Check that the MacroPad starts normally and that your scenes are there. Keep the "
+                       "Check that the MacroPad starts normally and that your scenes are there. If your music "
+                       "software does not see the MacroPad, restart it (it keeps the old USB connection). Keep the "
                        f"backup folder in {self.opts.backup_root or BACKUP_FOLDER_NAME} until you have "
                        "checked them.")
 
