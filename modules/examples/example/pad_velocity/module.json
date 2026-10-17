@@ -1,0 +1,64 @@
+{
+  "package_format": 1,
+  "module_id": "user.example.pad_velocity",
+  "scene_key": "ex_padvel",
+  "display_name": "Pad Velocity (example)",
+  "label": "PADVEL",
+  "kind": "input",
+  "module_version": 1,
+  "engine_api": 1,
+  "descriptor": "PAD VELOCITY",
+  "state": {
+    "type": "PadVelocityInputState",
+    "bytes": 44
+  },
+  "parameters": [
+    {
+      "name": "velocity",
+      "type": "integer",
+      "default": 100,
+      "minimum": 0,
+      "maximum": 127,
+      "step": 1,
+      "label": "VEL",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    },
+    {
+      "name": "transpose",
+      "type": "integer",
+      "default": 0,
+      "minimum": -24,
+      "maximum": 24,
+      "step": 1,
+      "label": "TRANS",
+      "options": [],
+      "saved": true,
+      "ui_only": false,
+      "global_binding": "none"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "pad_vel",
+      "type": "byte",
+      "element_count": 12
+    }
+  ],
+  "header": "pad_velocity.hpp",
+  "header_note": "Per-pad velocity scale (attribute pad_vel) times the velocity parameter. Notes are tracked per pad, so a note-off releases the pitch its note-on sounded even if transpose changed while the pad was held.",
+  "state_header": "pad_velocity_state.hpp",
+  "sources": [
+    "pad_velocity.cpp"
+  ],
+  "source_group": "pad_velocity",
+  "provenance": {
+    "origin": "example",
+    "author": "example",
+    "license": "MIT",
+    "note": "Sample input for docs/modules/README.md (test profile only; not compiled into firmware)."
+  },
+  "enabled_in_release": false
+}

@@ -1,6 +1,9 @@
 // GENERATED - do not edit. Regenerate with tools/modules/gen_registry.py.
 // Input state union (InputState::storage). Generated from module.json state entries.
 // Include modules/common/module_state.hpp or input_state.hpp (this file depends on the core structs there).
+#ifdef ORBIT_NATIVE_EXAMPLE_PROFILE
+#include "../../../../../tests/native/generated/input_state_examples.hpp"
+#else
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -27,3 +30,4 @@ static_assert(sizeof(InputStorage) >= kGeneratedInputStateMaxBytes, "union small
 static_assert(sizeof(InputStorage) - kGeneratedInputStateMaxBytes < alignof(InputStorage), "union padding exceeds its alignment");
 static_assert(alignof(InputStorage) <= alignof(std::int64_t), "state alignment above the chain budget");
 }  // namespace orbit
+#endif

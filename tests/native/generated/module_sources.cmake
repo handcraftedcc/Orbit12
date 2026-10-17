@@ -21,3 +21,6 @@ set(ORBIT_MODULE_RELEASE_USER_SOURCES
 set(ORBIT_MODULE_USER_SOURCES
   ${CMAKE_CURRENT_LIST_DIR}/../../../modules/examples/example/octave_shift/octave_shift.cpp
 )
+set(ORBIT_MODULE_USER_INPUT_SOURCES
+  ${CMAKE_CURRENT_LIST_DIR}/../../../modules/examples/example/pad_velocity/pad_velocity.cpp
+)

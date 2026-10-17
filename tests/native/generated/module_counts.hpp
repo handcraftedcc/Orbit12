@@ -6,5 +6,5 @@
 namespace orbit {
 inline constexpr std::uint8_t kGeneratedCoreProcessorCount = 18;
 inline constexpr std::uint8_t kGeneratedProcessorCount = 19;
-inline constexpr std::uint8_t kGeneratedInputCount = 6;
+inline constexpr std::uint8_t kGeneratedInputCount = 7;
 }  // namespace orbit

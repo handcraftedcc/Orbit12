@@ -324,5 +324,61 @@ class ExampleProfile(GeneratorTestCase):
         self.assertEqual(len([m for m in test if m.origin == "user"]), 1)
 
 
+class SampleInputProfile(unittest.TestCase):
+    """The repository's sample modules (modules/examples) through the test-profile outputs. Read only:
+    the outputs are built in memory and compared with the committed files by --check."""
+
+    def setUp(self):
+        gen.ENGINE_API = gen.parse_engine_api()
+        gen.FONT_CHARS = gen.parse_font_chars()
+        self.release = gen.load_modules("release")
+        self.test = gen.load_modules("test")
+        self.outputs = gen.build_outputs(self.release, self.test)
+
+    def output(self, directory, name):
+        return self.outputs[os.path.join(directory, name)]
+
+    def test_sample_input_is_only_in_the_test_profile(self):
+        release_ids = [m.id for m in self.release]
+        test_inputs = [m for m in self.test if m.kind == "input"]
+        self.assertNotIn("user.example.pad_velocity", release_ids)
+        self.assertEqual(len(test_inputs), 7)
+        self.assertEqual(test_inputs[-1].id, "user.example.pad_velocity")
+        self.assertEqual(test_inputs[-1].scene_key, "ex_padvel")
+
+    def test_test_profile_tables_list_the_sample_input(self):
+        registry = self.output(gen.TEST_GEN_DIR, "input_registry_examples.cpp")
+        self.assertIn("user_example_pad_velocity_input_descriptor", registry)
+        self.assertIn("kGeneratedInputCount", registry)
+        keys = self.output(gen.TEST_GEN_DIR, "registry_examples.cpp")
+        self.assertIn('{"user.example.pad_velocity", "ex_padvel"}', keys)
+        layout = self.output(gen.TEST_GEN_DIR, "scene_layout_examples.hpp")
+        self.assertIn('{"ex_padvel", 4, 12, 170}', layout)
+        self.assertIn('{"ex_padvel", "pad_vel", AttributeType::Byte, 12}', layout)
+        counts = self.output(gen.TEST_GEN_DIR, "module_counts.hpp")
+        self.assertIn("kGeneratedInputCount = 7;", counts)
+        union = self.output(gen.TEST_GEN_DIR, "input_state_examples.hpp")
+        self.assertIn("PadVelocityInputState user_example_pad_velocity;", union)
+
+    def test_release_outputs_do_not_name_the_sample(self):
+        for name in ("registry_generated.cpp", "input_registry_generated.cpp", "scene_layout_generated.hpp"):
+            text = self.output(gen.GEN_DIR, name)
+            self.assertNotIn("ex_padvel", text, name)
+            self.assertNotIn("pad_velocity", text, name)
+
+    def test_firmware_headers_switch_only_under_the_example_macro(self):
+        for name in ("input_state_generated.hpp", "scene_layout_generated.hpp", "module_counts_generated.hpp"):
+            text = self.output(gen.GEN_DIR, name)
+            self.assertIn("#ifdef ORBIT_NATIVE_EXAMPLE_PROFILE", text, name)
+            self.assertIn("#else", text, name)
+            self.assertTrue(text.rstrip().endswith("#endif"), name)
+
+    def test_wrapper_keeps_the_release_body_in_the_else_branch(self):
+        body = "#pragma once\nnamespace orbit { int x; }\n"
+        wrapped = gen.wrap_example("// marker\n" + body, os.path.join(gen.TEST_GEN_DIR, "x.hpp"))
+        self.assertEqual(wrapped.split("#else\n")[1].split("#endif")[0], body)
+        self.assertIn('#include "../../../../../tests/native/generated/x.hpp"', wrapped)
+
+
 if __name__ == "__main__":
     unittest.main()

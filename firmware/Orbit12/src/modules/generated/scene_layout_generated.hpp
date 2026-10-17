@@ -1,9 +1,13 @@
 // GENERATED - do not edit. Regenerate with tools/modules/gen_registry.py.
 // Derived from module.json manifests plus the fixed SCN1 rows (foundation-schema.md).
 // Native core-only builds (ORBIT_NATIVE_CORE_ONLY) get the six-input baseline values.
+#ifdef ORBIT_NATIVE_EXAMPLE_PROFILE
+#include "../../../../../tests/native/generated/scene_layout_examples.hpp"
+#else
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include "../../domain/types.hpp"
 
 namespace orbit {
 struct SceneInputLayout {
@@ -105,4 +109,15 @@ inline constexpr SceneInputLayout kGeneratedSceneInputLayout[kGeneratedSceneInpu
     {"note_walk", 5, 0, 138},
     {"chord_walk", 11, 16, 143},
 };
+// User-module attribute schema: { scene key, attribute name, type, element count }; terminated by a null key.
+struct SceneAttributeRow {
+  const char* scene_key;
+  const char* name;
+  AttributeType type;
+  std::uint16_t element_count;
+};
+inline constexpr SceneAttributeRow kGeneratedSceneAttributeRows[] = {
+    {nullptr, nullptr, AttributeType::Integer, 0},
+};
 }  // namespace orbit
+#endif

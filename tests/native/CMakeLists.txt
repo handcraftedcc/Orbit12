@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 project(orbit12_native_tests LANGUAGES CXX)
 
-# Native tests check the shipped core. User modules compiled into firmware are left out of the generated
-# registry, descriptor, selector and count tables; tests/native/t17_user_example covers user modules.
-add_compile_definitions(ORBIT_NATIVE_CORE_ONLY)
+# Native tests check the shipped core (ORBIT_NATIVE_CORE_ONLY, set per target by orbit_native_test). User modules
+# compiled into firmware are left out of the generated registry, descriptor, selector and count tables;
+# tests/native/t17_user_example covers user modules. orbit_native_example_test builds the example profile
+# (ORBIT_NATIVE_EXAMPLE_PROFILE, no core-only switch): the generated firmware headers then read the
+# tests/native/generated/*_examples files, which hold core plus the sample modules.
 
 # This project builds acceptance fixtures only. Preserve assert checks even
 # when exercising optimized configurations, without conflicting /D and /U.
@@ -29,10 +31,11 @@ else()
   set(ORBIT_WARNINGS -Wall -Wextra -Wpedantic -Werror)
 endif()
 
-function(orbit_native_test target source)
+function(orbit_native_test_with target source profile)
   add_executable(${target} ${source})
   target_link_libraries(${target} PRIVATE orbit_domain)
   target_compile_options(${target} PRIVATE ${ORBIT_WARNINGS})
+  target_compile_definitions(${target} PRIVATE ${profile})
   if(ORBIT_NATIVE_ASAN_UBSAN)
     target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(${target} PRIVATE -fsanitize=address,undefined)
@@ -41,6 +44,16 @@ function(orbit_native_test target source)
     target_link_options(${target} PRIVATE -fsanitize=thread)
   endif()
   add_test(NAME ${target} COMMAND ${target})
+endfunction()
+
+# Default profile: the shipped core only (the generated tables leave user modules out).
+function(orbit_native_test target source)
+  orbit_native_test_with(${target} ${source} ORBIT_NATIVE_CORE_ONLY)
+endfunction()
+
+# Example profile: core plus the sample modules under modules/examples (test-profile generated tables).
+function(orbit_native_example_test target source)
+  orbit_native_test_with(${target} ${source} ORBIT_NATIVE_EXAMPLE_PROFILE)
 endfunction()
 
 enable_testing()
@@ -227,3 +240,14 @@ target_sources(t17_user_example PRIVATE
   ${ORBIT_SRC}/modules/common/registry.cpp
   ${CMAKE_CURRENT_LIST_DIR}/generated/registry_examples.cpp
   ${ORBIT_MODULE_CORE_SOURCES} ${ORBIT_MODULE_USER_SOURCES})
+
+# Example profile: the controller with the sample processor and input (scene save/load round trip).
+# The firmware registries are replaced by the test-profile registries (generated/*_examples); the shipped
+# core sources are the same as T11b.
+set(ORBIT_T18_SOURCES ${ORBIT_T11B_SOURCES})
+list(FILTER ORBIT_T18_SOURCES EXCLUDE REGEX "/(input_)?registry_generated\\.cpp$")
+orbit_native_example_test(t18_user_scene_roundtrip t18_user_scene_roundtrip.cpp)
+target_sources(t18_user_scene_roundtrip PRIVATE ${ORBIT_T18_SOURCES}
+  ${CMAKE_CURRENT_LIST_DIR}/generated/registry_examples.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/generated/input_registry_examples.cpp
+  ${ORBIT_MODULE_USER_SOURCES} ${ORBIT_MODULE_USER_INPUT_SOURCES})

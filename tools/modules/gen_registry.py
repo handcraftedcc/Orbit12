@@ -13,8 +13,16 @@ Outputs (committed, marked GENERATED):
   firmware/Orbit12/src/modules/generated/scene_layout_generated.hpp    derived SCN1 bounds (compared in scene_schema.hpp)
   firmware/Orbit12/src/modules/generated/module_inventory.json         core/user id lists (release profile)
   firmware/Orbit12/src/modules/generated/selectors_generated.hpp      UI selector tables (app/ui_model.cpp)
-  tests/native/generated/registry_examples.cpp                        processor+input registry including examples
+  tests/native/generated/registry_examples.cpp                        processor registry including examples (test profile)
+  tests/native/generated/input_registry_examples.cpp                  input registry including examples (test profile)
+  tests/native/generated/input_state_examples.hpp                     input state union including examples (test profile)
+  tests/native/generated/scene_layout_examples.hpp                    scene bounds and bank layout including examples
+  tests/native/generated/module_counts.hpp                            counts for the test profile
   tests/native/generated/module_sources.cmake                         source lists for the native tests
+
+The firmware headers scene_layout_generated.hpp, input_state_generated.hpp and module_counts_generated.hpp
+hold the release values under `#else`; with ORBIT_NATIVE_EXAMPLE_PROFILE (set only by the example test target)
+they include the test-profile files above instead.
 
 Usage:
   python -I tools/modules/gen_registry.py            regenerate every output
@@ -501,10 +509,10 @@ def emit_sources(test_modules, release_modules):
                     out.append(rel)
         return out
 
-    def user_list(modules):
+    def user_list(modules, kind=None):
         out = []
         for module in modules:
-            if module.origin == "core":
+            if module.origin == "core" or (kind is not None and module.kind != kind):
                 continue
             for source in module.data.get("sources", []):
                 out.append(os.path.relpath(os.path.join(module_dir_of(module), source), REPO).replace("\\", "/"))
@@ -515,7 +523,8 @@ def emit_sources(test_modules, release_modules):
     lines = ["# " + MARKER, "# Module source lists for tests/native (repository-relative, see gen_registry.py)."]
     for name, items in (("ORBIT_MODULE_CORE_SOURCES", core_list(test_modules)),
                         ("ORBIT_MODULE_RELEASE_USER_SOURCES", user_list(release_modules)),
-                        ("ORBIT_MODULE_USER_SOURCES", user_list(test_modules))):
+                        ("ORBIT_MODULE_USER_SOURCES", user_list(test_modules, "processor")),
+                        ("ORBIT_MODULE_USER_INPUT_SOURCES", user_list(test_modules, "input"))):
         lines.append("set(%s" % name)
         lines += ["  %s/%s" % (base, item) for item in sorted(items)]
         lines.append(")")
@@ -529,8 +538,9 @@ def _guarded(lines, module, guard):
     return lines
 
 
-def emit_registry(processors, path_dir, guard_user):
-    """Processor registry. guard_user: release output, where native builds compile the shipped core only."""
+def emit_registry(processors, path_dir, guard_user, inputs=()):
+    """Processor registry. guard_user: release output, where native builds compile the shipped core only.
+    inputs: input modules whose scene keys join the key table (SCN1 stores scene keys for every slot)."""
     lines = ["// " + MARKER, "// Source: module.json manifests (core order, then user modules sorted by id).",
              "// Native tests define ORBIT_NATIVE_CORE_ONLY (tests/native/CMakeLists.txt): user modules are then left out.",
              "#include <cstdint>",
@@ -554,7 +564,7 @@ def emit_registry(processors, path_dir, guard_user):
     # SCN1 stores scene_key (<= 10 chars); the registry maps it to and from the module_id.
     lines += ["namespace {", "struct SceneKeyRow {", "  const char* module_id;", "  const char* scene_key;", "};",
               "constexpr SceneKeyRow kSceneKeyRows[] = {"]
-    for module in processors:
+    for module in list(processors) + list(inputs):
         lines += _guarded(['    {"%s", "%s"},' % (module.id, module.scene_key)], module, guard_user)
     lines += ["};", "}  // namespace",
               "const char* module_scene_key(const char* module_id) noexcept {",
@@ -562,7 +572,7 @@ def emit_registry(processors, path_dir, guard_user):
               "  for (const SceneKeyRow& row : kSceneKeyRows) {",
               "    if (std::strcmp(row.module_id, module_id) == 0) return row.scene_key;",
               "  }",
-              "  return module_id;  // fixed slots (set, output, settings) and inputs keep their names",
+              "  return module_id;  // fixed slots (set, output, settings) keep their names",
               "}",
               "const char* module_id_for_scene_key(const char* scene_key) noexcept {",
               "  if (scene_key == nullptr) return nullptr;",
@@ -584,7 +594,7 @@ def state_header_path(module):
     return os.path.join(module_dir_of(module), module.data["state_header"]) if module.origin != "core" else None
 
 
-def emit_state_union(modules, storage_name, first_member, max_name, title, guard_user):
+def emit_state_union(modules, storage_name, first_member, max_name, title, guard_user, path_dir=None):
     """Union of per-module state structs (ModuleStorage / InputStorage) and its compile-time checks.
 
     Core state structs stay in modules/common (hand-written); user state headers are included here and must
@@ -595,7 +605,7 @@ def emit_state_union(modules, storage_name, first_member, max_name, title, guard
              "#pragma once", "#include <cstddef>", "#include <cstdint>", ""]
     user = [m for m in modules if m.origin != "core" and m.data.get("state_header")]
     for module in user:
-        lines.append('#include "%s"' % rel_include(state_header_path(module), GEN_DIR))
+        lines.append('#include "%s"' % rel_include(state_header_path(module), path_dir or GEN_DIR))
     lines += ["", "namespace orbit {", "union %s {" % storage_name]
     for module in modules:
         lines += _guarded(["    %s %s;" % (module.data["state"]["type"], member_name(module))], module, guard_user)
@@ -704,22 +714,23 @@ def derive_scene(modules):
     }
 
 
-def emit_input_registry(inputs, path_dir):
-    """Input registry in registry order (core inputs first, user inputs sorted by id)."""
+def emit_input_registry(inputs, path_dir, guard_user=True, counts_header="module_counts_generated.hpp"):
+    """Input registry in registry order (core inputs first, user inputs sorted by id).
+    guard_user False: the test-profile file (every input listed, no native core-only guards)."""
     lines = ["// " + MARKER, "// Source: module.json manifests (registry order; user inputs after the core inputs).",
              "#include <cstdint>",
              '#include "%s"' % rel_include(os.path.join(SRC, "modules", "common", "input_registry.hpp"), path_dir),
-             '#include "module_counts_generated.hpp"']
+             '#include "%s"' % counts_header]
     for header in sorted(set(m.header_path() for m in inputs)):
         owners = [m for m in inputs if m.header_path() == header]
         lines += _guarded(['#include "%s"' % rel_include(header, path_dir)], owners[0],
-                          all(m.origin != "core" for m in owners))
+                          guard_user and all(m.origin != "core" for m in owners))
     lines += ["", "namespace orbit {"]
     for module in inputs:
-        lines += _guarded(["const InputDescriptor& %s() noexcept;" % module.accessor], module, True)
+        lines += _guarded(["const InputDescriptor& %s() noexcept;" % module.accessor], module, guard_user)
     lines += ["const InputDescriptor* input_module_at(std::uint8_t index) noexcept {", "  switch (index) {"]
     for index, module in enumerate(inputs):
-        lines += _guarded(["    case %d: return &%s();" % (index, module.accessor)], module, True)
+        lines += _guarded(["    case %d: return &%s();" % (index, module.accessor)], module, guard_user)
     lines += ["    default: return nullptr;", "  }", "}",
               "std::uint8_t input_module_count() noexcept { return kGeneratedInputCount; }",
               "}  // namespace orbit", ""]
@@ -797,12 +808,35 @@ def emit_inventory(processors, inputs):
     return json.dumps(dict({"marker": MARKER, "core": core, "user": user}, **counts), indent=2) + "\n"
 
 
-def emit_scene_layout(derived, core_derived):
+def _attribute_row_lines(modules):
+    """Saved-attribute schema of user modules (name, type, element count) for the controller. Core attribute
+    schemas are hand-written in app/controller.cpp (attrs_for); user modules get these rows instead. Values
+    still come from the live attribute visitor, matched by name."""
+    types = {"integer": "Integer", "decimal": "Decimal", "boolean": "Boolean", "byte": "Byte"}
+    lines = ["// User-module attribute schema: { scene key, attribute name, type, element count }; terminated by a null key.",
+             "struct SceneAttributeRow {", "  const char* scene_key;", "  const char* name;",
+             "  AttributeType type;", "  std::uint16_t element_count;", "};",
+             "inline constexpr SceneAttributeRow kGeneratedSceneAttributeRows[] = {"]
+    for module in modules:
+        if module.origin == "core":
+            continue
+        for attr in module.data["attributes"]:
+            lines.append('    {"%s", "%s", AttributeType::%s, %d},'
+                         % (module.scene_key, attr["name"], types[attr["type"]], attr["element_count"]))
+    lines += ["    {nullptr, nullptr, AttributeType::Integer, 0},", "};"]
+    return lines
+
+
+def emit_scene_layout(derived, core_derived, example=False, path_dir=None):
     """Scene bounds (release and core-only variants). scene_schema.hpp uses these names; in native
-    core-only builds the static asserts there compare them with the six-input baseline."""
+    core-only builds the static asserts there compare them with the six-input baseline.
+    example=True: the test-profile file (tests/native/generated/scene_layout_examples.hpp) holds the values
+    of `derived` (core plus the examples) with no core-only switch; it is read only when
+    ORBIT_NATIVE_EXAMPLE_PROFILE is defined."""
     lines = ["// " + MARKER, "// Derived from module.json manifests plus the fixed SCN1 rows (foundation-schema.md).",
              "// Native core-only builds (ORBIT_NATIVE_CORE_ONLY) get the six-input baseline values.",
-             "#pragma once", "#include <cstddef>", "#include <cstdint>", "", "namespace orbit {",
+             "#pragma once", "#include <cstddef>", "#include <cstdint>",
+             '#include "%s"' % rel_include(os.path.join(SRC, "domain", "types.hpp"), path_dir or GEN_DIR), "", "namespace orbit {",
              "struct SceneInputLayout {",
              "  const char* id;", "  std::uint8_t parameters;", "  std::uint8_t attribute_values;", "  std::uint8_t offset;", "};"]
     pairs = (("kGeneratedSceneBaseRecordLines", "scene_base_record_lines"),
@@ -821,17 +855,27 @@ def emit_scene_layout(derived, core_derived):
              ("kGeneratedSceneMaxModuleIdChars", "max_module_id_chars"),
              ("kGeneratedSceneProcessorParamMax", "processor_param_max"),
              ("kGeneratedSceneProcessorAttrRowsMax", "processor_attr_rows_max"))
+    if example:
+        for name, key in pairs:
+            lines.append("inline constexpr std::size_t %s = %d;" % (name, derived[key]))
+        lines.append("inline constexpr std::size_t kGeneratedSceneDtoBankValueBytes = %d;"
+                     % (derived["scene_bank_values"] * DTO_BANK_VALUE_BYTES))
+        lines.append("inline constexpr SceneInputLayout kGeneratedSceneInputLayout[kGeneratedSceneInputBanks] = {")
+        for scene_id, params, values, offset, _origin in derived["input_rows"]:
+            lines.append('    {"%s", %d, %d, %d},' % (scene_id, params, values, offset))
+        lines += ["};"] + _attribute_row_lines(derived["_modules"])
+        lines += ["}  // namespace orbit", ""]
+        return "\n".join(lines)
     for name, key in pairs:
         lines += _profile(name, core_derived[key], derived[key])
     lines += _profile("kGeneratedSceneDtoBankValueBytes", core_derived["scene_bank_values"] * DTO_BANK_VALUE_BYTES,
                       derived["scene_bank_values"] * DTO_BANK_VALUE_BYTES)
     lines.append("inline constexpr SceneInputLayout kGeneratedSceneInputLayout[kGeneratedSceneInputBanks] = {")
-    for module in [m for m in derived["_modules"]]:
-        pass
     for scene_id, params, values, offset, origin in derived["input_rows"]:
         lines += _guarded(['    {"%s", %d, %d, %d},' % (scene_id, params, values, offset)],
                           _Origin(origin), True)
-    lines += ["};", "}  // namespace orbit", ""]
+    lines += ["};"] + _attribute_row_lines(derived["_modules"])
+    lines += ["}  // namespace orbit", ""]
     return "\n".join(lines)
 
 
@@ -840,13 +884,33 @@ class _Origin:
         self.origin = origin
 
 
+# Test-profile files that the firmware generated headers read under ORBIT_NATIVE_EXAMPLE_PROFILE.
+EXAMPLE_OUT = {
+    "counts": os.path.join(TEST_GEN_DIR, "module_counts.hpp"),
+    "scene_layout": os.path.join(TEST_GEN_DIR, "scene_layout_examples.hpp"),
+    "input_state": os.path.join(TEST_GEN_DIR, "input_state_examples.hpp"),
+}
+
+
+def wrap_example(text, example_path):
+    """Firmware generated header: the release text, or with ORBIT_NATIVE_EXAMPLE_PROFILE (the test target that
+    compiles the sample modules) the test-profile file. The macro is never defined in the firmware build, so the
+    preprocessed release text does not change."""
+    lines = text.rstrip("\n").split("\n")
+    first = next(i for i, line in enumerate(lines) if not line.startswith("//"))
+    head, body = lines[:first], lines[first:]
+    return "\n".join(head + ["#ifdef ORBIT_NATIVE_EXAMPLE_PROFILE",
+                             '#include "%s"' % rel_include(example_path, GEN_DIR),
+                             "#else"] + body + ["#endif", ""])
+
+
 def build_outputs(release_modules, test_modules):
     """Returns {absolute path: text} for every generated file."""
     processors, inputs, selector_inputs, user_processors = ordered(release_modules)
     core_modules = [m for m in release_modules if m.origin == "core"]
     core_processors, core_inputs, _, _ = ordered(core_modules)
     outputs = {}
-    outputs[os.path.join(GEN_DIR, "registry_generated.cpp")] = emit_registry(processors, GEN_DIR, True)
+    outputs[os.path.join(GEN_DIR, "registry_generated.cpp")] = emit_registry(processors, GEN_DIR, True, inputs)
     outputs[os.path.join(GEN_DIR, "input_registry_generated.cpp")] = emit_input_registry(inputs, GEN_DIR)
     outputs[os.path.join(GEN_DIR, "descriptors_generated.hpp")] = emit_descriptors(selector_inputs, processors)
     derived = derive_scene(release_modules)
@@ -857,21 +921,36 @@ def build_outputs(release_modules, test_modules):
     core_derived["_modules"] = core_modules
     core_derived["input_rows"] = [(m.scene_key, len(m.persisted_params) + INPUT_INHERITED_PARAMS, m.attr_values, offset, m.origin)
                                   for m, offset in _input_offsets(inputs_in_scene_order(core_modules))]
-    outputs[os.path.join(GEN_DIR, "scene_layout_generated.hpp")] = emit_scene_layout(derived, core_derived)
+    test_derived = derive_scene(test_modules)
+    test_derived["_modules"] = test_modules
+    test_derived["input_rows"] = [(m.scene_key, len(m.persisted_params) + INPUT_INHERITED_PARAMS, m.attr_values, offset, m.origin)
+                                  for m, offset in _input_offsets(inputs_in_scene_order(test_modules))]
+    outputs[os.path.join(GEN_DIR, "scene_layout_generated.hpp")] = wrap_example(
+        emit_scene_layout(derived, core_derived), EXAMPLE_OUT["scene_layout"])
     outputs[os.path.join(GEN_DIR, "module_inventory.json")] = emit_inventory(processors, inputs)
     outputs[os.path.join(GEN_DIR, "selectors_generated.hpp")] = emit_selectors(processors, selector_inputs)
     outputs[os.path.join(GEN_DIR, "module_state_generated.hpp")] = emit_state_union(
         processors, "ModuleStorage", "empty", "kGeneratedModuleStateMaxBytes",
         "Processor state union (ModuleState::storage). Generated from module.json state entries.", False)
-    outputs[os.path.join(GEN_DIR, "input_state_generated.hpp")] = emit_state_union(
+    outputs[os.path.join(GEN_DIR, "input_state_generated.hpp")] = wrap_example(emit_state_union(
         inputs, "InputStorage", "note", "kGeneratedInputStateMaxBytes",
-        "Input state union (InputState::storage). Generated from module.json state entries.", False)
+        "Input state union (InputState::storage). Generated from module.json state entries.", False),
+        EXAMPLE_OUT["input_state"])
     test_processors, test_inputs, _, _ = ordered(test_modules)
     core_count_test = sum(1 for m in test_processors if m.origin == "core")
     core_inputs_test = sum(1 for m in test_inputs if m.origin == "core")
-    outputs[os.path.join(GEN_DIR, "module_counts_generated.hpp")] = emit_counts(
-        processors, inputs, sum(1 for m in processors if m.origin == "core"), len(core_inputs), True)
-    outputs[os.path.join(TEST_GEN_DIR, "registry_examples.cpp")] = emit_registry(test_processors, TEST_GEN_DIR, False)
+    outputs[os.path.join(GEN_DIR, "module_counts_generated.hpp")] = wrap_example(emit_counts(
+        processors, inputs, sum(1 for m in processors if m.origin == "core"), len(core_inputs), True),
+        EXAMPLE_OUT["counts"])
+    # Test profile (ORBIT_NATIVE_EXAMPLE_PROFILE): core plus the examples, read through the wrappers above.
+    outputs[os.path.join(TEST_GEN_DIR, "registry_examples.cpp")] = emit_registry(test_processors, TEST_GEN_DIR, False, test_inputs)
+    outputs[os.path.join(TEST_GEN_DIR, "input_registry_examples.cpp")] = emit_input_registry(
+        test_inputs, TEST_GEN_DIR, False, "module_counts.hpp")
+    outputs[os.path.join(TEST_GEN_DIR, "input_state_examples.hpp")] = emit_state_union(
+        test_inputs, "InputStorage", "note", "kGeneratedInputStateMaxBytes",
+        "Test-profile input state union (core plus examples). Generated from module.json state entries.", False, TEST_GEN_DIR)
+    outputs[os.path.join(TEST_GEN_DIR, "scene_layout_examples.hpp")] = emit_scene_layout(
+        test_derived, None, example=True, path_dir=TEST_GEN_DIR)
     outputs[os.path.join(TEST_GEN_DIR, "module_counts.hpp")] = emit_counts(
         test_processors, test_inputs, core_count_test, core_inputs_test, False)
     outputs[os.path.join(TEST_GEN_DIR, "module_sources.cmake")] = emit_sources(test_modules, release_modules)

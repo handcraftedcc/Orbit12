@@ -335,6 +335,7 @@ class Controller {
   std::uint32_t rng_state_ = 0x2545F491U;
   SlotRecord slots_[kSlotCount]{};
   ParamSpec schema_params_[kMaxParamRows]{};  // resolver scratch (one schema live at a time)
+  SceneAttributeSpec schema_attrs_[kSceneMaxAttrsPerModule]{};  // user-module attribute schema scratch (same lifetime)
   TimeSample now_{};
   ControllerDiagnostics diag_{};
   UiModel model_{};

@@ -85,6 +85,12 @@ constexpr SceneKeyRow kSceneKeyRows[] = {
     {"strum", "strum"},
     {"transpose", "transpose"},
     {"wander", "wander"},
+    {"note", "note"},
+    {"drum", "drum"},
+    {"chords", "chords"},
+    {"matrix", "matrix"},
+    {"note_walk", "note_walk"},
+    {"chord_walk", "chord_walk"},
 };
 }  // namespace
 const char* module_scene_key(const char* module_id) noexcept {
@@ -92,7 +98,7 @@ const char* module_scene_key(const char* module_id) noexcept {
   for (const SceneKeyRow& row : kSceneKeyRows) {
     if (std::strcmp(row.module_id, module_id) == 0) return row.scene_key;
   }
-  return module_id;  // fixed slots (set, output, settings) and inputs keep their names
+  return module_id;  // fixed slots (set, output, settings) keep their names
 }
 const char* module_id_for_scene_key(const char* scene_key) noexcept {
   if (scene_key == nullptr) return nullptr;

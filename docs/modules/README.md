@@ -185,7 +185,12 @@ impact of a module: `bash tools/arduino/build-firmware.sh`.
 - Native tests run the shipped core tables (`ORBIT_NATIVE_CORE_ONLY`). The state union and the input bank layout
   include every module compiled into the tree. A user module is tested through the test-profile registry
   (`tests/native/t17_user_example.cpp`); the oracle traces stay core-only by design.
-- No controller-level scene round-trip test exists yet for user modules (see the report for the test seam).
+- The sample modules (`modules/examples/example/`) are also built through the example profile
+  (`ORBIT_NATIVE_EXAMPLE_PROFILE`, `tests/native/t18_user_scene_roundtrip.cpp`): the generated firmware headers
+  read `tests/native/generated/*_examples` under that macro, and the test checks a scene save, reset, switch and
+  load of the sample processor and input (scene keys, `BANK`/`BP`/`BA` lines).
+- Saved attributes of user modules come from the generated `kGeneratedSceneAttributeRows`. Core attribute
+  schemas stay hand-written in `app/controller.cpp`. A user processor with attributes is not covered by a test yet.
 - The generator does not measure flash or RAM. The firmware build does.
 - arduino-cli copies only C/C++ sources and headers (`.c .cpp .h .hpp` and similar) into its build sketch. An
   include of a file with another extension (such as `.inc`) fails in the sketch build even though it works natively.

@@ -1,5 +1,8 @@
 // GENERATED - do not edit. Regenerate with tools/modules/gen_registry.py.
 // Module counts (kGeneratedProcessorCount is the registry size).
+#ifdef ORBIT_NATIVE_EXAMPLE_PROFILE
+#include "../../../../../tests/native/generated/module_counts.hpp"
+#else
 #pragma once
 #include <cstdint>
 
@@ -13,3 +16,4 @@ inline constexpr std::uint8_t kGeneratedProcessorCount = 18;  // core plus enabl
 inline constexpr std::uint8_t kGeneratedInputCount = 6;
 #endif
 }  // namespace orbit
+#endif

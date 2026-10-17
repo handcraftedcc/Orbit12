@@ -64,6 +64,17 @@ constexpr SceneAttributeSpec kEuclidAttrs[] = {
 constexpr SceneAttributeSpec kArpWalkAttrs[] = {{"step_values", AttributeType::Integer, 8}};
 
 struct AttrTable { const SceneAttributeSpec* specs; std::uint8_t count; };
+// User modules: the schema comes from the generated rows (kGeneratedSceneAttributeRows). Values still come from
+// the live attribute visitor, matched by name. Returns false when the rows do not fit the buffer.
+bool user_attrs_into(const char* id, SceneAttributeSpec* out, std::uint8_t cap, std::uint8_t& count) noexcept {
+  count = 0;
+  for (const SceneAttributeRow* row = kGeneratedSceneAttributeRows; row->scene_key != nullptr; ++row) {
+    if (!same(row->scene_key, id)) continue;
+    if (count >= cap) return false;
+    out[count++] = {row->name, row->type, row->element_count};
+  }
+  return true;
+}
 AttrTable attrs_for(const char* id) noexcept {
   if (same(id, "matrix")) return {kMatrixAttrs, 8};
   if (same(id, "chord_walk")) return {kChordWalkAttrs, 4};
@@ -2071,7 +2082,7 @@ bool Controller::scene_apply_globals(const GlobalState& g, std::uint8_t fields) 
 
 bool Controller::scene_construct_module(std::uint8_t slot, const char* id, bool unknown) noexcept {
   if (slot >= kSlotCount) return false;
-  if (slot == kSlotIn) return install_input(unknown ? "note" : id);
+  if (slot == kSlotIn) return install_input(unknown ? "note" : module_id_for_scene_key(id));
   if (slot >= kSlotP1 && slot <= kSlotP6) return install_processor(slot, unknown ? "empty" : module_id_for_scene_key(id));
   return true;  // SET / OUT / SETTINGS are fixed
 }
@@ -2161,7 +2172,8 @@ bool Controller::scene_resolve(std::uint8_t slot, const char* id, SceneModuleSch
   bool routing = true;
   bool input_slot = false;
   if (slot == kSlotIn) {
-    const InputDescriptor* d = find_input_module(id);
+    // Scene files store the scene key; the registry maps it to the module id (core keys equal their ids).
+    const InputDescriptor* d = find_input_module(module_id_for_scene_key(id));
     if (d == nullptr) return false;
     params = d->params; param_count = d->param_count; version = d->version;
     kind = SceneModuleKind::Input; input_slot = true;
@@ -2180,7 +2192,12 @@ bool Controller::scene_resolve(std::uint8_t slot, const char* id, SceneModuleSch
     schema_params_[count++] = scene_enum_spec("operation_mode", 0, 0, input_slot ? 2 : 4);
     schema_params_[count++] = scene_integer_spec("out_channel", 1, 1, 16);
   }
-  const AttrTable attrs = attrs_for(id);
+  AttrTable attrs = attrs_for(id);
+  if (attrs.specs == nullptr) {
+    std::uint8_t user_count = 0;
+    if (!user_attrs_into(id, schema_attrs_, kSceneMaxAttrsPerModule, user_count)) return false;
+    attrs = {schema_attrs_, user_count};
+  }
   out.id = id;
   out.version = version;
   out.kind = kind;
@@ -2189,7 +2206,7 @@ bool Controller::scene_resolve(std::uint8_t slot, const char* id, SceneModuleSch
   out.attrs = attrs.specs;
   out.attr_count = attrs.count;
   // Return the descriptor's own id string so the schema never points at the caller's buffer.
-  if (slot == kSlotIn) out.id = find_input_module(id)->id;
+  if (slot == kSlotIn) out.id = module_scene_key(find_input_module(module_id_for_scene_key(id))->id);
   else out.id = module_scene_key(find_module(module_id_for_scene_key(id))->id);
   return true;
 }
