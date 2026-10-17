@@ -470,6 +470,15 @@ def restore_device(hw: Hardware, device: str, folder: str,
     return restored
 
 
+def rename_scene(hw: Hardware, device: str, slot: int, name: str) -> None:
+    """RENAME one occupied slot (1..16). The device must already be in maintenance. Raises DeviceRefused on a NAK."""
+    port, link = open_link(hw, device)
+    try:
+        cdc.rename_scene(link, slot, name)
+    finally:
+        port.close()
+
+
 def format_device(hw: Hardware, device: str) -> None:
     """Erases the partition after a typed ERASE. The device must already be in maintenance."""
     hw.console.warn(

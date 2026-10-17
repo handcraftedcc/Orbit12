@@ -8,6 +8,9 @@
 //   MODULES count=<n> core=<id,id,...> user=<ids, empty for now>
 //   STORAGE mounted=<0|1> scenes=<named slots in memory> names_ok=<0|1>
 //   STATE maint=<0 normal|1 maintenance> transport=<0|1>
+//   CAPS rename=<0|1>   1: the RENAME frame is served (a host can rename a named scene)
+// Sections added after the first four are optional for readers: a reader that does not know
+// one ignores it, and a missing CAPS line means no optional capability.
 #include <cstddef>
 #include <cstdint>
 
@@ -62,7 +65,8 @@ constexpr std::size_t info_text_bound(const char* firmware, const char* git_sha,
          (sizeof(" scenes=") - 1) + kDigits +
          (sizeof(" names_ok=") - 1) + 1 + 1 +
          (sizeof("STATE maint=") - 1) + 1 +
-         (sizeof(" transport=") - 1) + 1 + 1;
+         (sizeof(" transport=") - 1) + 1 + 1 +
+         (sizeof("CAPS rename=") - 1) + 1 + 1;
 }
 
 }  // namespace orbit

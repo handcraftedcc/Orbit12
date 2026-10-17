@@ -478,3 +478,37 @@ def scenes_restore(hw: Hardware, orbit: Orbit12Device, folder: str, names: Optio
         raise FlashError(f"restore stopped: {error}") from None
     finish_and_reboot(hw, device_path)
     return restored
+
+
+RENAME_UNSUPPORTED = ("This firmware cannot rename scenes yet: update the firmware to rename scenes, "
+                      "then try again. Nothing was changed.")
+
+
+def require_rename(orbit: Orbit12Device) -> None:
+    """Refuses before anything is sent when the firmware does not serve RENAME (no CAPS rename=1 in INFO)."""
+    if orbit.info is None or not orbit.info.renames:
+        raise FlashError(RENAME_UNSUPPORTED)
+
+
+def scenes_rename(hw: Hardware, orbit: Orbit12Device, slot: str, name: str) -> str:
+    """Renames the named scene in `slot` ('Scene03') to `name`, which must already be normalized.
+
+    The board checks the slot and the name, writes its names file and changes its memory in one step,
+    so a refusal changes nothing and no reboot is needed. Maintenance is entered and left here.
+    """
+    require_rename(orbit)
+    number = cdc.SCENE_NAMES.index(slot) + 1
+    device_path = _scene_maintenance(hw, orbit)
+    try:
+        device.rename_scene(hw, device_path, number, name)
+    except DeviceRefused as error:
+        if error.reason == cdc.NAK_BAD_FRAME:  # older firmware answers the unknown frame with BadFrame
+            raise FlashError(RENAME_UNSUPPORTED) from None
+        reason = cdc.NAK_REASONS.get(error.reason, "the board refused the change")
+        raise FlashError(f"{slot} was not renamed: {reason}.") from None
+    except (TimeoutError, ProtocolError, OSError) as error:
+        raise FlashError(f"the board did not confirm the rename ({error}). Look at the names on the Scenes "
+                         "tab before you change them again.") from None
+    finally:
+        _leave_maintenance_quietly(hw, device_path)
+    return f"{slot} is now called {name}."

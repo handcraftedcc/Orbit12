@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import struct
 import sys
@@ -129,10 +130,14 @@ class FakeClock(Clock):
 class FakeBoard:
     def __init__(self, world: "FakeWorld", device: str, *, mounted: bool = True,
                  version: Optional[str] = OLD_VERSION, git: str = OLD_GIT,
-                 files: Optional[Dict[str, bytes]] = None, legacy: bool = False) -> None:
+                 files: Optional[Dict[str, bytes]] = None, legacy: bool = False,
+                 renames: bool = True) -> None:
         self.world = world
         self.device = device
         self.mode = "normal"  # normal | maintenance | bootsel | gone
+        # renames=False models firmware without the RENAME frame: its INFO has no CAPS line and
+        # an unknown frame type in maintenance is answered BadFrame (NAK 1), as older firmware does.
+        self.renames = renames
         self.mounted = mounted
         self.version = None if legacy else version
         self.git = git
@@ -174,6 +179,8 @@ class FakeBoard:
             f"STORAGE mounted={1 if self.mounted else 0} scenes={scenes} names_ok=1",
             f"STATE maint={1 if self.mode == 'maintenance' else 0} transport={1 if self.transport else 0}",
         ]
+        if self.renames:
+            lines.append("CAPS rename=1")
         return ("\n".join(lines)).encode("ascii")
 
     def on_write(self, data: bytes, port: "FakePort") -> None:
@@ -192,7 +199,7 @@ class FakeBoard:
             if request is None or not self.info_supported:
                 return  # older firmware ignores frames in performance mode
             # Current firmware: data requests are refused in performance mode (NAK 14).
-            if request[0] in (ord("L"), ord("G"), ord("P"), ord("X"), ord("F")):
+            if request[0] in (ord("L"), ord("G"), ord("P"), ord("X"), ord("F"), ord("R")):
                 port.rx += encode_frame(ord("N"), request[1], bytes([14]))
                 return
             if request[0] == ord("E"):
@@ -242,6 +249,8 @@ class FakeBoard:
             else:
                 self.files[text] = payload
                 port.rx += encode_frame(ord("A"), name)
+        elif frame_type == ord("R") and self.renames:
+            self._rename(name, payload, port)
         elif frame_type == ord("F"):
             self.world.log.append(f"{self.device}:FORMAT")
             if name != b"ERASE-FS" or payload:
@@ -255,6 +264,37 @@ class FakeBoard:
                 port.rx += encode_frame(ord("A"), name)
         else:
             port.rx += encode_frame(ord("N"), name, bytes([1]))
+
+    def _rename(self, name: bytes, payload: bytes, port: "FakePort") -> None:
+        """Independent model of RENAME (docs/migration/storage.md): NN,NAME, slot occupied, name unique."""
+        self.world.log.append(f"{self.device}:RENAME")
+
+        def nak(code: int) -> None:
+            port.rx += encode_frame(ord("N"), name, bytes([code]))
+
+        if not self.mounted:
+            return nak(7)
+        if payload:
+            return nak(1)
+        match = re.fullmatch(rb"(\d\d),([A-Z0-9]{1,8})", name)
+        if match is None or not 1 <= int(match.group(1)) <= 16:
+            return nak(19)
+        slot = int(match.group(1)) - 1
+        wanted = match.group(2).decode("ascii")
+        names: Dict[int, str] = {}
+        for line in self.files.get("scene_names", b"").decode("ascii").splitlines():
+            number, text = line.split(",")
+            names[int(number) - 1] = text
+        if slot not in names:
+            return nak(21)
+        if wanted == names[slot]:
+            port.rx += encode_frame(ord("A"), name)
+            return
+        if any(text == wanted for text in names.values()):
+            return nak(20)
+        names[slot] = wanted
+        self.files["scene_names"] = "".join(f"{n + 1:02d},{names[n]}\n" for n in sorted(names)).encode("ascii")
+        port.rx += encode_frame(ord("A"), name)
 
     def _enter(self, name: bytes, port: "FakePort") -> None:
         if name != b"ENTER-MAINT":

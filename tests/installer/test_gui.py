@@ -32,7 +32,7 @@ class ScriptedView(View):
     value (no), so a test that asks too many questions fails on its assertion.
     """
 
-    def __init__(self, *, confirm=(), typed=(), actions=(), missing=(), choices=(), folders=(),
+    def __init__(self, *, confirm=(), typed=(), actions=(), missing=(), choices=(), folders=(), names=(),
                  on_missing=None) -> None:
         self.confirm_answers = list(confirm)
         self.typed_answers = list(typed)
@@ -40,6 +40,8 @@ class ScriptedView(View):
         self.missing_answers = list(missing)
         self.choice_answers = list(choices)
         self.folder_answers = list(folders)
+        self.name_answers = list(names)
+        self.name_prompts = []
         self.on_missing = on_missing
         self.unexpected = []
         self.busy_texts = []
@@ -101,6 +103,13 @@ class ScriptedView(View):
 
     def choose_folder(self, title):
         return self.folder_answers.pop(0) if self.folder_answers else None
+
+    def ask_scene_name(self, current, taken):
+        self.name_prompts.append((current, list(taken)))
+        if self.name_answers:
+            return self.name_answers.pop(0)
+        self.unexpected.append(("name", current))
+        return None
 
     @property
     def last(self) -> Outcome:
@@ -416,6 +425,77 @@ class ScenesTests(SessionTest):
         self.session(view).restore_scenes(one=False)
         self.assertEqual(view.last.status, "failed")
         self.assertFalse(any(entry.startswith("COM7:PUT") for entry in self.world.log))
+
+
+class RenameSceneTests(SessionTest):
+    def setUp(self):
+        super().setUp()
+        self.add_board(files=scenes())
+
+    def _listed(self, view):
+        session = self.session(view)
+        session.load_scenes()
+        return session
+
+    def test_rename_one_named_scene_writes_only_its_name(self):
+        view = ScriptedView(names=["zulu8"])
+        session = self._listed(view)
+        session.rename_scene("Scene01")
+        self.assertEqual(view.last.status, "done")
+        self.assertEqual(self.board.files["scene_names"], b"01,ZULU8\n03,BRAVO\n")
+        self.assertEqual(self.board.files["Scene03"], scenes()["Scene03"])
+        # The dialog is told the current name and the names it must not repeat (other slots).
+        self.assertEqual(view.name_prompts, [("ALFA", ["BRAVO"])])
+        self.assertIn("ZULU8", view.last.text)
+
+    def test_declined_dialog_changes_nothing(self):
+        view = ScriptedView(names=[None])
+        session = self._listed(view)
+        session.rename_scene("Scene01")
+        self.assertEqual(view.last.status, "cancelled")
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+        self.assertEqual(self.board.files["scene_names"], scenes()["scene_names"])
+
+    def test_a_name_held_by_another_scene_is_refused_before_the_board_is_asked(self):
+        view = ScriptedView(names=["bravo"])
+        session = self._listed(view)
+        session.rename_scene("Scene01")
+        self.assertEqual(view.last.status, "failed")
+        self.assertIn("BRAVO is already used", view.last.text)
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+        self.assertEqual(self.board.files["scene_names"], scenes()["scene_names"])
+
+    def test_invalid_characters_are_refused_before_the_board_is_asked(self):
+        view = ScriptedView(names=["ab cd"])
+        session = self._listed(view)
+        session.rename_scene("Scene01")
+        self.assertEqual(view.last.status, "failed")
+        self.assertIn("A-Z and digits", view.last.text)
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+
+    def test_the_same_name_is_a_no_op_and_says_so(self):
+        view = ScriptedView(names=["alfa"])
+        session = self._listed(view)
+        session.rename_scene("Scene01")
+        self.assertEqual(view.last.status, "cancelled")
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+
+    def test_firmware_without_rename_says_to_update_and_asks_no_name(self):
+        self.board.renames = False
+        view = ScriptedView(names=["zulu8"])
+        session = self._listed(view)
+        session.rename_scene("Scene01")
+        self.assertEqual(view.last.status, "failed")
+        self.assertIn("update the firmware to rename scenes", view.last.text)
+        self.assertEqual(view.name_prompts, [])
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+
+    def test_rename_needs_the_listing_first(self):
+        view = ScriptedView(names=["zulu8"])
+        self.session(view).rename_scene("Scene01")
+        self.assertEqual(view.last.status, "failed")
+        self.assertIn("show the scenes on the board first", view.last.text)
+        self.assertEqual(view.name_prompts, [])
 
 
 class ErrorTextTests(unittest.TestCase):

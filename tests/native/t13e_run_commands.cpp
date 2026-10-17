@@ -231,6 +231,17 @@ void payload_on_fixed_frames_is_refused() {
   CHECK(h.framer.counters().bad_frames == 2);
 }
 
+// RENAME is a data request: normal run refuses it (NotInMaintenance) and discards its bytes.
+void rename_is_refused_in_normal_run() {
+  Harness h;
+  h.feed(make_frame('R', "01,ZULU", ""));
+  CHECK(h.out.commands.size() == 1);
+  CHECK(h.out.commands.size() == 1 && h.out.commands[0].verdict == NakReason::NotInMaintenance);
+  CHECK(h.out.passthrough.empty());
+  h.feed(from_hex(kInfoFrame));
+  CHECK(h.out.commands.size() == 2 && h.out.commands[1].verdict == NakReason::None);
+}
+
 void unknown_type_and_long_name_are_framing_errors() {
   Harness h;
   // Unknown type 'Z' with a declared payload: BadFrame at once, scanning resumes after the header.
@@ -340,6 +351,7 @@ void info_text_carries_the_device_state() {
   CHECK(body.find(",wander user=\n") != std::string::npos);   // user module list is empty
   CHECK(body.find("STORAGE mounted=1 scenes=3 names_ok=1\n") != std::string::npos);
   CHECK(body.find("STATE maint=1 transport=0\n") != std::string::npos);
+  CHECK(body.find("CAPS rename=1\n") != std::string::npos);   // the RENAME frame is served
   CHECK(body.back() == '\n');
   // Bounded: a short capacity gives 0 rather than a truncated text.
   CHECK(orbit::encode_info(fields, text, length - 1) == 0);
@@ -403,6 +415,7 @@ int main() {
   abandoned_frame_tail_is_not_a_command();
   data_requests_are_refused_and_their_payload_discarded();
   payload_on_fixed_frames_is_refused();
+  rename_is_refused_in_normal_run();
   unknown_type_and_long_name_are_framing_errors();
   oversize_declared_payload_is_scanned_not_discarded();
   discard_gap_drops_without_replay();

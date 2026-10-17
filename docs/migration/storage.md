@@ -239,7 +239,8 @@ created in that slot overwrites it ("start clean").
   in `scene_transfer.py`). A committed `scene_names` PUT and a successful FORMAT call
   `invalidate_names()`: the names on storage changed, so create and slot operations are refused
   until the next boot. A refused upload changes nothing. The pointer PUT still applies at the next
-  boot, as before.
+  boot, as before. A RENAME (see Host-initiated maintenance) keeps the names loaded: it changes
+  memory together with the file.
 - Dump: the `STORAGE` line carries `names=<occupied count> names_ok=<names_loaded> names_bad=<lines
   skipped by the last parse>`.
 - Cost: `SceneNames` 152 bytes and the pending name 9 bytes inside each `SceneService`; the names
@@ -539,6 +540,7 @@ name | payload | crc32 u32 LE`, CRC-32 (zlib) over every byte before it.
 | INFO | `I` | empty | empty | `D` text (normal run and maintenance) |
 | ENTER | `M` | `ENTER-MAINT` (11 bytes) | empty | `A` (name echo) once maintenance is Active; else `N` |
 | EXIT | `E` | `EXIT-MAINT` (10 bytes) | empty | `A` (sent before the device leaves maintenance); in normal run `N` 14 |
+| RENAME | `R` | `NN,NAME`: one scene_names line, NN = 01..16, NAME = 1..8 of A-Z 0-9 (3 to 11 bytes) | empty | `A` (name echo) once the names file is committed and memory matches it; else `N` with a reason (nothing changes) |
 
 Golden frames (zlib, as hex):
 
@@ -546,6 +548,7 @@ Golden frames (zlib, as hex):
 - ENTER: `4F314D0B00000000454E5445522D4D41494E54A95EA0C5`
 - EXIT: `4F31450A00000000455849542D4D41494E54F2E28AB3`
 - ACK for ENTER: `4F31410B00000000454E5445522D4D41494E54F836B850`
+- RENAME `01,ALFA`: `4F3152070000000030312C414C4641561493FC`
 - NAK 16 (NotStopped) for ENTER: `4F314E0B01000000454E5445522D4D41494E541008089424`
 
 The INFO reply is a `D` frame with an empty name echo and an ASCII payload, one `key=value` group per
@@ -556,7 +559,11 @@ INFO fw=<firmware version> sha=<git sha> api=<engine api> board=<board id>
 MODULES count=<n> core=<id,id,...> user=
 STORAGE mounted=<0|1> scenes=<named slots in memory> names_ok=<0|1>
 STATE maint=<0 normal|1 maintenance> transport=<0|1>
+CAPS rename=<0|1>
 ```
+
+`CAPS rename=1` means the RENAME frame is served. The line is optional: firmware without the
+feature has no CAPS line, and a reader must treat that as no rename. Readers ignore unknown sections.
 
 `core` lists the registry ids in registry order (24 today; `user` is empty, there are no user modules yet).
 `scenes` is the number of named slots held in memory and is 0 while the names are not trusted (`names_ok=0`).
@@ -571,11 +578,15 @@ NAK reasons added for these frames (the existing reasons are unchanged):
 | 2 | BadChecksum | CRC mismatch (nothing changes) |
 | 5 | Busy | ENTER: boot load or scene operation in flight, scene service Failed, name editor open, or already held |
 | 10 | BadToken | ENTER or EXIT name is not its token exactly (nothing changes) |
-| 14 | NotInMaintenance | EXIT while in normal run, or any data request (`L`, `G`, `P`, `X`, `F`) in normal run |
+| 14 | NotInMaintenance | EXIT while in normal run, or any data request (`L`, `G`, `P`, `X`, `F`, `R`) in normal run |
 | 15 | AlreadyInMaintenance | ENTER while maintenance is active |
 | 16 | NotStopped | ENTER while the transport runs, a note is held or owed, or output is pending |
 | 17 | QuiesceTimeout | ENTER: core 1 did not quiesce within 1 s; the request was cancelled and the device keeps performing |
 | 18 | ReplyOverflow | INFO: the reply could not be composed or queued (the build-time assert keeps this unreachable for the stamped identity) |
+| 19 | NameInvalid | RENAME: the line is not `NN,NAME` with a slot 01..16 and a 1..8 character A-Z 0-9 name (nothing changes) |
+| 20 | NameTaken | RENAME: another occupied slot already holds the name (nothing changes) |
+| 21 | SlotUnoccupied | RENAME: the slot has no name (nothing changes) |
+| 22 | NamesUnavailable | RENAME: the names in memory are not trusted until the next boot (nothing changes) |
 
 ENTER gate (checked in normal run, before anything changes): transport stopped, no held or owed note,
 output nothing pending, boot complete, scene service idle and not Failed, no name editor open, not already
@@ -589,7 +600,7 @@ gesture is not affected by this check (it has always stopped and released first)
 
 Normal-run framing (`RunCommandFramer`): only complete frames with the sync bytes are consumed. Every other
 byte is passed to the `?` dump, unchanged. Commands are `I`, `M` and `E`. A data request (`L`, `G`, `P`, `X`,
-`F`) is refused with 14 at its header and its payload is discarded (at most 38,701 bytes; a longer declared
+`F`, `R`) is refused with 14 at its header and its payload is discarded (at most 38,701 bytes; a longer declared
 payload is scanned, not discarded). A partial frame that stops arriving for 250 ms is abandoned and its
 bytes after the sync are scanned again, so a `?` that followed it still dumps. The framer holds at most
 the 28 bytes of one frame. A discard that stops arriving is dropped without replay (payload is data).
@@ -633,6 +644,13 @@ on this section). Steps in order:
    `format --yes-erase-partition`, then `import --from <folder>`, then verify with `list`, then EXIT.
 7. Abort path (no reflash, or a failed step): EXIT (`scene_transfer.py exit --port COMx`). The ACK means the
    device is back in normal run in place; no reboot is involved.
+
+Rename (`R`): the installer checks `CAPS rename=1` first and refuses otherwise (older firmware answers an
+unknown type with BadFrame, NAK 1, and must not be sent the frame). Then, in maintenance, one RENAME with
+`NN,NAME` renames an occupied slot. The device checks the slot, the name grammar and uniqueness, writes the
+names file through the same temp-verify-rename commit, and changes memory only after that. ACK means both
+are done and no reboot is needed. Any NAK means nothing changed. A missing reply is not a failure to
+trust: send INFO and read the names.
 
 A second ENTER sent while the first is still entering is read after the ACK and answered `N 15`. A missing
 reply is not success: the device state is unknown, so send INFO before any further action.

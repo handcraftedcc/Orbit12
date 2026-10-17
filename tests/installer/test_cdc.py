@@ -310,6 +310,9 @@ class HostDriftTests(unittest.TestCase):
         self.assertEqual(module.TYPE_EXIT, cdc.TYPE_EXIT)
         self.assertEqual(module.ENTER_TOKEN, cdc.ENTER_TOKEN)
         self.assertEqual(module.EXIT_TOKEN, cdc.EXIT_TOKEN)
+        self.assertEqual(module.TYPE_RENAME, cdc.TYPE_RENAME)
+        self.assertEqual(module.rename_line(3, "ALFA"), cdc.rename_line(3, "ALFA"))
+        self.assertTrue(module.info_has_rename(INFO_TEXT + b"CAPS rename=1\n"))
         self.assertEqual(sorted(module.NAK_REASONS), sorted(cdc.NAK_REASONS))
         self.assertEqual(module.build_frame(module.TYPE_ENTER, module.ENTER_TOKEN),
                          cdc.build_frame(cdc.TYPE_ENTER, cdc.ENTER_TOKEN))
@@ -329,6 +332,54 @@ class DriftTests(unittest.TestCase):
         for args in [(cdc.TYPE_LIST, b"", b""), (cdc.TYPE_GET, b"Scene07", b""),
                      (cdc.TYPE_PUT, b"scene_names", b"01,ALFA\n")]:
             self.assertEqual(cdc.build_frame(*args), module.build_frame(*args))
+
+
+class RenameFramingTests(unittest.TestCase):
+    def test_golden_rename_frame_matches_the_documented_bytes(self):
+        # Golden from the scene_transfer.py selftest: the name field carries the "NN,NAME" line.
+        self.assertEqual(cdc.build_frame(cdc.TYPE_RENAME, b"01,ALFA").hex().upper(),
+                         "4F3152070000000030312C414C4641561493FC")
+
+    def test_rename_line_accepts_only_the_names_grammar(self):
+        self.assertEqual(cdc.rename_line(1, "ALFA"), b"01,ALFA")
+        self.assertEqual(cdc.rename_line(16, "ZULU8"), b"16,ZULU8")
+        for slot, name in ((0, "ALFA"), (17, "ALFA"), (True, "ALFA"), (1, "alfa"), (1, ""),
+                           (1, "ABCDEFGHI"), (1, "A B")):
+            with self.assertRaises(ValueError):
+                cdc.rename_line(slot, name)
+
+    def test_name_checks_give_plain_reasons(self):
+        self.assertIsNone(cdc.scene_name_problem("ZULU", taken=("ALFA",)))
+        self.assertIn("8 characters", cdc.scene_name_problem("ABCDEFGHI"))
+        self.assertIn("A-Z and digits", cdc.scene_name_problem("A-B"))
+        self.assertIn("already used", cdc.scene_name_problem("ALFA", taken=("ALFA",)))
+        self.assertIn("1 to 8", cdc.scene_name_problem(""))
+        self.assertEqual(cdc.normalize_scene_name("  zulu "), "ZULU")
+
+    def test_caps_rename_flag_is_optional_and_any_value_but_one_means_no(self):
+        self.assertTrue(cdc.parse_info(INFO_TEXT + b"CAPS rename=1\n").renames)
+        self.assertFalse(cdc.parse_info(INFO_TEXT).renames)  # older firmware: no CAPS line
+        self.assertFalse(cdc.parse_info(INFO_TEXT + b"CAPS rename=0\n").renames)
+        self.assertFalse(cdc.parse_info(INFO_TEXT + b"CAPS rename=yes\n").renames)
+        # A CAPS line never makes the rest of INFO unreadable.
+        self.assertTrue(cdc.parse_info(INFO_TEXT + b"CAPS rename=1\n").names_ok)
+
+    def test_rename_nak_reasons_are_named(self):
+        for code in (19, 20, 21, 22):
+            self.assertIn(code, cdc.NAK_REASONS)
+
+    def test_rename_sends_the_line_and_reports_the_device_reason(self):
+        clock = FakeClock()
+        world = FakeWorld(clock)
+        board = world.add("COM9", mounted=True, files={"scene_names": b"01,ALFA\n03,BRAVO\n"})
+        board.mode = "maintenance"
+        link = cdc.MaintenanceLink(FakePort(board, clock))
+        cdc.rename_scene(link, 1, "ZULU")
+        self.assertEqual(board.files["scene_names"], b"01,ZULU\n03,BRAVO\n")
+        with self.assertRaises(cdc.DeviceRefused) as caught:
+            cdc.rename_scene(link, 3, "ZULU")  # ZULU is now held by slot 01
+        self.assertEqual(caught.exception.reason, 20)
+        self.assertEqual(board.files["scene_names"], b"01,ZULU\n03,BRAVO\n")
 
 
 if __name__ == "__main__":

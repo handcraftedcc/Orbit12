@@ -17,7 +17,8 @@ bool is_data_request(std::uint8_t type) noexcept {
          type == static_cast<std::uint8_t>(FrameType::Get) ||
          type == static_cast<std::uint8_t>(FrameType::Put) ||
          type == static_cast<std::uint8_t>(FrameType::Abort) ||
-         type == static_cast<std::uint8_t>(FrameType::Format);
+         type == static_cast<std::uint8_t>(FrameType::Format) ||
+         type == static_cast<std::uint8_t>(FrameType::Rename);
 }
 
 bool name_is(const std::uint8_t* name, std::size_t length, const char* token,

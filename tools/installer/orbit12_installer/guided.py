@@ -97,6 +97,7 @@ class View:
     def choose(self, prompt: str, options: List[str]) -> Optional[int]: raise NotImplementedError  # pragma: no cover
     def ask(self, prompt: str) -> str: raise NotImplementedError  # pragma: no cover
     def choose_folder(self, title: str) -> Optional[str]: raise NotImplementedError  # pragma: no cover
+    def ask_scene_name(self, current: str, taken: Sequence[str]) -> Optional[str]: raise NotImplementedError  # pragma: no cover
 
 
 class Bridge:
@@ -347,6 +348,9 @@ class Session:
     def restore_scenes(self, one: bool) -> None:
         self._guard("Restoring scenes...", self._restore_scenes, one)
 
+    def rename_scene(self, slot: str) -> None:
+        self._guard("Renaming the scene...", self._rename_scene, slot)
+
     # internals
 
     def _guard(self, label: str, fn, *args) -> None:
@@ -413,6 +417,31 @@ class Session:
         what = "All scenes and settings were" if slot is None else f"{slot} was"
         return Outcome("done", "Backup saved", f"{what} saved to {folder}.",
                        "Keep this folder. You can restore from it on the Scenes tab.")
+
+    def _rename_scene(self, slot: str) -> Outcome:
+        rows = self._scene_rows
+        if rows is None:
+            raise FlashError("show the scenes on the board first, then choose one to rename")
+        row = next((r for r in rows if r.slot == slot), None)
+        if row is None or not row.saved or not row.label:
+            return Outcome("cancelled", "Nothing to rename", f"{slot} has no name on the board.")
+        orbit = self._await_orbit()
+        flow.require_rename(orbit)  # refused before any name is asked for, on firmware without RENAME
+        taken = [other.label for other in rows if other.slot != slot and other.label]
+        typed = self.view.ask_scene_name(row.label, taken)
+        if typed is None:
+            raise Cancelled("no new name was given; nothing was changed")
+        name = cdc.normalize_scene_name(typed)
+        if name == row.label:
+            return Outcome("cancelled", "Name not changed", f"{slot} is already called {name}.")
+        problem = cdc.scene_name_problem(name, taken)
+        if problem is not None:
+            raise FlashError(f"{problem} Nothing was changed.")
+        text = flow.scenes_rename(self.hw, orbit, slot, name)
+        self._scene_rows = [SceneRow(r.slot, name if r.slot == slot else r.label, r.saved) for r in rows]
+        self.view.scenes(self._scene_rows)
+        return Outcome("done", "Scene renamed", text,
+                       "The new name is saved on the MacroPad and shows at once; no restart is needed.")
 
     def _slot_saved(self, slot: str) -> bool:
         """True when the last listing showed the slot saved, or when no listing is known yet."""

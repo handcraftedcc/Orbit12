@@ -28,7 +28,10 @@ from this package. See "Not verified on hardware" below before relying on it.
    program until you have checked them.
 
 Other tabs: **Scenes** lists the saved scenes and can back up all or one scene, or restore all or one
-from a backup folder (restoring asks you first; restoring everything needs you to type ERASE).
+from a backup folder (restoring asks you first; restoring everything needs you to type ERASE). It can also
+rename one named scene: type 1 to 8 letters or digits (they are shown in capitals; each name must be unique).
+Renaming needs firmware with the RENAME command. Older firmware is told to update the firmware, and nothing
+is sent to it.
 **Modules** is a placeholder for now.
 
 If a message appears, press **Copy details** and send the text to support. The details contain the
@@ -171,7 +174,7 @@ two drives or two boards.
   protocol only; `Bridge` and `MarshalledView` carry calls from the worker thread to the UI thread.
 - `orbit12_installer/gui.py`: the tkinter window (imported lazily; `available()` and `run_app()`).
 - `orbit12_installer/flow.py`: also has the scene operations used by the Scenes tab (`scenes_list`,
-  `scenes_backup`, `scenes_restore`).
+  `scenes_backup`, `scenes_restore`, `scenes_rename`).
 - `entry.py`: PyInstaller entry script; on a windowed Windows build it attaches to the starting console for
   CLI runs. `build_exe.py`: builds the one-file program (`--windowed` on Windows and macOS, `--console` on
   Linux).

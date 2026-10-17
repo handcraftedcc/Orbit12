@@ -166,6 +166,30 @@ bool SceneService::request_rename(const char* name) noexcept {
   return true;
 }
 
+SceneServiceStatus SceneService::rename_slot(std::uint8_t slot, const char* name) noexcept {
+  if (busy()) return SceneServiceStatus::Busy;
+  if (!valid_ports()) return SceneServiceStatus::Rejected;
+  if (!names_loaded_) return SceneServiceStatus::NamesUnavailable;
+  if (slot >= kSceneSlotCount || !names_.occupied(slot)) return SceneServiceStatus::SlotUnoccupied;
+  if (!name_valid(name)) return SceneServiceStatus::NameInvalid;
+  if (std::strcmp(names_.names[slot], name) == 0) return SceneServiceStatus::Succeeded;  // nothing to write
+  for (std::size_t other = 0; other < kSceneSlotCount; ++other) {
+    if (other == slot || !names_.occupied(other)) continue;
+    if (std::strcmp(names_.names[other], name) == 0) return SceneServiceStatus::NameTaken;
+  }
+  SceneNames candidate = names_;
+  candidate.set(slot, name);
+  const SceneServiceStatus status = write_names_atomic(candidate);
+  if (status == SceneServiceStatus::Succeeded || status == SceneServiceStatus::SucceededWithBackup) {
+    if (status == SceneServiceStatus::SucceededWithBackup) backup_retained_ = true;
+    names_ = candidate;  // memory changes only after the names file verified
+    return SceneServiceStatus::Succeeded;
+  }
+  // RecoveryRequired leaves the names file in an unknown state: stop trusting the set.
+  if (status == SceneServiceStatus::RecoveryRequired) names_loaded_ = false;
+  return status;
+}
+
 bool SceneService::file_exists(SceneFileId id, bool& exists) noexcept {
   const auto status = storage_.exists(storage_.context, id, exists);
   if (status == SceneStorageStatus::Missing) { exists = false; return true; }

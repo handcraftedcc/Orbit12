@@ -512,5 +512,41 @@ class AlreadyInBootloaderTests(FlowTest):
         self.assertEqual(self.board.version, OLD_VERSION)
 
 
+class RenameFlowTests(FlowTest):
+    def _orbit(self):
+        self.board.mode = "normal"
+        return device.find_orbit12(self.hw)
+
+    def test_rename_renames_one_named_scene_and_leaves_maintenance(self):
+        orbit = self._orbit()
+        message = flow.scenes_rename(self.hw, orbit, "Scene01", "ZULU")
+        self.assertEqual(message, "Scene01 is now called ZULU.")
+        self.assertEqual(self.board.files["scene_names"], b"01,ZULU\n03,BRAVO\n")
+        self.assertEqual(self.board.mode, "normal")
+
+    def test_firmware_without_rename_is_refused_before_maintenance_or_any_frame(self):
+        self.board.renames = False
+        orbit = self._orbit()
+        with self.assertRaisesRegex(FlashError, "update the firmware to rename scenes"):
+            flow.scenes_rename(self.hw, orbit, "Scene01", "ZULU")
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+        self.assertEqual(self.board.mode, "normal")  # maintenance was never entered
+        self.assertEqual(self.board.files["scene_names"], scenes()["scene_names"])
+
+    def test_firmware_without_info_is_refused_the_same_way(self):
+        self.board.info_supported = False
+        orbit = self._orbit()
+        with self.assertRaisesRegex(FlashError, "update the firmware to rename scenes"):
+            flow.scenes_rename(self.hw, orbit, "Scene01", "ZULU")
+        self.assertFalse(any(":RENAME" in entry for entry in self.world.log))
+
+    def test_refused_name_is_plain_and_changes_nothing(self):
+        orbit = self._orbit()
+        with self.assertRaisesRegex(FlashError, "was not renamed: name already used"):
+            flow.scenes_rename(self.hw, orbit, "Scene03", "ALFA")
+        self.assertEqual(self.board.files["scene_names"], scenes()["scene_names"])
+        self.assertEqual(self.board.mode, "normal")
+
+
 if __name__ == "__main__":
     unittest.main()

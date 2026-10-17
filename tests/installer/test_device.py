@@ -633,5 +633,26 @@ class RecentBackupTests(TempDirTest):
         self.assertIsNone(device.find_recent_backup(os.path.join(self.tmp, "nope"), engine_api=1))
 
 
+class RenameDeviceTests(unittest.TestCase):
+    def setUp(self):
+        self.clock = FakeClock()
+        self.world = FakeWorld(self.clock)
+        self.board = self.world.add("COM7", files=scenes())
+        self.board.mode = "maintenance"
+        self.hw = hardware(self.world, RecordingConsole())
+
+    def test_rename_changes_only_the_name_on_the_board(self):
+        device.rename_scene(self.hw, "COM7", 1, "ZULU")
+        self.assertEqual(self.board.files["scene_names"], b"01,ZULU\n03,BRAVO\n")
+        self.assertEqual(self.board.files["Scene01"], scenes()["Scene01"])
+        self.assertIn("COM7:RENAME", self.world.log)
+
+    def test_refused_rename_changes_nothing_and_names_the_reason(self):
+        with self.assertRaises(cdc.DeviceRefused) as caught:
+            device.rename_scene(self.hw, "COM7", 3, "ALFA")
+        self.assertEqual(caught.exception.reason, 20)
+        self.assertEqual(self.board.files["scene_names"], scenes()["scene_names"])
+
+
 if __name__ == "__main__":
     unittest.main()

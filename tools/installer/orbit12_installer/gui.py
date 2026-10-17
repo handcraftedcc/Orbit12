@@ -16,7 +16,7 @@ import sys
 import threading
 from typing import List, Optional, Sequence
 
-from . import flow, guided
+from . import cdc, flow, guided
 from .guided import BoardView, Bridge, MarshalledView, Outcome, ReleaseChoices, SceneRow, Session, View
 from .hardware import PySerialEnumerator, PySerialOpener, RealClock, SystemVolumeFinder
 from .github import HttpDownloader
@@ -248,6 +248,7 @@ class InstallerWindow:
                         lambda: self._start(self.session.restore_scenes, False)),
             flat_button(grid, f, "Restore one scene from a backup...",
                         lambda: self._start(self.session.restore_scenes, True)),
+            flat_button(grid, f, "Rename one scene...", self._scene_rename),
         ]
         for index, button in enumerate(self.scene_buttons):
             button.grid(row=index // 2, column=index % 2, sticky="w", padx=(0, 24), pady=2)
@@ -300,6 +301,15 @@ class InstallerWindow:
         slot = self._choose_slot()
         if slot is not None:
             self._start(self.session.backup_scenes, slot)
+
+    def _scene_rename(self) -> None:
+        named = [row for row in self._scene_rows if row.label]
+        if not named:
+            self._view.warn("Show the scenes on the board first, then choose a named scene to rename.")
+            return
+        index = self._view.choose("Which scene do you want to rename?", [_scene_text(r) for r in named])
+        if index is not None:
+            self._start(self.session.rename_scene, named[index].slot)
 
     def _choose_slot(self) -> Optional[str]:
         saved = [row for row in self._scene_rows if row.saved]
@@ -439,6 +449,60 @@ class InstallerWindow:
             else:
                 button.grid(row=index, column=0, sticky="w", pady=2)
         top.protocol("WM_DELETE_WINDOW", lambda: pick(None))
+        self._wait(top)
+        return answer["value"]
+
+    def _ask_scene_name(self, current: str, taken: Sequence[str]) -> Optional[str]:
+        """Name-entry dialog. Upper-cases as the user types and says why a name cannot be used, live."""
+        tk = self.tk
+        top, body = self._toplevel("Rename scene")
+        self._label(body, f"New name for {current}: 1 to 8 letters or digits. Each name must be unique.",
+                    wrap=460).grid(row=0, column=0, columnspan=2, sticky="w")
+        var = tk.StringVar()
+        entry = self._entry(body, var, width=36)
+        entry.grid(row=1, column=0, columnspan=2, sticky="w", pady=(12, 0))
+        status = self._label(body, "", colour=MUTED, wrap=460)
+        status.grid(row=2, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        answer: dict = {"value": None}
+        guard = {"busy": False}
+
+        def check(*_args) -> None:
+            if guard["busy"]:
+                return
+            typed = var.get()
+            upper = typed.upper()
+            if upper != typed:
+                guard["busy"] = True
+                var.set(upper)
+                guard["busy"] = False
+            problem = cdc.scene_name_problem(upper, taken)
+            if problem is None:
+                status.configure(text="This name can be used.", fg=MUTED)
+            else:
+                status.configure(text=problem, fg=ERROR)
+
+        def ok(_event=None):
+            name = cdc.normalize_scene_name(var.get())
+            problem = cdc.scene_name_problem(name, taken)
+            if problem is not None:
+                status.configure(text=problem, fg=ERROR)
+                entry.focus_set()
+                return
+            answer["value"] = name
+            top.destroy()
+
+        def cancel(_event=None):
+            top.destroy()
+        var.trace_add("write", check)
+        flat_button(body, self.fonts, "OK", ok, fg=ACCENT, bold=True).grid(row=3, column=0, sticky="w",
+                                                                           pady=(12, 0))
+        flat_button(body, self.fonts, "Cancel", cancel).grid(row=3, column=1, sticky="w", padx=(18, 0),
+                                                              pady=(12, 0))
+        entry.bind("<Return>", ok)
+        entry.bind("<Escape>", cancel)
+        top.protocol("WM_DELETE_WINDOW", cancel)
+        check()
+        entry.focus_set()
         self._wait(top)
         return answer["value"]
 
@@ -625,6 +689,9 @@ class TkView(View):
 
     def ask(self, prompt: str) -> str:
         return self.w._ask_text(TITLE, prompt) or ""
+
+    def ask_scene_name(self, current: str, taken: Sequence[str]) -> Optional[str]:
+        return self.w._ask_scene_name(current, taken)
 
     def choose_folder(self, title: str) -> Optional[str]:
         from tkinter import filedialog

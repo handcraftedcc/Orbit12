@@ -14,7 +14,7 @@
 //   'I' info      (empty name, empty payload)                      -> reply in the application
 //   'M' enter     (name exactly ENTER-MAINT, empty payload)        -> the application decides
 //   'E' exit      (name exactly EXIT-MAINT) in normal run           -> NAK NotInMaintenance
-// Any other valid request type (L, G, P, X, F) is refused early with NotInMaintenance and its
+// Any other valid request type (L, G, P, X, F, R) is refused early with NotInMaintenance and its
 // bytes are discarded. An unknown type or a name longer than kNameMax is a framing error:
 // BadFrame, and the framer resynchronizes at the next sync bytes. A frame that carries a
 // payload where none belongs is refused with BadFrame. CRC-32 is checked for every frame that

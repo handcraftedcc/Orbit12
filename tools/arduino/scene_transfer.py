@@ -16,6 +16,7 @@ Usage:
     python scene_transfer.py list   --port COM5
     python scene_transfer.py export --port COM5 --out DIR [--force]
     python scene_transfer.py import --port COM5 --from DIR [--only NAME ...] [--dry-run]
+    python scene_transfer.py rename --port COM5 --slot 3 --name NEWNAME
     python scene_transfer.py format --port COM5 --yes-erase-partition
     python scene_transfer.py info   --port COM5
     python scene_transfer.py enter  --port COM5
@@ -30,6 +31,11 @@ FORMAT erases the whole LittleFS partition (every file, including scenes and use
 settings). It needs the device in maintenance mode and the flag above; it prints what
 it erases, waits for the device's ACK (sent only after the format is verified), then
 lists the partition to confirm.
+
+RENAME changes the name of an occupied slot while the device is in maintenance (run enter first).
+The device checks the name (1-8 characters A-Z and 0-9, unique, slot occupied), writes the names file
+atomically and changes the name in memory, so no reboot is needed. Firmware without the feature
+(no "CAPS rename=1" line in INFO) is refused before anything is sent.
 
 Requires pyserial for the port commands (pip install pyserial). selftest needs
 only the standard library.
@@ -53,6 +59,7 @@ TYPE_ACK = ord("A")
 TYPE_NAK = ord("N")
 TYPE_DATA = ord("D")
 TYPE_FORMAT = ord("F")
+TYPE_RENAME = ord("R")
 # Confirmation token: must match kFormatToken in maintenance_protocol.hpp (8 bytes).
 FORMAT_TOKEN = b"ERASE-FS"
 # Format waits this long per response: erase and verify take several seconds on flash.
@@ -95,7 +102,13 @@ NAK_REASONS = {
     16: "not stopped (transport running, a note held or output pending; nothing changed)",
     17: "core 1 did not quiesce in time (the device keeps performing)",
     18: "the device could not compose its reply (capacity)",
+    19: "name invalid (1-8 characters A-Z and 0-9; nothing changed)",
+    20: "name already used by another scene (nothing changed)",
+    21: "slot is empty (nothing to rename)",
+    22: "scene names are not loaded on the device; restart the device (nothing changed)",
 }
+RENAME_UNSUPPORTED = ("this firmware cannot rename scenes: update the firmware to rename scenes "
+                      "(its INFO has no CAPS rename=1 line)")
 
 ALLOWED = (
     [f"Scene{n:02d}" for n in range(1, SCENE_SLOT_COUNT + 1)]
@@ -172,6 +185,28 @@ def validate_local(name: str, payload: bytes) -> None:
             raise ValueError(f"_activescene must hold a scene number 1..{SCENE_SLOT_COUNT}")
     if name == "scene_names":
         check_scene_names(payload)
+
+
+# One scene name: 1..8 characters, A-Z and 0-9 only (the names grammar of SceneNames).
+SCENE_NAME_TEXT = re.compile(r"[A-Z0-9]{1,8}")
+
+
+def rename_line(slot: int, name: str) -> bytes:
+    """The RENAME name field: "NN,NAME" (NN = 01..16). Raises ValueError with the reason."""
+    if not isinstance(slot, int) or not 1 <= slot <= SCENE_SLOT_COUNT:
+        raise ValueError(f"slot must be 1..{SCENE_SLOT_COUNT}")
+    if not isinstance(name, str) or SCENE_NAME_TEXT.fullmatch(name) is None:
+        raise ValueError("name must be 1 to 8 characters, A-Z and 0-9 only")
+    return f"{slot:02d},{name}".encode("ascii")
+
+
+def info_has_rename(payload: bytes) -> bool:
+    """True when an INFO reply carries a CAPS line with rename=1. Older firmware has no CAPS line."""
+    for line in payload.decode("ascii", "replace").splitlines():
+        words = line.split()
+        if words and words[0] == "CAPS" and "rename=1" in words[1:]:
+            return True
+    return False
 
 
 def selftest() -> int:
@@ -251,6 +286,24 @@ def selftest() -> int:
         except ValueError:
             pass
     check(max_payload("scene_names") == SCENE_NAMES_MAX_BYTES, "scene_names payload bound")
+    # RENAME: golden frame (zlib, independent of this code), name grammar and INFO capability.
+    golden_rename = build_frame(TYPE_RENAME, b"01,ALFA")
+    check(golden_rename.hex().upper() == "4F3152070000000030312C414C4641561493FC", "golden RENAME frame")
+    check(parse_frame(golden_rename)[0] == TYPE_RENAME and parse_frame(golden_rename)[2] == b"",
+          "RENAME frame carries its line in the name and no payload")
+    check(rename_line(1, "ALFA") == b"01,ALFA" and rename_line(16, "ZULU8") == b"16,ZULU8",
+          "rename_line accepts slot 01 and 16 names")
+    for slot, name in ((0, "ALFA"), (17, "ALFA"), (1, "alfa"), (1, ""), (1, "ABCDEFGHI"),
+                       (1, "A B"), (1, "A,B")):
+        try:
+            rename_line(slot, name)
+            check(False, f"rename_line must refuse {slot!r} {name!r}")
+        except ValueError:
+            pass
+    check(info_has_rename(b"INFO fw=1\nCAPS rename=1\n"), "INFO with CAPS rename=1 supports rename")
+    check(not info_has_rename(b"INFO fw=1\nSTATE maint=1 transport=0\n"),
+          "INFO without a CAPS line does not support rename")
+    check(not info_has_rename(b"INFO fw=1\nCAPS rename=0\n"), "CAPS rename=0 does not support rename")
 
     if failures:
         for label in failures:
@@ -376,6 +429,31 @@ def command_format(args) -> int:
     return listed
 
 
+def command_rename(args) -> int:
+    try:
+        line = rename_line(args.slot, args.name)
+    except ValueError as error:
+        print(f"rename refused: {error}", file=sys.stderr)
+        return 2
+    link = Link(args.port, args.timeout)
+    try:
+        frame_type, _, payload = link.request(TYPE_INFO)
+        if frame_type != TYPE_DATA:
+            print("rename NOT done: the device did not answer INFO (run info to check it)")
+            return 1
+        if not info_has_rename(payload):
+            print(RENAME_UNSUPPORTED)
+            return 1
+        response = link.request(TYPE_RENAME, line)
+    finally:
+        link.close()
+    if response[0] != TYPE_ACK:
+        print("rename NOT done:", describe("rename", response), "(nothing changed)")
+        return 1
+    print(f"renamed slot {args.slot:02d} to {args.name} (ACK). The name is saved and live; no reboot is needed.")
+    return 0
+
+
 def command_info(args) -> int:
     link = Link(args.port, args.timeout)
     try:
@@ -477,6 +555,11 @@ def main(argv=None) -> int:
     format_parser.add_argument("--yes-erase-partition", action="store_true",
                                help="required: confirms that every file on the partition is erased")
 
+    rename_parser = sub.add_parser("rename", help="rename an occupied scene slot (device in maintenance)")
+    add_port(rename_parser)
+    rename_parser.add_argument("--slot", type=int, required=True, help="slot 1..16, as in Scene01..Scene16")
+    rename_parser.add_argument("--name", required=True, help="1 to 8 characters, A-Z and 0-9")
+
     info_parser = sub.add_parser("info", help="print firmware identity and state (normal run or maintenance)")
     add_port(info_parser)
     enter_parser = sub.add_parser("enter", help="ask a stopped device to enter maintenance (no pad held)")
@@ -501,6 +584,8 @@ def main(argv=None) -> int:
         return command_format(args)
     if args.command == "info":
         return command_info(args)
+    if args.command == "rename":
+        return command_rename(args)
     if args.command == "enter":
         return command_enter(args)
     if args.command == "exit":

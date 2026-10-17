@@ -111,9 +111,10 @@ class SceneService {
   const SceneNames& scene_names() const noexcept { return names_; }
   // True only after a LoadNames succeeded and nothing since has made the set stale.
   bool names_loaded() const noexcept { return names_loaded_; }
-  // Called by the maintenance session after a committed scene_names PUT or a format: the
-  // names in memory no longer describe storage. Until the next boot, Create and slot
-  // operations report NamesUnavailable. Save and LoadActive are unaffected.
+  // Called by the maintenance session after a format (and after a committed scene_names PUT):
+  // the names in memory no longer describe storage. Until the next boot, Create and slot
+  // operations report NamesUnavailable. Save and LoadActive are unaffected. A RENAME does not
+  // call this: it keeps the names in memory in step with storage.
   void invalidate_names() noexcept { names_loaded_ = false; }
   // Creates a named scene in the first free slot. Validates the name first (NameInvalid,
   // NameTaken, NoFreeSlot are reported through status() and returned as false). Saves the
@@ -126,6 +127,13 @@ class SceneService {
   // trusted (NamesUnavailable). Returns true when accepted (Busy); the outcome arrives through poll().
   // On failure the in-memory name is unchanged and the names file is not replaced.
   bool request_rename(const char* name) noexcept;
+  // Synchronous rename of any occupied slot, for the maintenance RENAME frame. Only valid while the
+  // service is idle (maintenance holds the engine stopped; no quiesce is involved). Writes the names
+  // file atomically and changes the in-memory name only after the file verifies. Returns Succeeded
+  // (a same-name rename is a no-op success), or NameInvalid, NameTaken, SlotUnoccupied,
+  // NamesUnavailable, Busy, or StorageError. Any failure leaves the names unchanged; names_loaded()
+  // stays true unless a RecoveryRequired write made the names file unknown.
+  SceneServiceStatus rename_slot(std::uint8_t slot, const char* name) noexcept;
   SceneResult codec_result() const noexcept { return codec_result_; }
   bool backup_retained() const noexcept { return backup_retained_; }
   // Number of entries into the Failed phase (failed rollbacks and failed recoveries).

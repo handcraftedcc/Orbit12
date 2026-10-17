@@ -26,6 +26,7 @@ bool valid_type(std::uint8_t type) noexcept {
          type == static_cast<std::uint8_t>(FrameType::Put) ||
          type == static_cast<std::uint8_t>(FrameType::Abort) ||
          type == static_cast<std::uint8_t>(FrameType::Format) ||
+         type == static_cast<std::uint8_t>(FrameType::Rename) ||
          type == static_cast<std::uint8_t>(FrameType::Info) ||
          type == static_cast<std::uint8_t>(FrameType::Enter) ||
          type == static_cast<std::uint8_t>(FrameType::Exit);
@@ -35,6 +36,18 @@ bool name_equals(const std::uint8_t* name, std::size_t name_length, const char* 
                  std::size_t token_length) noexcept {
   return name_length == token_length &&
          std::memcmp(name, token, token_length) == 0;
+}
+
+// Service refusals of a RENAME, in the NAK vocabulary. Anything else is a storage failure.
+NakReason rename_nak(SceneServiceStatus status) noexcept {
+  switch (status) {
+    case SceneServiceStatus::NameInvalid: return NakReason::NameInvalid;
+    case SceneServiceStatus::NameTaken: return NakReason::NameTaken;
+    case SceneServiceStatus::SlotUnoccupied: return NakReason::SlotUnoccupied;
+    case SceneServiceStatus::NamesUnavailable: return NakReason::NamesUnavailable;
+    case SceneServiceStatus::Busy: return NakReason::Busy;
+    default: return NakReason::StorageError;
+  }
 }
 
 NakReason format_nak(fsformat::FormatResult result) noexcept {
@@ -289,6 +302,11 @@ void MaintenanceSession::dispatch() noexcept {
       else if (!stopped) nak = NakReason::Busy;
       else if (payload_length_ > max_payload(id)) nak = NakReason::Oversize;
       break;
+    case FrameType::Rename:
+      // The line is checked after the CRC (finish_frame); the gate is checked there again.
+      if (!stopped) nak = NakReason::Busy;
+      else if (payload_length_ != 0) nak = NakReason::BadFrame;
+      break;
     case FrameType::Info:
       // Served in maintenance as well as in normal run; the application composes the text.
       if (name_length_ != 0 || payload_length_ != 0) nak = NakReason::BadFrame;
@@ -458,6 +476,9 @@ void MaintenanceSession::finish_frame() noexcept {
       send_end();
       break;
     }
+    case FrameType::Rename:
+      do_rename();
+      break;
     case FrameType::Enter:
       reject(NakReason::AlreadyInMaintenance);   // unreachable: dispatch always refuses ENTER here
       break;
@@ -673,6 +694,34 @@ void MaintenanceSession::do_list() noexcept {
   ++counters_.served;
 }
 
+// RENAME: the name field is one scene_names line, "NN,NAME" (NN = 01..16, NAME = 1..8 characters
+// of A-Z and 0-9), and the payload is empty. The line is parsed with the names grammar, so an
+// uppercase or out-of-range line is NameInvalid before the service is consulted. The service
+// checks occupancy and uniqueness, writes the names file atomically and only then changes memory.
+void MaintenanceSession::do_rename() noexcept {
+  if (!stopped()) {
+    reject(NakReason::Busy);
+    return;
+  }
+  SceneNames line{};
+  if (parse_scene_names(reinterpret_cast<const char*>(name_), name_length_, line) !=
+          SceneNamesResult::Ok ||
+      line.malformed_lines != 0 || line.occupied_count() != 1) {
+    reject(NakReason::NameInvalid);
+    return;
+  }
+  std::uint8_t slot = 0;
+  first_occupied_slot(line, slot);
+  const SceneServiceStatus status = service_->rename_slot(slot, line.names[slot]);
+  if (status != SceneServiceStatus::Succeeded) {
+    reject(rename_nak(status));
+    return;
+  }
+  ++counters_.renames;
+  send_begin(FrameType::Ack, name_, name_length_, 0);
+  send_end();
+}
+
 void MaintenanceSession::do_get() noexcept {
   SceneFileId id{};
   if (!resolve_name(reinterpret_cast<const char*>(name_), name_length_, id)) {
@@ -753,6 +802,10 @@ void MaintenanceSession::reject(NakReason reason) noexcept {
     case NakReason::NotStopped: break;
     case NakReason::QuiesceTimeout: break;
     case NakReason::ReplyOverflow: break;
+    case NakReason::NameInvalid: break;
+    case NakReason::NameTaken: break;
+    case NakReason::SlotUnoccupied: break;
+    case NakReason::NamesUnavailable: break;
     case NakReason::None: break;
   }
   const std::uint8_t code = static_cast<std::uint8_t>(reason);

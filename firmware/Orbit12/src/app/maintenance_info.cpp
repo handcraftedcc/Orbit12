@@ -77,6 +77,10 @@ std::size_t encode_info(const InfoFields& fields, char* out, std::size_t capacit
   w.ch(fields.transport_running ? '1' : '0');
   w.ch('\n');
 
+  w.text("CAPS rename=");
+  w.ch('1');  // the RENAME frame (maintenance_protocol.hpp) is served by this firmware
+  w.ch('\n');
+
   if (w.overflowed()) return 0;
   return w.length();
 }

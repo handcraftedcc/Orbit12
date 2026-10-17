@@ -15,7 +15,8 @@
 // Requests: 'L' list, 'G' get <name>, 'P' put <name> <payload>, 'X' abort,
 // 'F' format <token> (name = kFormatToken exactly, empty payload; erases the
 // LittleFS partition and is only accepted while stopped with the storage window
-// open), 'I' info (empty name and payload; text reply, allowed in normal run and in
+// open), 'R' rename (name = "NN,NAME" as one scene_names line, empty payload; renames an
+// occupied slot in the names file and in memory, see SceneService::rename_slot), 'I' info (empty name and payload; text reply, allowed in normal run and in
 // maintenance), 'E' exit <EXIT-MAINT> (returns to normal run in place).
 // Normal run accepts only 'I' and 'M' enter <ENTER-MAINT> (see maintenance_command.hpp);
 // every other request there is NAKed NotInMaintenance.
@@ -50,8 +51,8 @@ constexpr char kExitToken[] = "EXIT-MAINT";
 constexpr std::size_t kExitTokenLength = sizeof(kExitToken) - 1;
 
 enum class FrameType : std::uint8_t {
-  List = 'L', Get = 'G', Put = 'P', Abort = 'X', Format = 'F', Info = 'I', Enter = 'M', Exit = 'E',
-  Ack = 'A', Nak = 'N', Data = 'D'
+  List = 'L', Get = 'G', Put = 'P', Abort = 'X', Format = 'F', Rename = 'R', Info = 'I', Enter = 'M',
+  Exit = 'E', Ack = 'A', Nak = 'N', Data = 'D'
 };
 
 enum class NakReason : std::uint8_t {
@@ -73,8 +74,12 @@ enum class NakReason : std::uint8_t {
   AlreadyInMaintenance = 15, // ENTER while maintenance is already active
   NotStopped = 16,           // ENTER while the transport runs or output is held, owed or pending
   QuiesceTimeout = 17,       // ENTER: core 1 did not quiesce in time; performance continues
-  ReplyOverflow = 18         // INFO: the device could not compose or queue its reply (bounds are
+  ReplyOverflow = 18,        // INFO: the device could not compose or queue its reply (bounds are
                              // checked at build time, so this is a bounded-capacity refusal only)
+  NameInvalid = 19,          // RENAME: the line is not "NN,NAME" with a valid slot and name
+  NameTaken = 20,            // RENAME: another occupied slot already holds the name
+  SlotUnoccupied = 21,       // RENAME: the slot has no name (nothing to rename)
+  NamesUnavailable = 22      // RENAME: the names in memory are not trusted until the next boot
 };
 
 // Frame encoder for replies. Writes sync, type, name, payload and CRC-32 into out.
@@ -129,6 +134,7 @@ struct MaintenanceCounters {
   std::uint32_t output_failures = 0; // output port refused a response byte
   std::uint32_t formats = 0;         // FORMAT verified and ACKed
   std::uint32_t format_failures = 0; // FORMAT NAKed after the port was called
+  std::uint32_t renames = 0;         // RENAME committed (ACK sent)
 };
 
 class MaintenanceSession {
@@ -175,6 +181,7 @@ class MaintenanceSession {
   NakReason commit_temp() noexcept;
   void do_list() noexcept;
   void do_get() noexcept;
+  void do_rename() noexcept;
   bool file_present(SceneFileId id, bool& present) noexcept;
 
   void send_begin(FrameType type, const std::uint8_t* name, std::size_t name_length,

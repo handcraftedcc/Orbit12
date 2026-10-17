@@ -35,6 +35,8 @@ EXIT_BYTE = b"Q"  # plain byte outside a frame ends maintenance mode (firmware w
 TYPE_INFO = ord("I")
 TYPE_ENTER = ord("M")
 TYPE_EXIT = ord("E")
+# Rename one named scene (firmware with the CAPS rename=1 INFO line). The name field is "NN,NAME".
+TYPE_RENAME = ord("R")
 ENTER_TOKEN = b"ENTER-MAINT"
 EXIT_TOKEN = b"EXIT-MAINT"
 INFO_MAX_BYTES = 512  # the INFO reply text is at most 512 bytes
@@ -68,7 +70,12 @@ NAK_REASONS: Dict[int, str] = {
     16: "not stopped (playback running, a note held or output pending; nothing changed)",
     17: "core 1 did not quiesce in time (the device keeps performing)",
     18: "the device could not compose its reply (capacity)",
+    19: "name invalid (1-8 characters A-Z and 0-9; nothing changed)",
+    20: "name already used by another scene (nothing changed)",
+    21: "slot is empty (nothing to rename)",
+    22: "scene names are not loaded on the device; restart the device (nothing changed)",
 }
+NAK_BAD_FRAME = 1
 NAK_BUSY = 5
 NAK_BAD_TOKEN = 10
 NAK_NOT_IN_MAINTENANCE = 14
@@ -187,6 +194,7 @@ def validate_local(name: str, payload: bytes) -> None:
 #   MODULES count=<n> core=<ids> user=<ids>          (ids separated by commas; empty allowed)
 #   STORAGE mounted=<0|1> scenes=<n> names_ok=<0|1>
 #   STATE maint=<0|1> transport=<0|1>
+#   CAPS rename=<0|1>                                (optional; absent on older firmware: no rename)
 # Unknown sections and keys are ignored; a missing required key or a repeated section is an error.
 
 @dataclass(frozen=True)
@@ -203,6 +211,7 @@ class InfoReport:
     names_ok: bool
     maintenance: bool
     transport: bool
+    renames: bool = False   # CAPS rename=1: the firmware serves the RENAME frame
 
 
 _INFO_SECTIONS = {
@@ -211,6 +220,8 @@ _INFO_SECTIONS = {
     "STORAGE": ("mounted", "scenes", "names_ok"),
     "STATE": ("maint", "transport"),
 }
+# Optional sections: read when present (CAPS is absent on firmware without the capability).
+_OPTIONAL_INFO_SECTIONS = ("CAPS",)
 
 
 def _bit(value: str, key: str) -> bool:
@@ -238,7 +249,7 @@ def parse_info(payload: bytes) -> InfoReport:
         if not words:
             continue
         name = words[0]
-        if name not in _INFO_SECTIONS:
+        if name not in _INFO_SECTIONS and name not in _OPTIONAL_INFO_SECTIONS:
             continue  # unknown section: ignored
         if name in sections:
             raise ProtocolError(f"INFO section {name} appears twice")
@@ -257,6 +268,7 @@ def parse_info(payload: bytes) -> InfoReport:
                 raise ProtocolError(f"INFO {name} has no {key}=")
     info, modules = sections["INFO"], sections["MODULES"]
     storage, state = sections["STORAGE"], sections["STATE"]
+    caps = sections.get("CAPS", {})
     api = _count(info["api"], "api")
 
     def ids(value: str) -> Tuple[str, ...]:
@@ -271,6 +283,7 @@ def parse_info(payload: bytes) -> InfoReport:
         names_ok=_bit(storage["names_ok"], "names_ok"),
         maintenance=_bit(state["maint"], "maint"),
         transport=_bit(state["transport"], "transport"),
+        renames=caps.get("rename") == "1",   # optional: any other value means no capability
     )
 
 
@@ -453,11 +466,53 @@ def put_file(link: MaintenanceLink, name: str, payload: bytes) -> None:
         raise _refusal(name, frame)
 
 
+# ---- Scene names (Scenes tab) -------------------------------------------------------------
+# A scene name is 1..8 characters of A-Z and 0-9, unique among the named scenes.
+_NAME_TEXT = re.compile(r"[A-Z0-9]{1,8}")
+
+
+def normalize_scene_name(text: str) -> str:
+    """What the user typed, as a scene name: surrounding spaces removed, upper case."""
+    return text.strip().upper()
+
+
+def scene_name_problem(text: str, taken=()) -> Optional[str]:
+    """A plain-language reason the name cannot be used, or None when it can. text must be normalized."""
+    if text == "":
+        return "Type a name of 1 to 8 letters or digits."
+    if len(text) > 8:
+        return "A name can be at most 8 characters."
+    if _NAME_TEXT.fullmatch(text) is None:
+        return "Use only letters A-Z and digits 0-9, with no spaces or punctuation."
+    if text in taken:
+        return f"{text} is already used by another scene. Choose a different name."
+    return None
+
+
+def rename_line(slot: int, name: str) -> bytes:
+    """The RENAME name field: "NN,NAME" with NN = 01..16. Raises ValueError with the reason."""
+    if not isinstance(slot, int) or isinstance(slot, bool) or not 1 <= slot <= SCENE_SLOT_COUNT:
+        raise ValueError(f"slot must be 1..{SCENE_SLOT_COUNT}")
+    problem = scene_name_problem(name)
+    if problem is not None:
+        raise ValueError(problem)
+    return f"{slot:02d},{name}".encode("ascii")
+
+
 def format_partition(link: MaintenanceLink) -> None:
     """Sends the FORMAT frame. The caller must have obtained explicit confirmation."""
     frame = link.exchange(TYPE_FORMAT, FORMAT_TOKEN)
     if frame.frame_type != TYPE_ACK:
         raise _refusal("FORMAT", frame)
+
+
+def rename_scene(link: MaintenanceLink, slot: int, name: str) -> None:
+    """RENAME: the device checks the name and the slot, writes the names file and changes memory.
+    Raises DeviceRefused with the device's reason when it does not ACK (nothing changed)."""
+    line = rename_line(slot, name)
+    frame = link.exchange(TYPE_RENAME, line)
+    if frame.frame_type != TYPE_ACK:
+        raise _refusal(line.decode("ascii"), frame)
 
 
 def _refusal(name: str, frame: Frame) -> DeviceRefused:
