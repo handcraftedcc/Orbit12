@@ -10,13 +10,59 @@ from this package. See "Not verified on hardware" below before relying on it.
 
 ## For users
 
-### Install or update (Windows, macOS, Linux)
+### Plain-language guide
 
-1. Download `orbit12-installer-windows.exe`, `orbit12-installer-macos` or
-   `orbit12-installer-linux` from the Orbit12 GitHub release page.
-2. Connect the MacroPad with its USB cable. Nothing is written until you confirm.
-3. Start the program. Double-click it, or run it from a terminal with no arguments.
-4. Choose **Install the latest Orbit12 firmware**.
+1. Download the file for your computer from the Orbit12 GitHub release page:
+   `orbit12-installer-windows.exe`, `orbit12-installer-macos` or `orbit12-installer-linux`.
+2. Plug the MacroPad into your computer with its USB cable.
+3. Double-click the downloaded file. A window opens. No black console window and no typing are needed.
+4. Check the **MacroPad port** list at the top. Leave it on **Automatic** unless you have two boards.
+   The installer remembers a port you choose.
+5. On the **Install or update** tab, read what the window found, then press **Install / update to ...**.
+   The newest stable version is offered. Tick **Include test (pre-release) versions** to see test versions.
+6. Follow the questions. Each one is a box with a plain answer. The installer backs up your scenes
+   before it changes anything. If it asks you to do something on the MacroPad (for example hold a key
+   while plugging it in), it says which key and waits for you to press **Done, continue**.
+7. When the result says **installed**, unplug the MacroPad and plug it back in, then check that it
+   starts normally and that your scenes are there. Keep the `orbit12-backups` folder next to the
+   program until you have checked them.
+
+Other tabs: **Scenes** lists the saved scenes and can back up all or one scene, or restore all or one
+from a backup folder (restoring asks you first; restoring everything needs you to type ERASE).
+**Modules** is a placeholder for now.
+
+If a message appears, press **Copy details** and send the text to support. The details contain the
+technical log; the window does not show it.
+
+#### Warnings your computer may show (the program is not code-signed yet)
+
+- **Windows (SmartScreen):** "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **macOS (Gatekeeper):** the first time, right-click (or Control-click) the file, choose **Open**, then
+  **Open** again. If macOS still refuses, open Terminal in the download folder and run
+  `chmod +x orbit12-installer-macos`, then try the right-click again.
+- **Linux:** downloaded files lose their "run" permission. Run `chmod +x orbit12-installer-linux` once
+  (in a terminal in the download folder), then double-click it, or run `./orbit12-installer-linux`.
+  Some file managers only open such files with "Run" from the right-click menu.
+  The serial port needs permission: if the window says Linux does not let it use the port, run
+  `sudo usermod -aG dialout $USER` once, then log out and back in.
+
+### Using the command line
+
+Windows and macOS builds have no console window when you double-click them. Start them from a terminal
+with arguments, and the output appears in that terminal:
+
+    orbit12-installer --help
+    orbit12-installer --version
+    orbit12-installer --cli
+
+`--cli` (with no command) gives the text wizard instead of the window. Running with no arguments opens the
+window when one can open, and otherwise falls back to the text wizard. On Windows, a command started from
+Command Prompt or PowerShell shows its output there; `start` from Explorer does not.
+
+### Install or update (command line)
+
+1. Start the program with no arguments to use the window, or with `--cli` for the text wizard.
+2. Choose **Install the latest Orbit12 firmware**.
 
 The program then:
 
@@ -42,7 +88,7 @@ Keep the backup folder until you have checked the scenes on the board.
 
 ### Other commands
 
-Run `orbit12-installer --help`, or `orbit12-installer <command> --help`.
+Run `orbit12-installer --help`, or `orbit12-installer <command> --help`. `--cli` gives the text wizard.
 
 | Command | What it does |
 |---|---|
@@ -121,7 +167,14 @@ two drives or two boards.
   copy and verification.
 - `orbit12_installer/flow.py`: the install, repair, backup, restore, format and info flows.
 - `orbit12_installer/cli.py`, `console.py`: command line, wizard, terminal prompts.
-- `entry.py`: PyInstaller entry script. `build_exe.py`: builds the one-file program.
+- `orbit12_installer/guided.py`: headless controller for the window (no tkinter). It talks to a `View`
+  protocol only; `Bridge` and `MarshalledView` carry calls from the worker thread to the UI thread.
+- `orbit12_installer/gui.py`: the tkinter window (imported lazily; `available()` and `run_app()`).
+- `orbit12_installer/flow.py`: also has the scene operations used by the Scenes tab (`scenes_list`,
+  `scenes_backup`, `scenes_restore`).
+- `entry.py`: PyInstaller entry script; on a windowed Windows build it attaches to the starting console for
+  CLI runs. `build_exe.py`: builds the one-file program (`--windowed` on Windows and macOS, `--console` on
+  Linux).
 
 ### Run the tests
 
@@ -129,7 +182,9 @@ No hardware, network or real sleeps are used. From the repository root:
 
     python -I -m unittest discover -s tests/installer -p "test_*.py"
 
-The tests use fake ports, volumes, clock and downloader (`tests/installer/helpers.py`). The fake
+The tests use fake ports, volumes, clock and downloader (`tests/installer/helpers.py`). `test_gui.py`
+drives the window's logic through a scripted view; it needs no display. Set `ORBIT12_GUI_SMOKE=1` on a
+machine with a display to also build the real window once. The fake
 board implements the behaviour documented in `docs/migration/storage.md`.
 
 ### Build the program
@@ -187,6 +242,14 @@ Run without building: `python tools/installer/entry.py <command>`, or from `tool
   mock board, which follows the frame layouts documented in `storage.md`.
 - Re-enumeration timing after a flash.
 - The frozen program on Windows, macOS and Linux beyond `--version`, and the exact USB PIDs.
+- The window itself: how it renders on each OS, the dialogs, and the Tk bundle on the Linux CI runner.
+  Only the logic behind it is tested (`test_gui.py`), and the Windows exe was built and checked for
+  `--version` and `--cli --help` output through the console (not the window).
+- Windowed builds on macOS: PyInstaller's `--onefile --windowed` may produce an `.app` bundle next to (or
+  instead of) the bare executable. `build_exe.py` expects the bare executable at `dist/`. If macOS
+  builds only an `.app`, the CI copy step needs the bundle zipped or the build kept `--console`.
+  Alternatives for the coordinator: (a) keep `--windowed` and adjust `build_exe.py` to pick the bare
+  binary; (b) ship `--console` on macOS (a Terminal window opens on double-click).
 
 ### Open questions
 

@@ -83,6 +83,9 @@ class Console:
     def warn(self, message: str) -> None:  # pragma: no cover - interface
         raise NotImplementedError
 
+    def step(self, text: str) -> None:
+        """Names the current stage (progress). Optional: the default does nothing."""
+
     def pause_for_action(self, message: str) -> None:  # pragma: no cover - interface
         """Waits for the user to perform a physical step, then press Enter."""
         raise NotImplementedError

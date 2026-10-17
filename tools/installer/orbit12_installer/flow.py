@@ -6,7 +6,7 @@ import os
 import shutil
 import tempfile
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import cdc, device
 from .cdc import DeviceRefused, ProtocolError
@@ -88,6 +88,7 @@ def load_local_package(opts: Options) -> Package:
 
 def download_package(hw: Hardware, downloader: Downloader, release: Release, opts: Options) -> Package:
     """Stages the release files in a temp directory, then verifies them from memory."""
+    hw.console.step("Downloading and checking the release")
     require_repo_trust(hw, opts)
     token = os.environ.get("GITHUB_TOKEN") or None
     manifest_asset = release.asset(MANIFEST_NAME)
@@ -157,6 +158,7 @@ def _leave_maintenance_quietly(hw: Hardware, device_path: str) -> None:
 
 def _take_backup(hw: Hardware, orbit: Optional[Orbit12Device], opts: Options) -> Optional[str]:
     """Backup before any write. Returns the folder, or None when nothing could be saved."""
+    hw.console.step("Backing up scenes and settings")
     root = opts.backup_root or device.default_backup_root()
     if orbit is None:
         folder = device.copy_circuitpy_userdata(hw, root)
@@ -190,6 +192,7 @@ def run_flash(hw: Hardware, package: Package, opts: Options, interactive: bool =
     prerequisites: nothing to flash). Nothing is written before the backup decision is made.
     """
     manifest = package.manifest
+    hw.console.step("Looking for the board")
     hw.console.say(f"Flashing Orbit12 {manifest.version} (git {manifest.git_sha}, api {manifest.engine_api}) "
                    f"from {package.source}.")
     orbit = device.find_orbit12(hw, opts.port)
@@ -250,6 +253,7 @@ def _write_and_verify(hw: Hardware, package: Package, opts: Options, volume: Vol
         # Keep the verified image beside the backup so a failed copy can be recovered by hand.
         _stash_image(backup_dir, package)
     hw.console.say(f"Bootloader drive: {volume.path}")
+    hw.console.step("Copying the firmware to the board")
     try:
         result = device.copy_image(volume, package.image)
     except device.CopyInterrupted as error:
@@ -259,6 +263,7 @@ def _write_and_verify(hw: Hardware, package: Package, opts: Options, volume: Vol
     if not device.wait_for_drive_gone(hw, volume.path, opts.drive_gone_timeout_s):
         raise FlashError("the image was copied but the bootloader drive is still present; the board "
                          "did not restart. " + _recovery_text(backup_dir, package))
+    hw.console.step("Waiting for the board to restart and checking it")
     dev = device.wait_for_reenumeration(hw, opts.reenum_timeout_s)
     if dev is None:
         raise FlashError("the board did not come back as an Orbit12 device within the timeout. "
@@ -409,3 +414,67 @@ def format_only(hw: Hardware, opts: Options) -> str:
     device.format_device(hw, device_path)
     finish_and_reboot(hw, device_path)
     return "Partition formatted and mounted."
+
+
+# ---- scenes (Scenes screen): run with an Orbit12 device; maintenance is entered and left here ----
+
+def _scene_maintenance(hw: Hardware, orbit: Orbit12Device) -> str:
+    device_path = device.ensure_maintenance(hw, orbit)
+    if device_path is None:
+        raise FlashError("maintenance mode was not reached; the scenes were not changed")
+    return device_path
+
+
+def scenes_list(hw: Hardware, orbit: Orbit12Device) -> Tuple[dict, dict]:
+    """(saved, names) per scene slot. Read only; maintenance is left afterwards."""
+    device_path = _scene_maintenance(hw, orbit)
+    try:
+        return device.read_scene_slots(hw, device_path)
+    finally:
+        _leave_maintenance_quietly(hw, device_path)
+
+
+def scenes_backup(hw: Hardware, orbit: Orbit12Device, opts: Options, names: Optional[Sequence[str]]) -> str:
+    """Backs up all scene and settings files (names None) or only the named scene slots."""
+    root = opts.backup_root or device.default_backup_root()
+    device_path = _scene_maintenance(hw, orbit)
+    try:
+        folder = device.backup_device(hw, device_path, root, identity=_identity(orbit), names=names)
+    except (FlashError, DeviceRefused, TimeoutError, ProtocolError, OSError) as error:
+        raise FlashError(f"backup failed: {error}") from None
+    finally:
+        _leave_maintenance_quietly(hw, device_path)
+    if folder is None:
+        raise FlashError("no backup was written; the board has nothing saved in those scenes")
+    return folder
+
+
+def scenes_restore(hw: Hardware, orbit: Orbit12Device, folder: str, names: Optional[Sequence[str]]) -> List[str]:
+    """Restores all files of a backup (names None) or only the named scene slots after confirmation.
+
+    The backup is verified before the board is touched. Restoring every file asks for the typed word
+    ERASE (it replaces the whole set on the board); one scene asks yes or no.
+    """
+    files = device.load_backup(folder)
+    if names is not None:
+        offered = [name for name, _ in files if name in names]
+        if not offered:
+            raise FlashError("the backup has none of the selected scenes; nothing was restored")
+    device_path = _scene_maintenance(hw, orbit)
+    if names is None:
+        hw.console.warn("restoring every file replaces all scenes, scene names, the active scene and "
+                        "user settings on the board with the backup's copies.")
+        confirmed = hw.console.confirm_typed("ERASE", "Type ERASE to replace everything on the board with the backup")
+    else:
+        confirmed = hw.console.confirm(
+            f"Replace {', '.join(offered)} on the board with the copy in the backup?", default=False)
+    if not confirmed:
+        _leave_maintenance_quietly(hw, device_path)
+        raise Cancelled("restore cancelled; nothing was written")
+    try:
+        restored = device.restore_device(hw, device_path, folder, names=names)
+    except DeviceRefused as error:
+        _leave_maintenance_quietly(hw, device_path)
+        raise FlashError(f"restore stopped: {error}") from None
+    finish_and_reboot(hw, device_path)
+    return restored

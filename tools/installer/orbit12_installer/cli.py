@@ -55,6 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
                     "Run with no arguments for a guided wizard.",
         parents=[_common_parser(suppress=False), _source_parser(suppress=False)])
     parser.add_argument("--version", action="version", version=f"orbit12-installer {INSTALLER_VERSION}")
+    parser.add_argument("--cli", action="store_true",
+                        help="use the text wizard instead of the window (with no command)")
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("install", parents=[common, source],
                    help="download the latest release, verify it and flash it (default wizard)")
@@ -194,10 +196,17 @@ def run(argv: Optional[List[str]] = None, *, console: Optional[Console] = None,
     if pause:
         try:
             input("Press Enter to exit ")
-        except (EOFError, KeyboardInterrupt):
+        except (EOFError, KeyboardInterrupt, RuntimeError):  # RuntimeError: no stdin in a windowed program
             pass
     return code
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    return run(argv)
+    """Program entry. No arguments opens the window (when one can open); anything else is the CLI."""
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if not raw:
+        from . import gui
+        code = gui.run_app()
+        if code is not None:
+            return code  # the window ran; None means no window could open, so use the text wizard
+    return run(raw)

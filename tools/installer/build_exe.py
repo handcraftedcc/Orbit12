@@ -8,6 +8,10 @@ Outputs: build/installer/dist/orbit12-installer-<windows|macos|linux>[.exe]
 Work and spec files stay under build/installer/ (ignored by git). Nothing is published.
 The CI workflow runs this same script on each runner. When ORBIT_INSTALLER_OUT is set, the built
 executable is also copied into that folder (CI expects exactly one file there).
+
+Windows and macOS builds are windowed (--windowed): a double-click opens the window with no console.
+Start the CLI from a terminal with arguments (orbit12-installer --help, or --cli for the text wizard);
+on Windows the windowed program attaches to that terminal (see entry.py).
 """
 
 from __future__ import annotations
@@ -39,6 +43,12 @@ def output_name() -> str:
     return f"orbit12-installer-{platform_name()}" + (".exe" if sys.platform == "win32" else "")
 
 
+def window_flag() -> str:
+    """Windows and macOS: no console window (the program opens its window on a double-click).
+    Linux keeps a console, since a terminal is how the Linux build is started from the CLI."""
+    return "--windowed" if sys.platform in ("win32", "darwin") else "--console"
+
+
 def _require(module: str, hint: str) -> None:
     if importlib.util.find_spec(module) is None:
         raise SystemExit(f"{module} is missing. Install the build tools with: {hint}")
@@ -50,7 +60,7 @@ def build_command(name: str) -> list:
     spec = os.path.join(BUILD_ROOT, "spec")
     return [
         sys.executable, "-m", "PyInstaller",
-        "--noconfirm", "--clean", "--onefile", "--console",
+        "--noconfirm", "--clean", "--onefile", window_flag(),
         "--name", name,
         "--distpath", dist, "--workpath", work, "--specpath", spec,
         "--paths", HERE,

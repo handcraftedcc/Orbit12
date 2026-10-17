@@ -14,7 +14,7 @@ import os
 import re
 import shutil
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from . import cdc
 from .cdc import DeviceRefused, DeviceStatus, MaintenanceLink, ProtocolError
@@ -317,7 +317,8 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def backup_device(hw: Hardware, device: str, root: str, identity: Optional[dict] = None) -> Optional[str]:
+def backup_device(hw: Hardware, device: str, root: str, identity: Optional[dict] = None,
+                  names: Optional[Sequence[str]] = None) -> Optional[str]:
     """Copies every present maintenance file into a new timestamped folder under root.
 
     Returns the folder, or None when the storage reports nothing readable. Writes backup.json
@@ -330,14 +331,14 @@ def backup_device(hw: Hardware, device: str, root: str, identity: Optional[dict]
         except DeviceRefused as error:
             hw.console.warn(f"storage could not be listed ({error}); nothing was backed up")
             return None
-        names = [n for n in cdc.RESTORE_ORDER if listing.get(n)]
-        if not names:
+        present = [n for n in cdc.RESTORE_ORDER if listing.get(n) and (names is None or n in names)]
+        if not present:
             hw.console.warn("the partition holds no scene or settings files; nothing to back up")
             return None
         stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         folder = _new_folder(root, f"backup-{stamp}")
         entries = []
-        for name in names:
+        for name in present:
             data = cdc.get_file(link, name)
             if data is None:
                 raise FlashError(f"{name} was listed but could not be read; no backup was written")
@@ -426,14 +427,37 @@ def find_recent_backup(root: str, engine_api: int, max_age_s: float = RECENT_BAC
     return best[1] if best else None
 
 
-def restore_device(hw: Hardware, device: str, folder: str) -> List[str]:
-    """PUTs the backup files in RESTORE_ORDER. Stops at the first refusal and reports it."""
+def read_scene_slots(hw: Hardware, device: str) -> Tuple[dict, dict]:
+    """(saved, names) for the 16 scene slots of a board in maintenance.
+
+    saved maps 'Scene01'..'Scene16' to True/False. names maps the same keys to the label from
+    scene_names (a 'NN,NAME' line); a missing or unreadable names file gives an empty dict.
+    """
+    port, link = open_link(hw, device)
+    try:
+        listing = cdc.list_files(link)
+        raw = cdc.get_file(link, "scene_names")
+    finally:
+        port.close()
+    saved = {name: bool(listing.get(name)) for name in cdc.SCENE_NAMES}
+    names = {}
+    if raw:
+        for line in raw.decode("ascii", "replace").splitlines():
+            match = cdc.SCENE_NAME_LINE.match(line)
+            if match:
+                names[f"Scene{match.group(1)}"] = match.group(2)
+    return saved, names
+
+
+def restore_device(hw: Hardware, device: str, folder: str,
+                   names: Optional[Sequence[str]] = None) -> List[str]:
+    """PUTs the backup files in RESTORE_ORDER (only `names` when given). Stops at the first refusal."""
     files = dict(load_backup(folder))
     restored = []
     port, link = open_link(hw, device)
     try:
         for name in cdc.RESTORE_ORDER:
-            if name not in files:
+            if name not in files or (names is not None and name not in names):
                 continue
             try:
                 cdc.put_file(link, name, files[name])
@@ -503,6 +527,7 @@ def enter_bootloader(hw: Hardware, orbit_port: Optional[str], timeout_s: float =
     polled for up to TOUCH_SETTLE_S before the BOOT-key instruction is shown. The port is always
     closed before the touch returns, and the caller leaves maintenance before calling this.
     """
+    hw.console.step("Putting the board in its bootloader")
     if orbit_port is not None:
         port = None
         try:

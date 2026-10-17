@@ -20,7 +20,7 @@ class TerminalConsole(Console):
     def _read(self, prompt: str) -> str:
         try:
             return self._input(prompt)
-        except EOFError:
+        except (EOFError, RuntimeError):  # RuntimeError: no stdin in a windowed program
             raise Cancelled("no input available; nothing was changed") from None
 
     def say(self, message: str) -> None:

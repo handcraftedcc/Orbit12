@@ -84,6 +84,17 @@ The identity header `firmware/Orbit12/src/app/build_info.hpp` is stamped during 
 restored to its committed placeholder afterwards. A stamped build reports the version on the `?`
 serial dump, in the line `VERSION fw=... git=... engine_api=... board=...`.
 
+## Installer for users (what to tell them)
+
+The installer is one program per platform. Users download it, double-click it and follow the window. The
+plain-language guide and the warnings they may see (Windows SmartScreen "More info > Run anyway", macOS
+right-click > Open, Linux `chmod +x` and the `dialout` group) are in `tools/installer/README.md`, section
+"Plain-language guide". The executables are unsigned, so those warnings are expected until signing exists.
+
+Windows and macOS builds are windowed (no console window). On Windows, running the program with arguments
+prints to the terminal that started it (checked on Windows only). Linux keeps a console build. The macOS
+windowed build is not verified yet; see the open items in `tools/installer/README.md`.
+
 ## Forks
 
 The manifest's `repo` field defaults to `handcraftedcc/Orbit12`. Forks set `ORBIT_REPO` for local
