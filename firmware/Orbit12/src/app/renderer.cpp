@@ -470,7 +470,7 @@ constexpr ColumnTable<Tiles, TileWidth> build_column_table(const Sheet& sheet) n
 
 constexpr Sheet open_sheet(const std::uint8_t* bmp, std::size_t size, int tile_width, int tile_height) noexcept {
   Sheet sheet;
-  (void)sheet.open(bmp, size, tile_width, tile_height);
+  (void)sheet.open_nonnull(bmp, size, tile_width, tile_height);
   return sheet;
 }
 

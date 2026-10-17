@@ -45,7 +45,14 @@ class Sheet {
   // renderer.cpp, flash column tables). Rejects anything the blitter cannot hold.
   constexpr bool open(const std::uint8_t* bmp, std::size_t size, int tile_width, int tile_height) noexcept {
     bmp_ = nullptr;
-    if (bmp == nullptr || size < 62 || tile_width <= 0 || tile_height <= 0) return false;
+    if (bmp == nullptr) return false;
+    return open_nonnull(bmp, size, tile_width, tile_height);
+  }
+  // Same as open() for a pointer known to be non-null (the address of an asset array). Split out
+  // because GCC with -fsanitize=undefined cannot constant-fold `&array == nullptr`.
+  constexpr bool open_nonnull(const std::uint8_t* bmp, std::size_t size, int tile_width, int tile_height) noexcept {
+    bmp_ = nullptr;
+    if (size < 62 || tile_width <= 0 || tile_height <= 0) return false;
     if (tile_width > kMaxTileWidth || tile_height > kMaxTileHeight) return false;
     if (bmp[0] != 'B' || bmp[1] != 'M') return false;
     auto u32 = [bmp](std::size_t at) {
