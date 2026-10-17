@@ -45,6 +45,7 @@ class Sheet {
   // renderer.cpp, flash column tables). Rejects anything the blitter cannot hold.
   constexpr bool open(const std::uint8_t* bmp, std::size_t size, int tile_width, int tile_height) noexcept {
     bmp_ = nullptr;
+    valid_ = false;
     if (bmp == nullptr) return false;
     return open_nonnull(bmp, size, tile_width, tile_height);
   }
@@ -52,6 +53,7 @@ class Sheet {
   // because GCC with -fsanitize=undefined cannot constant-fold `&array == nullptr`.
   constexpr bool open_nonnull(const std::uint8_t* bmp, std::size_t size, int tile_width, int tile_height) noexcept {
     bmp_ = nullptr;
+    valid_ = false;
     if (size < 62 || tile_width <= 0 || tile_height <= 0) return false;
     if (tile_width > kMaxTileWidth || tile_height > kMaxTileHeight) return false;
     if (bmp[0] != 'B' || bmp[1] != 'M') return false;
@@ -70,6 +72,7 @@ class Sheet {
     if (width % tile_width != 0 || abs_height % tile_height != 0) return false;
 
     bmp_ = bmp;
+    valid_ = true;
     size_ = size;
     data_offset_ = offset;
     stride_ = stride;
@@ -82,7 +85,7 @@ class Sheet {
     top_down_ = height < 0;
     return true;
   }
-  constexpr bool valid() const noexcept { return bmp_ != nullptr; }
+  constexpr bool valid() const noexcept { return valid_; }
   constexpr int tile_width() const noexcept { return tile_width_; }
   constexpr int tile_height() const noexcept { return tile_height_; }
   constexpr int columns() const noexcept { return columns_; }
@@ -125,6 +128,7 @@ class Sheet {
 
  private:
   const std::uint8_t* bmp_ = nullptr;
+  bool valid_ = false;
   std::size_t size_ = 0;
   std::size_t data_offset_ = 0;
   std::size_t stride_ = 0;
